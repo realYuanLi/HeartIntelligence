@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block main %}
+  <div class="chat-header" id="chatHeader">Chat</div>
+  <div class="chat-content" id="chatContent"></div>
+
+  <!-- 移除 Model + Style selectors -->
+
+  <div class="input-container">
+    <div class="input-wrapper">
+      <input id="textInput" class="text-input" type="text"
+             placeholder="Type your message…"/>
+      <button id="sendBtn" class="send-btn">Send</button>
+    </div>
+  </div>
+{% endblock %}

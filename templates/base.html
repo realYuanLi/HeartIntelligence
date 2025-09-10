@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>DREAM</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}"/>
+</head>
+<body>
+  <!-- === Theme toggle (fixed at top-right) === -->
+  <div class="theme-toggle" aria-label="Theme toggle">
+    <label class="switch">
+      <input type="checkbox" id="themeSwitch" aria-label="Toggle light/dark" />
+      <span class="slider"></span>
+    </label>
+  </div>
+  <!-- ======================================== -->
+
+  <aside>
+    <div class="logo">DREAM</div>
+    <div class="nav-section">
+      <div class="nav-item" id="newChatBtn">+ New Chat</div>
+      <div class="nav-item">Chats</div>
+      <div class="recents-title">Recents</div>
+    </div>
+    <div class="recents" id="recentsList"></div>
+    <div class="login-btn" id="loginBtn">
+      {{ username if username else 'Login' }}
+    </div>
+    <div class="logout-btn" id="logoutBtn" {% if not username %}hidden{% endif %}>
+      Logout
+    </div>
+  </aside>
+  <main>
+    {% block main %}{% endblock %}
+  </main>
+  <div class="overlay" id="overlay">
+    <div class="login-modal">
+      <input id="loginUser" type="text" placeholder="Username"/>
+      <input id="loginPass" type="password" placeholder="Password"/>
+      <button id="loginSubmit">Login</button>
+    </div>
+  </div>
+  <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>

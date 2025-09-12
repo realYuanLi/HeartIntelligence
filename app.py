@@ -11,8 +11,8 @@ from flask import Flask, render_template, jsonify, request, session, redirect, u
 # --------------------------------------------------------------------------------
 try:
     import sys
-    sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-    from functions.agent import Agent  # type: ignore
+    # sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+    from functions.agent import Agent
 except Exception as e:
     class _Resp:
         def __init__(self, content: str):

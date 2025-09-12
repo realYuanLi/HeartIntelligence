@@ -1,0 +1,41 @@
+name: CI/CD to Azure Web App (with antenv)
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Checkout code
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      # 2. Setup Python environment
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      # 3. Create virtual environment and install dependencies
+      - name: Create virtual environment and install dependencies
+        run: |
+          python -m venv antenv
+          source antenv/bin/activate
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      # 4. Prepare ZIP package (include antenv and your code)
+      - name: Create deployment package
+        run: |
+          zip -r release.zip . -x '*.git*'
+
+      # 5. Deploy to Azure Web App
+      - name: Deploy to Azure Web App
+        uses: azure/webapps-deploy@v2
+        with:
+          app-name: dream-llm-kevin-alpha
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+          package: release.zip

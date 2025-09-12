@@ -43,6 +43,6 @@ jobs:
       - name: Deploy to Azure Web App (Oryx server build)
         uses: azure/webapps-deploy@v2
         with:
-          app-name: ocd-llm-kevin-alpha                 # ← 你的 WebApp 名称
+          app-name: dream-llm-kevin-alpha                 # ← 你的 WebApp 名称
           publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
           package: release.zip

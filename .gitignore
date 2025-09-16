@@ -4,6 +4,7 @@ __pycache__/
 .env
 
 *.json
+data/
 chat_test_env/
 .venv/
 venv/

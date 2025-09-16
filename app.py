@@ -1,6 +1,7 @@
 import os
 import json
 import uuid
+import threading
 from datetime import datetime
 from pathlib import Path
 from flask import Flask, render_template, jsonify, request, session, redirect, url_for
@@ -39,10 +40,17 @@ with open(CONFIG_PATH, "r", encoding="utf-8") as f:
     CONFIG = json.load(f)
 
 Chatbot = Agent(
-    role="DREAM assistant",
+    role="AI Assistant",
     llm=CONFIG["chatbot"]["llm_model"],
     temperature=0.7,
     sys_message=CONFIG["chatbot"]["system_prompt"]
+)
+
+SummaryBot = Agent(
+    role="Summary assistant",
+    llm="gpt-4o",
+    temperature=0.1,
+    sys_message="You are a chat title generator. You must create a 2-5 word title that summarizes the main topic of the conversation. Return ONLY the title words, no explanations, no prefixes, no quotes."
 )
 
 # --------------------------------------------------------------------------------
@@ -51,7 +59,7 @@ Chatbot = Agent(
 app = Flask(__name__, template_folder="templates", static_folder="static")
 app.secret_key = os.environ.get("SECRET_KEY", "replace-with-your-secret")
 
-# ---- 写死的账号密码 ----
+# ---- "account name": password  ----
 USERS = {"Kevin": "123456", "Fang": "123456"}
 
 def _username() -> str | None:
@@ -86,16 +94,84 @@ def _save_session(user: str, payload: dict):
     with p.open("w", encoding="utf-8") as f:
         json.dump(payload, f, indent=2, ensure_ascii=False)
 
+def _generate_summary_async(user: str, session_id: str, conversation: list):
+    def generate_summary():
+        try:
+            print(f"Starting summary generation for session {session_id}")
+            user_messages = [msg for msg in conversation if msg.get("role") == "user"]
+            assistant_messages = [msg for msg in conversation if msg.get("role") == "assistant"]
+            
+            print(f"Found {len(user_messages)} user messages, {len(assistant_messages)} assistant messages")
+            
+            if len(user_messages) >= 1 and len(assistant_messages) >= 2:
+                user_msg = user_messages[0]['content'][:100]  # Limit length
+                assistant_msg = assistant_messages[1]['content'][:200]  # Limit length
+                summary_prompt = f"Create a 2-5 word title for this chat:\nUser: {user_msg}\nAssistant: {assistant_msg}\n\nTitle:"
+                messages = [{"role": "user", "content": summary_prompt}]
+                
+                print(f"Calling SummaryBot with prompt: {summary_prompt[:100]}...")
+                resp = SummaryBot.llm_reply(messages)
+                print(f"SummaryBot response: {resp}")
+                
+                if resp and hasattr(resp, "content"):
+                    summary = resp.content.strip()
+                    
+                    # Clean up the summary - remove any prefixes or extra text
+                    summary = summary.replace("Title:", "").strip()
+                    summary = summary.replace('"', '').replace("'", "").strip()
+                    
+                    # If it still contains the user's message, create a fallback
+                    if "User:" in summary or len(summary) > 50:
+                        summary = "General chat"
+                    
+                    # Ensure it's not too long
+                    words = summary.split()
+                    if len(words) > 5:
+                        summary = " ".join(words[:5])
+                    if len(words) < 2:
+                        summary = "Chat session"
+                    
+                    print(f"Generated summary: {summary}")
+                    
+                    d = _load_session(user, session_id)
+                    if d:
+                        d["title"] = summary
+                        d["updated_at"] = _now_iso()
+                        _save_session(user, d)
+                        print(f"Updated session title to: {summary}")
+                else:
+                    print("No valid response from SummaryBot")
+            else:
+                print("Not enough messages for summary generation")
+        except Exception as e:
+            print(f"Summary generation failed: {e}")
+            import traceback
+            traceback.print_exc()
+    
+    thread = threading.Thread(target=generate_summary)
+    thread.daemon = True
+    thread.start()
+
 # --------------------------------------------------------------------------------
 # Routes (pages)
 # --------------------------------------------------------------------------------
 @app.route("/")
 def index():
-    return redirect(url_for("new_chat"))
+    # Show welcome page for logged in users, login page for others
+    if not _require_login():
+        return render_template("base.html")
+    
+    # For logged in users, show welcome page
+    return render_template("welcome.html", username=session.get("username"))
 
-@app.route("/new-chat")
+@app.route("/new")
 def new_chat():
-    return render_template("new_chat.html", username=session.get("username"))
+    # Show welcome page for new chat
+    if not _require_login():
+        return redirect(url_for("index"))
+    
+    # For logged in users, show welcome page
+    return render_template("welcome.html", username=session.get("username"))
 
 @app.route("/chat/<session_id>")
 def chat(session_id: str):
@@ -138,8 +214,8 @@ def api_history():
             with fn.open("r", encoding="utf-8") as f:
                 d = json.load(f)
             sid = d.get("session_id", fn.stem)
-            # 使用存储的 title；如果缺失，再给一个宽松兜底（不会强制固定为 "DREAM chat + session_id"）
-            title = d.get("title") or f"DREAM chat {sid}"
+            # 使用存储的 title；如果缺失，再给一个宽松兜底
+            title = d.get("title") or f"Chat {sid[:6]}"
             items.append({
                 "session_id": sid,
                 "title": title,
@@ -156,16 +232,15 @@ def api_new_session():
 
     user = _username()
     session_id = uuid.uuid4().hex[:12]
-    greeting = "Hello, how are you today?"
     payload = {
         "session_id": session_id,
         # 初始标题可自定义；这里给一个默认值，之后可通过 /api/rename_session 重命名
-        "title": f"DREAM chat {session_id}",
+        "title": f"Chat {session_id[:6]}",
         "created_at": _now_iso(),
         "updated_at": _now_iso(),
         "conversation": [
             {"role": "system", "content": Chatbot.sys_message},
-            {"role": "assistant", "content": greeting}
+            {"role": "assistant", "content": CONFIG["chatbot"]["prologue"]}
         ]
     }
     _save_session(user, payload)
@@ -213,6 +288,17 @@ def api_message():
         d["conversation"].append({"role": "assistant", "content": assistant_text})
         d["updated_at"] = _now_iso()
         _save_session(user, d)
+        
+        user_messages = [msg for msg in d["conversation"] if msg.get("role") == "user"]
+        assistant_messages = [msg for msg in d["conversation"] if msg.get("role") == "assistant"]
+        
+        print(f"Message count - Users: {len(user_messages)}, Assistants: {len(assistant_messages)}")
+        print(f"Total conversation length: {len(d['conversation'])}")
+        
+        if len(user_messages) == 1 and len(assistant_messages) == 2:
+            print("Triggering summary generation...")
+            _generate_summary_async(user, session_id, d["conversation"])
+        
         return jsonify(success=True, assistant_message=assistant_text)
     except Exception as e:
         err = f"Error from model: {e}"
@@ -256,4 +342,4 @@ def api_delete_session():
     return jsonify(success=False, message="Session not found"), 404
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)), debug=False)
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8000)), debug=False)

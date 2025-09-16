@@ -1,13 +1,13 @@
 /* ===================== Theme variables ===================== */
 :root {
-  --bg: #1f1f1f;
+  --bg: #121212;
   --text: #e5e5e5;
-  --aside-bg: #121212;
+  --aside-bg: #1f1f1f;
   --border: #2c2c2c;
   --card: #2c2c2c;
   --user: #3b3b3b;
-  --accent: #8b4c39;
-  --accent-hover: #a85742;
+  --accent: #ff6850;
+  --accent-hover: #e55a00;
   --muted: #aaa;
   --muted-2: #ccc;
   --overlay-bg: rgba(0,0,0,0.6);
@@ -19,20 +19,20 @@
 }
 
 body.light {
-  --bg: #f7f7f7;
+  --bg: #ffffff;
   --text: #111;
-  --aside-bg: #ffffff;
+  --aside-bg: #f7f7f7;
   --border: #e5e7eb;
   --card: #f3f4f6;
   --user: #e5e7eb;
-  --accent: #8b4c39;         /* keep brand color */
-  --accent-hover: #a85742;
+  --accent: #ff6850;
+  --accent-hover: #e55a00;
   --muted: #555;
   --muted-2: #444;
   --overlay-bg: rgba(0,0,0,0.4);
   --login-bg: #ffffff;
   --input-bg: #ffffff;
-  --input-border: #d1d5db;
+  --input-border: #9ca3af;
   --dropdown-bg: #ffffff;
   --dropdown-hover: #f3f4f6;
 }
@@ -40,12 +40,13 @@ body.light {
 /* ===================== Global layout/colors ===================== */
 body {
   margin: 0;
-  font-family: system-ui, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   background: var(--bg);
   color: var(--text);
   display: flex;
   height: 100vh;
   overflow: hidden;
+  line-height: 1.5;
 }
 aside {
   background: var(--aside-bg);
@@ -65,7 +66,7 @@ aside {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
-  margin-bottom: 2rem;
+  margin-bottom: 1rem;
 }
 .nav-item {
   display: flex;
@@ -74,15 +75,48 @@ aside {
   padding: 0.5rem 0.75rem;
   border-radius: 0.4rem;
   cursor: pointer;
-  font-size: 0.95rem;
+  font-size: 1rem;
 }
 .nav-item:hover {
-  background: var(--card);
+  background: var(--dropdown-hover);
+}
+body.light .nav-item:hover {
+  background: #e5e7eb;
 }
 .recents {
-  margin-top: -1.5rem;
   flex: 1;
   overflow-y: auto;
+  scroll-behavior: auto;
+  -webkit-overflow-scrolling: touch;
+  will-change: scroll-position;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  overscroll-behavior: none;
+}
+
+.recents::-webkit-scrollbar {
+  width: 4px;
+}
+
+.recents::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.recents::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 2px;
+}
+
+.recents::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.18);
+}
+
+body.light .recents::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.1);
+}
+
+body.light .recents::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.18);
 }
 .recent-item {
   padding: 0.5rem 0.75rem;
@@ -92,7 +126,10 @@ aside {
   color: var(--muted-2);
 }
 .recent-item:hover {
-  background: var(--card);
+  background: var(--dropdown-hover);
+}
+body.light .recent-item:hover {
+  background: #e5e7eb;
 }
 .login-btn {
   font-size: 0.9rem;
@@ -109,6 +146,41 @@ main {
   display: flex;
   flex-direction: column;
   position: relative;
+  overflow-y: auto;
+  scroll-behavior: auto;
+  -webkit-overflow-scrolling: touch;
+  will-change: scroll-position;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  perspective: 1000px;
+  scroll-padding-bottom: 0;
+  scroll-snap-type: none;
+  overscroll-behavior: none;
+}
+
+main::-webkit-scrollbar {
+  width: 6px;
+}
+
+main::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+main::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 3px;
+}
+
+main::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+body.light main::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.12);
+}
+
+body.light main::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.2);
 }
 .chat-header {
   padding: 1rem 1.5rem;
@@ -117,43 +189,74 @@ main {
 }
 .chat-content {
   flex: 1;
-  padding: 1.5rem;
-  overflow-y: auto;
+  padding: 1.5rem 0rem 0rem 0rem;
   display: flex;
   flex-direction: column;
   gap: 1rem;
+  max-width: 850px;
+  margin: 0 auto;
+  align-items: stretch;
+  width: 100%;
+  direction: rtl;
 }
+
+.chat-content::after {
+  content: '';
+  height: 6rem;
+  flex-shrink: 0;
+  pointer-events: none;
+  user-select: none;
+}
+
 /* override inline color in new_chat.html */
 .chat-content h1 { color: var(--text) !important; }
 
 .message {
-  max-width: 700px;
+  max-width: 850px;
   padding: 1rem;
-  border-radius: 0.6rem;
-  background: var(--card);
   white-space: pre-line;
+  align-self: flex-start;
+  margin-right: auto;
+  margin-left: 0rem;
+  text-align: justify;
+  font-size: 1.05rem;
+  line-height: 1.5;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  transform: translateZ(0);
+  will-change: transform;
+  direction: ltr;
 }
 .message.user {
-  align-self: flex-end;
-  background: var(--user);
+  align-self: flex-end !important;
+  background: var(--user) !important;
+  color: var(--text) !important;
   white-space: pre-line;
+  border: 1px solid var(--user) !important;
+  border-radius: 1.5rem !important;
+  margin-left: auto !important;
+  margin-right: 2rem !important;
+  padding: 0.3rem 0.9rem !important;
+  max-width: 70% !important;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1) !important;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  text-align: left !important;
+  width: auto !important;
+  display: block !important;
+  position: relative !important;
 }
-.input-container {
-  padding: 1rem 1.5rem;
-  border-top: 1px solid var(--border);
+
+/* Ensure the chat content container allows proper flex positioning */
+.chat-content .message.user {
+  align-self: flex-end !important;
+  margin-left: auto !important;
+  margin-right: 2rem !important;
 }
-.input-wrapper {
-  background: var(--input-bg);
-  border: 1px solid var(--input-border);
-  border-radius: 0.75rem;
-  display: flex;
-  align-items: center;
-  padding: 0.5rem;
-  max-width: 800px;
-  margin: 0 auto;
-  box-sizing: border-box;
-  gap: 0.5rem;
-  position: relative;
+
+/* Immediate positioning for user messages */
+.message.user {
+  transform: translateZ(0); /* Force hardware acceleration for immediate positioning */
 }
 .icon-btn {
   background: transparent;
@@ -169,15 +272,6 @@ main {
 }
 .icon-btn:hover {
   background: var(--dropdown-hover);
-}
-.text-input {
-  flex: 1;
-  background: transparent;
-  border: none;
-  color: var(--text);
-  font-size: 1rem;
-  padding: 0.5rem;
-  outline: none;
 }
 .model-select {
   color: var(--text);
@@ -207,18 +301,6 @@ main {
 }
 .model-option:hover {
   background: var(--dropdown-hover);
-}
-.send-btn {
-  background: var(--accent);
-  border: none;
-  color: white;
-  padding: 0.5rem 0.7rem;
-  border-radius: 0.4rem;
-  cursor: pointer;
-  font-size: 1rem;
-}
-.send-btn:hover {
-  background: var(--accent-hover);
 }
 .filter-menu {
   position: absolute;
@@ -287,7 +369,9 @@ main {
   font-size: 0.85rem;
   /* text-transform: uppercase; */
   color: #777;
-  margin: 0.5rem 0 0% 0.75rem;
+  margin: 1.5rem 0 0% 0.75rem;
+  border-top: 1px solid #ccc;
+  padding-top: 1rem;
 }
 
 /* Suggestions under input */
@@ -317,19 +401,46 @@ main {
 .recent-item {
   position: relative;
   display: flex;
+  flex-direction: row;
   align-items: center;
   gap: 0.5rem;
+  min-height: 2.5rem;
+}
+.recent-content {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  gap: 0.2rem;
+  justify-content: center;
+}
+.recent-title {
+  font-weight: 500;
+  font-size: 0.85rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.recent-time {
+  font-size: 0.8rem;
+  color: var(--muted);
 }
 .more-btn {
-  margin-left: auto;
   background: none;
   border: none;
-  color: var(--muted);
+  color: transparent;
   cursor: pointer;
-  font-size: 1rem;
+  font-size: 1.2rem;
+  font-weight: bold;
   padding: 0 0.25rem;
+  margin-left: auto;
+  transition: color 0.2s ease;
 }
-.more-btn:hover { color: #fff; }
+.recent-item:hover .more-btn {
+  color: #000;
+}
+body:not(.light) .recent-item:hover .more-btn {
+  color: #fff;
+}
 
 .dropdown-menu {
   position: absolute;
@@ -350,21 +461,43 @@ main {
   background: var(--dropdown-hover);
 }
 
-/* Pulse animation active only on the newest thinking emoji */
-@keyframes pulse {
-  0%   { transform: scale(1);   opacity: 0.6; }
-  100% { transform: scale(1.1); opacity: 1;   }
-}
-.thinking-emoji.active {
-  display: inline-block;
-  animation: pulse 0.8s ease-in-out infinite alternate;
+/* Breathing dots animation */
+@keyframes breathe {
+  0%, 100% { 
+    transform: scale(1); 
+    opacity: 0.4; 
+  }
+  50% { 
+    transform: scale(1.2); 
+    opacity: 1; 
+  }
 }
 
-/* common look for thinking bubbles */
-.message.thinking-step {
-  background: var(--card);
-  font-style: italic;
-  opacity: 0.85;
+.breathing-dots {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0;
+}
+
+.breathing-dot {
+  width: 8px;
+  height: 8px;
+  background: var(--muted);
+  border-radius: 50%;
+  animation: breathe 1.4s ease-in-out infinite;
+}
+
+/* common look for thinking dots */
+.message.thinking-dots {
+  background: transparent;
+  opacity: 1;
+}
+
+/* waiting message styling */
+.message.waiting-message {
+  background: transparent;
+  opacity: 1;
 }
 
 /* ===================== Theme toggle switch UI ===================== */
@@ -422,7 +555,7 @@ main {
 body:not(.light) .theme-toggle .slider {
   background: #383838;               /* brighter track for visibility */
   border: 1px solid #5a5a5a;         /* clear edge */
-  box-shadow: 0 0 0 2px rgba(139,76,57,0.35); /* subtle brand-colored halo */
+  box-shadow: 0 0 0 2px rgba(255,105,0,0.35); /* subtle brand-colored halo */
 }
 body:not(.light) .theme-toggle .slider:before {
   background: #ffffff;               /* brighter knob */
@@ -430,8 +563,8 @@ body:not(.light) .theme-toggle .slider:before {
 }
 body:not(.light) .theme-toggle .slider:hover {
   box-shadow:
-    0 0 0 2px rgba(139,76,57,0.55),
-    0 0 0 4px rgba(139,76,57,0.18);
+    0 0 0 2px rgba(255,105,0,0.55),
+    0 0 0 4px rgba(255,105,0,0.18);
 }
 
 /* Icons: moon in dark, sun in light; offset to avoid overlapping the knob */
@@ -458,7 +591,7 @@ body:not(.light) .theme-toggle .slider:hover {
   outline: 2px solid transparent;
   box-shadow:
     0 0 0 3px rgba(255,255,255,.7),
-    0 0 0 6px rgba(139,76,57,.35);
+    0 0 0 6px rgba(255,105,0,.35);
 }
 
 /* Improve icon contrast in dark mode (use text color, fallback to white) */
@@ -472,3 +605,668 @@ body:not(.light) .theme-toggle .slider::after {
     transition: none;
   }
 }
+
+/* ===================== Welcome Page Styles ===================== */
+.welcome-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 2rem 1rem;
+  max-width: 1200px;
+  margin: 0 auto;
+  text-align: center;
+  height: 100%;
+  position: relative;
+  padding-top: 35vh;
+}
+
+.welcome-content {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.welcome-header {
+  margin-bottom: 1rem;
+  text-align: center;
+  width: 100%;
+}
+
+.welcome-title {
+  font-size: 2rem;
+  font-weight: 600;
+  margin: 0 auto;
+  color: var(--text);
+  line-height: 1.2;
+  text-align: center;
+  max-width: 100%;
+}
+
+.suggestions-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1rem;
+  margin-bottom: 2rem;
+  padding: 0;
+}
+
+.suggestion-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  padding: 1rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: left;
+}
+
+.suggestion-card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border-color: var(--accent);
+  background: var(--dropdown-hover);
+}
+
+.suggestion-card h3 {
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin: 0 0 0.25rem 0;
+  color: var(--text);
+  line-height: 1.5;
+}
+
+.suggestion-card p {
+  font-size: 0.85rem;
+  color: var(--muted);
+  margin: 0;
+  line-height: 1.4;
+}
+
+
+/* ===================== Input Box Styles ===================== */
+.input-container {
+  width: 100%;
+  max-width: 850px;
+  margin: 2rem auto 0;
+  padding: 0 1rem;
+  position: relative;
+}
+
+/* Fixed input container for chat page */
+.input-container.fixed {
+  position: fixed;
+  bottom: 1.2rem;
+  left: calc(260px + (100% - 260px) / 2);
+  transform: translateX(-50%);
+  margin: 0;
+  padding: 1rem;
+  background: var(--bg);
+  z-index: 100;
+  width: calc(100% - 260px); /* Account for sidebar */
+  max-width: 850px;
+}
+
+
+/* Fixed height for chat page input - single line like welcome page */
+.input-container.fixed .message-input {
+  height: auto !important;
+  min-height: auto !important;
+  max-height: auto !important;
+  resize: none;
+  overflow: hidden;
+}
+
+/* Welcome page input container - longer than chat */
+.welcome-container .input-container {
+  width: 100%; /* Full width for welcome page */
+  min-width: 700px; /* Ensure minimum width */
+  max-width: 1000px;
+  margin: 1rem auto 0;
+  padding: 0 1rem;
+  display: flex;
+  justify-content: center;
+}
+
+/* Fixed height for welcome page input - single line */
+.welcome-container .message-input {
+  height: auto !important;
+  min-height: auto !important;
+  max-height: auto !important;
+  resize: none;
+  overflow: hidden;
+}
+
+.input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  background: var(--input-bg);
+  border: 1px solid var(--input-border);
+  border-radius: 1.5rem;
+  padding: 0.5rem 1rem;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* Fixed height for input wrapper in fixed containers */
+.input-container.fixed .input-wrapper {
+  height: 3.25rem; /* Fixed height to match welcome page */
+  min-height: 3.25rem;
+  max-height: 3.25rem;
+}
+
+.input-wrapper:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(255, 104, 80, 0.15), 0 2px 12px rgba(0, 0, 0, 0.15);
+}
+
+.message-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text);
+  font-size: 1rem;
+  line-height: 1.5;
+  resize: none;
+  min-height: 1.5rem;
+  max-height: 6rem;
+  overflow-y: auto;
+  font-family: inherit;
+  padding: 0;
+  margin: 0;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* Override for fixed input containers to prevent height changes */
+.input-container.fixed .message-input {
+  min-height: 1.5rem !important;
+  max-height: 1.5rem !important;
+  height: 1.5rem !important;
+  overflow: hidden !important;
+  white-space: nowrap !important;
+}
+
+.message-input::placeholder {
+  color: #888;
+}
+
+.send-button {
+  background: var(--accent);
+  border: none;
+  border-radius: 0.75rem;
+  color: white;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.375rem;
+  margin-left: 0.75rem;
+  transition: all 0.2s ease;
+  min-width: 2.25rem;
+  height: 2.25rem;
+  flex-shrink: 0;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.send-button:hover:not(:disabled) {
+  background: var(--accent-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.send-button:active {
+  transform: translateY(0);
+}
+
+.send-button:disabled {
+  background: var(--muted);
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+/* Auto-resize textarea with smooth transition - disabled for fixed containers */
+.message-input:not(.input-container.fixed .message-input) {
+  overflow: hidden;
+  transition: height 0.1s ease;
+}
+
+/* Chat page specific styles */
+.chat-page .chat-content {
+  padding-bottom: 7rem; /* Space for fixed input at bottom */
+}
+
+/* Responsive design for welcome page */
+@media (max-width: 768px) {
+  .welcome-container {
+    padding: 1rem;
+    height: 100%;
+  }
+  
+  .welcome-title {
+    font-size: 1.75rem;
+  }
+  
+  .suggestions-grid {
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+    margin-bottom: 1.5rem;
+  }
+  
+  .suggestion-card {
+    padding: 0.875rem;
+  }
+  
+  .input-container {
+    max-width: 100%;
+    margin: 1.5rem auto 0;
+    padding: 0 0.5rem;
+  }
+  
+  .input-container.fixed {
+    width: calc(100% - 2rem);
+    padding: 0.75rem 1rem;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+  
+  .input-container.fixed .input-wrapper {
+    height: 3rem; /* Slightly smaller on mobile */
+    min-height: 3rem;
+    max-height: 3rem;
+  }
+  
+  .welcome-container .input-container {
+    width: calc(100% - 2rem); /* Same as chat page on mobile */
+    max-width: 100%;
+    margin: 1.5rem auto 0;
+    padding: 0 0.5rem;
+  }
+  
+  .input-wrapper {
+    padding: 0.625rem 0.875rem;
+  }
+  
+  .send-button {
+    min-width: 2.25rem;
+    height: 2.25rem;
+    margin-left: 0.5rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .welcome-container {
+    padding: 0.75rem;
+  }
+  
+  .welcome-title {
+    font-size: 1.5rem;
+  }
+  
+  .suggestions-grid {
+    margin-bottom: 1rem;
+  }
+  
+  .suggestion-card {
+    padding: 0.75rem;
+  }
+  
+  .input-container {
+    margin: 1rem auto 0;
+    padding: 0 0.25rem;
+  }
+  
+  .input-container.fixed {
+    width: calc(100% - 1rem);
+    padding: 0.5rem 0.75rem;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+  
+  .input-container.fixed .input-wrapper {
+    height: 2.75rem; /* Even smaller on small mobile */
+    min-height: 2.75rem;
+    max-height: 2.75rem;
+  }
+  
+  .welcome-container .input-container {
+    width: calc(100% - 1rem); /* Same as chat page on small mobile */
+    max-width: 100%;
+    margin: 1rem auto 0;
+    padding: 0 0.25rem;
+  }
+  
+  .input-wrapper {
+    padding: 0.5rem 0.75rem;
+  }
+  
+  .message-input {
+    font-size: 0.95rem;
+  }
+  
+  .send-button {
+    min-width: 2rem;
+    height: 2rem;
+    margin-left: 0.375rem;
+  }
+}
+
+/* ========================================================= */
+/*  Markdown formatting styles                               */
+/* ========================================================= */
+
+/* Markdown content within assistant messages */
+.message.assistant {
+  white-space: pre-line !important;
+  line-height: 1.5 !important;
+}
+
+.message.assistant h1,
+.message.assistant h2,
+.message.assistant h3,
+.message.assistant h4,
+.message.assistant h5,
+.message.assistant h6 {
+  margin: 0.5rem 0 0.3rem 0;
+  font-weight: 600;
+  line-height: 1.5;
+  color: var(--text);
+}
+
+.message.assistant h1 {
+  font-size: 1.5rem;
+  border-bottom: 2px solid var(--border);
+  padding-bottom: 0.5rem;
+}
+
+.message.assistant h2 {
+  font-size: 1.3rem;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 0.3rem;
+}
+
+.message.assistant h3 {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--accent);
+  margin: 1.5rem 0 0.5rem 0;
+}
+
+.message.assistant h4,
+.message.assistant h5,
+.message.assistant h6 {
+  font-size: 1rem;
+}
+
+
+/* Bold and italic text */
+.message.assistant strong,
+.message.assistant b {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.message.assistant em,
+.message.assistant i {
+  font-style: italic;
+}
+
+/* Code formatting */
+.message.assistant code {
+  background: var(--code-bg);
+  color: var(--code-text);
+  padding: 0.2rem 0.4rem;
+  border-radius: 0.25rem;
+  font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', 'Source Code Pro', monospace;
+  font-size: 0.9em;
+  border: 1px solid var(--border);
+}
+
+.message.assistant pre {
+  background: var(--code-bg);
+  color: var(--code-text);
+  padding: 0.8rem;
+  border-radius: 0.5rem;
+  overflow-x: auto;
+  margin: 0.6rem 0;
+  border: 1px solid var(--border);
+  font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', 'Source Code Pro', monospace;
+  font-size: 0.9em;
+  line-height: 1.5;
+}
+
+.message.assistant pre code {
+  background: none;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  font-size: inherit;
+}
+
+/* Lists */
+.message.assistant ul,
+.message.assistant ol {
+  margin: 0.3rem 0 !important;
+  padding-left: 1.2rem;
+}
+
+.message.assistant li {
+  margin: 0.1rem 0 !important;
+  line-height: 1.5 !important;
+  padding-left: 0.3rem;
+}
+
+.message.assistant ul li {
+  list-style-type: disc;
+}
+
+.message.assistant ol li {
+  list-style-type: decimal;
+}
+
+.message.assistant ul ul,
+.message.assistant ol ol,
+.message.assistant ul ol,
+.message.assistant ol ul {
+  margin: 0.2rem 0;
+  padding-left: 1rem;
+}
+
+/* Blockquotes */
+.message.assistant blockquote {
+  margin: 0.6rem 0;
+  padding: 0.6rem 0.8rem;
+  border-left: 4px solid var(--accent);
+  background: var(--blockquote-bg);
+  border-radius: 0 0.25rem 0.25rem 0;
+  font-style: italic;
+  color: var(--text-secondary);
+}
+
+.message.assistant blockquote p {
+  margin: 0;
+}
+
+/* Links */
+.message.assistant a {
+  color: var(--accent);
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  transition: border-bottom-color 0.2s ease;
+}
+
+.message.assistant a:hover {
+  border-bottom-color: var(--accent);
+}
+
+/* Tables */
+.message.assistant table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0.6rem 0;
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  overflow: hidden;
+}
+
+.message.assistant th,
+.message.assistant td {
+  padding: 0.75rem;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+}
+
+.message.assistant th {
+  background: var(--table-header-bg);
+  font-weight: 600;
+  color: var(--text);
+}
+
+.message.assistant tr:last-child td {
+  border-bottom: none;
+}
+
+.message.assistant tr:nth-child(even) {
+  background: var(--table-row-bg);
+}
+
+/* Horizontal rule */
+.message.assistant hr {
+  border: none;
+  height: 1px;
+  background: var(--border);
+  margin: 1.5rem 0;
+}
+
+/* Images */
+.message.assistant img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 0.5rem;
+  margin: 0.5rem 0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Task lists */
+.message.assistant input[type="checkbox"] {
+  margin-right: 0.5rem;
+  accent-color: var(--accent);
+}
+
+.message.assistant li:has(input[type="checkbox"]) {
+  list-style: none;
+  margin-left: -1.5rem;
+}
+
+/* Light theme adjustments */
+body.light .message.assistant {
+  --code-bg: #f6f8fa;
+  --code-text: #24292f;
+  --blockquote-bg: #f6f8fa;
+  --table-header-bg: #f6f8fa;
+  --table-row-bg: #fafbfc;
+}
+
+/* Dark theme adjustments */
+body:not(.light) .message.assistant {
+  --code-bg: #161b22;
+  --code-text: #e6edf3;
+  --blockquote-bg: #161b22;
+  --table-header-bg: #21262d;
+  --table-row-bg: #0d1117;
+}
+
+/* ========================================================= */
+/*  Line break normalization                                 */
+/* ========================================================= */
+
+/* Normalize line breaks in all messages */
+.message {
+  /* Set consistent line height for single line breaks */
+  line-height: 1.5 !important;
+}
+
+/* Ensure consistent spacing for line breaks */
+.message.user,
+.message.assistant {
+  /* Set a smaller, fixed line height for consistent spacing */
+  line-height: 1.5 !important;
+}
+
+/* Normalize spacing in assistant messages with markdown-rendered HTML */
+.message.assistant {
+  line-height: 1.5 !important;
+}
+
+/* Normalize paragraph spacing in markdown-rendered content */
+.message.assistant p {
+  margin: 0 0 0.3rem 0 !important;  /* Small, consistent spacing between paragraphs */
+  line-height: 1.5 !important;
+}
+
+/* Remove extra spacing from consecutive paragraphs */
+.message.assistant p + p {
+  margin-top: 0.3rem !important;
+}
+
+/* Ensure our normalization overrides any other paragraph rules */
+.message.assistant p:first-child {
+  margin-top: 0 !important;
+}
+
+.message.assistant p:last-child {
+  margin-bottom: 0 !important;
+}
+
+/* Normalize line breaks in user messages (raw text) */
+.message.user {
+  white-space: pre-line !important;
+  line-height: 1.5 !important;
+}
+
+/* Normalize spacing for other markdown elements */
+.message.assistant h1,
+.message.assistant h2,
+.message.assistant h3,
+.message.assistant h4,
+.message.assistant h5,
+.message.assistant h6 {
+  margin: 0.5rem 0 0.3rem 0 !important;
+  line-height: 1.5 !important;
+}
+
+.message.assistant ul,
+.message.assistant ol {
+  margin: 0.3rem 0 !important;
+  padding-left: 1.2rem;
+}
+
+.message.assistant li {
+  margin: 0.1rem 0 !important;
+  line-height: 1.5 !important;
+}
+
+.message.assistant blockquote {
+  margin: 0.3rem 0 !important;
+  padding: 0.6rem 0.8rem;
+}
+
+.message.assistant pre {
+  margin: 0.3rem 0 !important;
+}
+
+.message.assistant hr {
+  margin: 0.5rem 0 !important;
+}
+

@@ -1,11 +1,7 @@
 from langchain_openai import ChatOpenAI
-from langchain_openai import AzureChatOpenAI
 import os
 
-os.environ["AZURE_OPENAI_ENDPOINT"] = "https://mgh-camca-research-private-e2-openai-service.openai.azure.com/"
-os.environ["AZURE_OPENAI_API_KEY"] = "1ed375af719f4293acc9b389e3758819"
-
-os.environ["OPENAI_API_KEY"] = "token-abc123"   # for mgh local model
+os.environ["OPENAI_API_KEY"] = "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"
 
 class Agent:
     
@@ -18,13 +14,10 @@ class Agent:
         
         # Define available LLM functions
         self.llm_name_list = {
-            "azure_gpt_4o_2024_8_6": self.azure_gpt_reply,
-            "azure_gpt_4o_2024_11_20": self.azure_gpt_reply,
-            "azure_gpt_4o_mini": self.azure_gpt_reply,
-            "azure_gpt_o3_mini": self.azure_gpt_o_reply,
-            "azure_gpt_41": self.azure_gpt_reply,
-            "azure_gpt_41_mini": self.azure_gpt_reply,
-            "azure_gpt_41_nano":self.azure_gpt_reply,
+            "gpt-4o": self.openai_reply,
+            "gpt-4o-mini": self.openai_reply,
+            "gpt-4-turbo": self.openai_reply,
+            "gpt-3.5-turbo": self.openai_reply,
             "llama3.1_api": self.llama_api_reply
         }
 
@@ -35,65 +28,21 @@ class Agent:
             raise ValueError(f"Unknown LLM: {self.llm}")
         
         
-        
-    def azure_gpt_reply(self,messages): 
-        
-        llm_config = {
-            "azure_gpt_4o_mini": ("test_gpt_4o_mini", "2024-08-01-preview"),
-            "azure_gpt_4o_2024_8_6": ("gpt_4o_2024_8_6_r", "2024-08-01-preview"),
-            "azure_gpt_4o_2024_11_20": ("gpt_4o_2024_11_20_g", "2024-08-01-preview"),
-            "azure_gpt_41": ("gpt_41_2025_04_14","2025-01-01-preview"),
-            "azure_gpt_41_mini": ("gpt_41_mini_2025_04_14","2025-01-01-preview"),
-            "azure_gpt_41_nano":("gpt_41_nano_2025_04_14","2025-01-01-preview"),
-        }
-        
-        deployment, version = llm_config[self.llm]
-          
-        llm_model = AzureChatOpenAI(
-            azure_deployment= deployment,
-            api_version= version,
-            temperature=self.temperature,
-            max_tokens=None
+    def openai_reply(self, messages):
+        llm_model = ChatOpenAI(
+            model=self.llm,
+            temperature=self.temperature
         )
         
         try:
             if self.response_schema is None:
-                llm_langchain= llm_model 
+                llm_langchain = llm_model 
             else:
-                llm_langchain = llm_model.with_structured_output(self.response_schema,include_raw=True) #,include_raw=True
+                llm_langchain = llm_model.with_structured_output(self.response_schema, include_raw=True)
             return llm_langchain.invoke(messages)
         
         except Exception as e:
             print(f"LLM invocation failed: {e}")
-            # Optionally: raise or return a fallback
-            return None
-    
-        
-    
-    
-    def azure_gpt_o_reply(self,messages): 
-        
-        if self.llm == "azure_gpt_o3_mini":
-            deployment="gpt_o3_mini_2025_01_31"
-            version="2024-12-01-preview"
-
-        llm_model = AzureChatOpenAI(
-            azure_deployment= deployment,
-            api_version= version,
-            reasoning_effort="medium"  ##low, medium, and high
-            # max_tokens=None
-        )
-        
-        try:
-            if self.response_schema is None:
-                llm_langchain= llm_model 
-            else:
-                llm_langchain = llm_model.with_structured_output(self.response_schema,include_raw=True) #,include_raw=True
-            return llm_langchain.invoke(messages)
-        
-        except Exception as e:
-            print(f"LLM invocation failed: {e}")
-            # Optionally: raise or return a fallback
             return None
     
     

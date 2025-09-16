@@ -1,5 +1,5 @@
 /*********************************************************************
- *  script.js  —  Front-end logic for DREAM Assistant
+ *  script.js  —  Front-end logic for MyDataHelps Integration
  *
  *  • Login / logout / load history
  *  • Create new session or continue a chat
@@ -15,65 +15,155 @@ let thinkingTimers = [];          // timeout handles
 let currentSteps   = [];          // active sequence (array of strings)
 let isErpThinking  = false;       // distinguishes ERP vs. profile sequence
 
-const profileThinkingSteps = [
-  "🔎 Reviewing patient’s triggers, obsessions, and feared consequences",
-  "🔁 Reviewing patient’s compulsive behaviors and avoidance strategies",
-  "🩺 Reviewing possibly relevant symptoms",
-  "🧠 Reviewing possibly relevant internal triggers and beliefs",
-  "🔢 Ranking and selecting most likely related symptoms",
-  "🧪 Performing functional analysis of compulsions and avoidance strategies",
-  "📝 Generating a personalized symptom summary"
-];
+// Simple breathing dots animation instead of step-by-step thinking
+const thinkingDotCount = 3;
 
-const erpThinkingSteps = [
-  "🔍 Analyzing patient’s symptoms",
-  "📚 Reviewing expert ERP hierarchies",
-  "🛠️ Generating personalized ERP activities",
-  "🔢 Sorting ERP activities by difficulty",
-  "🧠 Checking for imaginal exposure opportunities",
-  "🔟 Selecting 10 best ERP activities",
-  "📝 Constructing full ERP hierarchy"
-];
-
-/** Start a sequential thinking animation. */
-function startThinking(steps) {
+/** Start a breathing dots thinking animation. */
+function startThinking() {
   stopThinking();                 // ensure clean state
-  currentSteps = steps.slice();
 
   const chat = document.getElementById("chatContent");
-
-  steps.forEach((text, idx) => {
-    const timer = setTimeout(() => {
-      const prev = document.querySelector(".thinking-emoji.active");
-      if (prev) prev.classList.remove("active");
-
-      const div       = document.createElement("div");
-      div.className   = "message assistant thinking-step";
-      div.innerHTML   = `<span class="thinking-emoji active">${text}</span>`;
-      chat.appendChild(div);
-      chat.scrollTop = chat.scrollHeight;
-    }, idx * 6000);
-    thinkingTimers.push(timer);
-  });
+  const div = document.createElement("div");
+  div.className = "message assistant thinking-dots";
+  
+  // Create breathing dots
+  const dotsContainer = document.createElement("div");
+  dotsContainer.className = "breathing-dots";
+  for (let i = 0; i < thinkingDotCount; i++) {
+    const dot = document.createElement("span");
+    dot.className = "breathing-dot";
+    dot.style.animationDelay = `${i * 0.2}s`;
+    dotsContainer.appendChild(dot);
+  }
+  
+  div.appendChild(dotsContainer);
+  chat.appendChild(div);
+  chat.scrollTop = chat.scrollHeight;
 }
 
 /** Cancel timers and remove all thinking bubbles. */
 function stopThinking() {
   thinkingTimers.forEach(t => clearTimeout(t));
   thinkingTimers = [];
-  document.querySelectorAll(".thinking-step").forEach(n => n.remove());
+  document.querySelectorAll(".thinking-dots").forEach(n => n.remove());
   currentSteps = [];
 }
 
-/** Return true for strings that begin with “y” (yes-like answers). */
+/** Show a waiting message while processing user input */
+function showWaitingMessage() {
+  const chat = document.getElementById("chatContent");
+  const div = document.createElement("div");
+  div.className = "message assistant waiting-message";
+  
+  // Create breathing dots instead of emoji and text
+  const dotsContainer = document.createElement("div");
+  dotsContainer.className = "breathing-dots";
+  for (let i = 0; i < thinkingDotCount; i++) {
+    const dot = document.createElement("span");
+    dot.className = "breathing-dot";
+    dot.style.animationDelay = `${i * 0.2}s`;
+    dotsContainer.appendChild(dot);
+  }
+  
+  div.appendChild(dotsContainer);
+  chat.appendChild(div);
+  chat.scrollTop = chat.scrollHeight;
+  return div;
+}
+
+/** Remove the waiting message */
+function removeWaitingMessage() {
+  const waitingMsg = document.querySelector(".waiting-message");
+  if (waitingMsg) {
+    waitingMsg.remove();
+  }
+}
+
+/** Return true for strings that begin with "y" (yes-like answers). */
 function isYesLike(str) {
   return str.trim().toLowerCase().startsWith("y");
+}
+
+/** Format timestamp to relative time (e.g., "2 hours ago", "yesterday") */
+function formatRelativeTime(timestamp) {
+  const now = new Date();
+  const time = new Date(timestamp);
+  const diffMs = now - time;
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMs / 3600000);
+  const diffDays = Math.floor(diffMs / 86400000);
+
+  if (diffMins < 1) return "now";
+  if (diffMins < 60) return `${diffMins}m ago`;
+  if (diffHours < 24) return `${diffHours}h ago`;
+  if (diffDays >= 1) return time.toLocaleString();
+  return time.toLocaleDateString();
+}
+
+/* ========================================================= */
+/*  Markdown test function                                    */
+/* ========================================================= */
+function testMarkdownRendering() {
+  const testMarkdown = `# Test Markdown
+
+This is **bold text** and this is *italic text*.
+
+## Code Example
+Here's some \`inline code\` and a code block:
+
+\`\`\`javascript
+function hello() {
+  console.log("Hello, World!");
+}
+\`\`\`
+
+## List Example
+- Item 1
+- Item 2
+  - Nested item
+  - Another nested item
+
+## Numbered List
+1. First item
+2. Second item
+3. Third item
+
+> This is a blockquote
+
+[This is a link](https://example.com)
+
+---
+
+**Test completed!**`;
+
+  console.log('Testing markdown rendering...');
+  console.log('Test markdown content:', testMarkdown);
+  
+  if (typeof marked !== 'undefined') {
+    try {
+      const html = marked.parse(testMarkdown);
+      console.log('Markdown HTML output:', html);
+      return true;
+    } catch (error) {
+      console.error('Markdown parsing error:', error);
+      return false;
+    }
+  } else {
+    console.error('Marked.js not available');
+    return false;
+  }
 }
 
 /* ========================================================= */
 /*  DOM ready                                                 */
 /* ========================================================= */
 document.addEventListener("DOMContentLoaded", () => {
+  /* ---------- Test markdown rendering ---------- */
+  // Test markdown functionality on page load
+  setTimeout(() => {
+    testMarkdownRendering();
+  }, 1000);
+
   /* ---------- Grab common DOM elements ---------- */
   const loginBtn    = document.getElementById("loginBtn");
   const logoutBtn   = document.getElementById("logoutBtn");
@@ -81,8 +171,6 @@ document.addEventListener("DOMContentLoaded", () => {
   const loginSubmit = document.getElementById("loginSubmit");
   const recentsList = document.getElementById("recentsList");
   const newChatBtn  = document.getElementById("newChatBtn");
-  const textInput   = document.getElementById("textInput");
-  const sendBtn     = document.getElementById("sendBtn");
 
   /* ---------------- Theme toggle (light/dark) ---------------- */
   const themeSwitch = document.getElementById("themeSwitch");
@@ -159,18 +247,34 @@ document.addEventListener("DOMContentLoaded", () => {
     const wrapper = document.createElement("div");
     wrapper.className = "recent-item";
 
-    const span = document.createElement("span");
-    span.className = "recent-title";
-    span.textContent = item.title;
-    span.addEventListener("click", () =>
-      window.location.href = `/chat/${item.session_id}`
-    );
-    wrapper.appendChild(span);
+    const contentDiv = document.createElement("div");
+    contentDiv.className = "recent-content";
+
+    const titleSpan = document.createElement("span");
+    titleSpan.className = "recent-title";
+    titleSpan.textContent = item.title;
+    contentDiv.appendChild(titleSpan);
+
+    const timeSpan = document.createElement("span");
+    timeSpan.className = "recent-time";
+    timeSpan.textContent = formatRelativeTime(item.updated_at);
+    contentDiv.appendChild(timeSpan);
+
+    wrapper.appendChild(contentDiv);
 
     const more = document.createElement("button");
     more.className = "more-btn";
     more.textContent = "⋮";
     wrapper.appendChild(more);
+
+    // Make the entire conversation block clickable
+    wrapper.addEventListener("click", (e) => {
+      // Don't navigate if clicking on the more button or its dropdown
+      if (e.target.closest('.more-btn') || e.target.closest('.dropdown-menu')) {
+        return;
+      }
+      window.location.href = `/chat/${item.session_id}`;
+    });
 
     const menu = document.createElement("div");
     menu.className = "dropdown-menu";
@@ -222,106 +326,164 @@ document.addEventListener("DOMContentLoaded", () => {
   }
   loadHistory();
 
-  newChatBtn.addEventListener("click", () => window.location.href = "/new-chat");
+  newChatBtn.addEventListener("click", () => {
+    // Navigate to new chat page
+    window.location.href = "/new";
+  });
 
   /* ==================================================== */
-  /*  Send message / create session                        */
+  /*  Welcome page functionality                           */
   /* ==================================================== */
-  function sendMsg() {
-    const text = textInput.value.trim();
-
-    if (location.pathname === "/new-chat") {
-      const firstText = text;             // 用户必须先输入
-      if (!firstText) {
-        alert("Please enter a message to start the chat.");
-        return;
+  
+  // Handle suggestion card clicks on welcome page
+  document.addEventListener("click", (e) => {
+    if (e.target.closest(".suggestion-card")) {
+      const card = e.target.closest(".suggestion-card");
+      if (location.pathname === "/" || location.pathname === "/new") {
+        // Create new chat
+        createNewChatWithMessage();
       }
-      // 1) 创建会话
-      fetch("/api/new_session", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({})
-      })
-      .then(r => r.json())
-      .then(d => {
-        if (!d || !d.success) throw new Error(d && d.message || "Failed to start session");
-        const sid = d.session_id;
-        // 2) 立刻把这条输入作为对问候语的第一条回复发送
-        return fetch("/api/message", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ session_id: sid, message: firstText })
-        }).then(() => sid);
-      })
-      .then(sid => {
-        // 3) 跳转到聊天页（此时会话里已有问候、用户首条、以及模型回复）
-        window.location.href = `/chat/${sid}`;
-      })
-      .catch(err => {
-        console.error(err);
-        alert("Failed to start chat: " + err.message);
-      });
-      return;
     }
+  });
 
-    /* ---- Chat page ---- */
-    if (!text) return; // in chat page we need user message
-    if (location.pathname.startsWith("/chat/")) {
-      const session_id = location.pathname.split("/").pop();
-      appendMsg(text, "user");
-
-      const lastAssistant = Array.from(
-        document.querySelectorAll('#chatContent .message:not(.user)')
-      ).pop()?.textContent || "";
-
-      if (/submit the assessment to generate a patient profile\?/i.test(lastAssistant)
-          && isYesLike(text)) {
-        startThinking(profileThinkingSteps);
-        isErpThinking = false;
-      }
-      if (/generate the ERP hierarchy now\?/i.test(lastAssistant)
-          && isYesLike(text)) {
-        startThinking(erpThinkingSteps);
-        isErpThinking = true;
-      }
-
-      fetch("/api/message", {
-        method : "POST",
-        headers: { "Content-Type": "application/json" },
-        body   : JSON.stringify({ session_id, message: text })
-      })
-      .then(r => r.json())
-      .then(data => {
-        const delay = currentSteps.length * 6000 + 300;
-        setTimeout(() => {
-          stopThinking();
-
-          const push = msg =>
-            appendMsg(msg, data.success ? "assistant" : "assistant-error");
-
-          if (data.assistant_messages) data.assistant_messages.forEach(push);
-          else if (data.assistant_message) push(data.assistant_message);
-
-          if (data.done) {
-            textInput.disabled = true;
-            sendBtn.disabled   = true;
-          }
-        }, currentSteps.length ? delay : 0);
-      })
-      .catch(err => { stopThinking(); console.error(err); });
-
-      textInput.value = "";
-    }
+  function createNewChatWithMessage() {
+    // Create a new session and redirect to chat page
+    fetch("/api/new_session", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({})
+    })
+    .then(r => r.json())
+    .then(d => {
+      if (!d || !d.success) throw new Error(d && d.message || "Failed to start session");
+      const sid = d.session_id;
+      // Redirect to chat page
+      window.location.href = `/chat/${sid}`;
+    })
+    .catch(err => {
+      console.error(err);
+      alert("Failed to start new chat: " + err.message);
+    });
   }
 
-  sendBtn.addEventListener("click", sendMsg);
-  textInput.addEventListener("keypress", e => { if (e.key === "Enter") sendMsg(); });
+  /* ==================================================== */
+  /*  Input box functionality for welcome page            */
+  /* ==================================================== */
+  
+  // Initialize input box functionality if on welcome page
+  if (location.pathname === "/" || location.pathname === "/new") {
+    const messageInput = document.getElementById("messageInput");
+    const sendButton = document.getElementById("sendButton");
+    
+    if (messageInput && sendButton) {
+      // Keep single line input (rows="1" in HTML handles this)
+      
+      // Handle send button click
+      sendButton.addEventListener('click', handleSendMessage);
+      
+      // Handle Enter key (Shift+Enter for new line)
+      messageInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault();
+          handleSendMessage();
+        }
+      });
+      
+      // Update send button state based on input
+      messageInput.addEventListener('input', () => {
+        const hasText = messageInput.value.trim().length > 0;
+        sendButton.disabled = !hasText;
+      });
+      
+      // Initial state
+      sendButton.disabled = true;
+    }
+  }
+  
+  function handleSendMessage() {
+    const messageInput = document.getElementById("messageInput");
+    const sendButton = document.getElementById("sendButton");
+    
+    if (!messageInput || !sendButton) return;
+    
+    const message = messageInput.value.trim();
+    if (!message) return;
+    
+    // Disable input while processing
+    messageInput.disabled = true;
+    sendButton.disabled = true;
+    
+    // Create new session and immediately redirect with message
+    fetch("/api/new_session", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({})
+    })
+    .then(r => r.json())
+    .then(d => {
+      if (!d || !d.success) throw new Error(d && d.message || "Failed to start session");
+      const sessionId = d.session_id;
+      
+      // Immediately redirect to chat page with the message as URL parameter
+      const encodedMessage = encodeURIComponent(message);
+      window.location.href = `/chat/${sessionId}?message=${encodedMessage}`;
+    })
+    .catch(err => {
+      console.error(err);
+      alert("Failed to start new chat: " + err.message);
+      
+      // Re-enable input
+      messageInput.disabled = false;
+      sendButton.disabled = false;
+    });
+  }
+
+
 
   /* ==================================================== */
   /*  Render conversation on page load                     */
   /* ==================================================== */
   if (location.pathname.startsWith("/chat/")) {
     const session_id = location.pathname.split("/").pop();
+    
+    // Check for message parameter from welcome page
+    const urlParams = new URLSearchParams(window.location.search);
+    const initialMessage = urlParams.get('message');
+    
+    // Initialize chat input functionality
+    const messageInput = document.getElementById("messageInput");
+    const sendButton = document.getElementById("sendButton");
+    
+    if (messageInput && sendButton) {
+      // Auto-resize textarea
+      function autoResize() {
+        messageInput.style.height = 'auto';
+        messageInput.style.height = Math.min(messageInput.scrollHeight, 6 * 1.5) + 'rem';
+      }
+      
+      messageInput.addEventListener('input', autoResize);
+      
+      // Handle send button click
+      sendButton.addEventListener('click', () => handleChatMessage(session_id));
+      
+      // Handle Enter key (Shift+Enter for new line)
+      messageInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault();
+          handleChatMessage(session_id);
+        }
+      });
+      
+      // Update send button state based on input
+      messageInput.addEventListener('input', () => {
+        const hasText = messageInput.value.trim().length > 0;
+        sendButton.disabled = !hasText;
+      });
+      
+      // Initial state
+      sendButton.disabled = true;
+    }
+    
     fetch(`/api/session/${session_id}`)
       .then(r => r.json())
       .then(data => {
@@ -329,7 +491,104 @@ document.addEventListener("DOMContentLoaded", () => {
         box.innerHTML = "";
         data.conversation.forEach(m => appendMsg(m.content, m.role));
         logoutBtn.hidden = loginBtn.textContent.trim() === "Login";
+        
+        // If there's an initial message from welcome page, send it automatically
+        if (initialMessage) {
+          // Clear the URL parameter to avoid resending on refresh
+          window.history.replaceState({}, document.title, window.location.pathname);
+          
+          // Add user message to chat immediately
+          appendMsg(initialMessage, "user");
+          
+          // Show thinking animation
+          startThinking();
+          
+          // Send message to server
+          fetch("/api/message", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              session_id: session_id,
+              message: initialMessage
+            })
+          })
+          .then(r => r.json())
+          .then(d => {
+            stopThinking();
+            
+            if (d.success) {
+              // Add assistant response
+              appendMsg(d.assistant_message, "assistant");
+            } else {
+              // Show error message
+              appendMsg(d.assistant_message || "Sorry, there was an error processing your message.", "assistant");
+            }
+          })
+          .catch(err => {
+            stopThinking();
+            console.error(err);
+            appendMsg("Sorry, there was an error processing your message.", "assistant");
+          });
+        }
       });
+  }
+
+  /* ==================================================== */
+  /*  Chat message handling                                */
+  /* ==================================================== */
+  function handleChatMessage(sessionId) {
+    const messageInput = document.getElementById("messageInput");
+    const sendButton = document.getElementById("sendButton");
+    
+    if (!messageInput || !sendButton) return;
+    
+    const message = messageInput.value.trim();
+    if (!message) return;
+    
+    // Add user message to chat immediately
+    appendMsg(message, "user");
+    
+    // Clear input and disable
+    messageInput.value = "";
+    messageInput.style.height = 'auto';
+    messageInput.disabled = true;
+    sendButton.disabled = true;
+    
+    // Show thinking animation
+    startThinking();
+    
+    // Send message to server
+    fetch("/api/message", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        session_id: sessionId,
+        message: message
+      })
+    })
+    .then(r => r.json())
+    .then(d => {
+      stopThinking();
+      
+      if (d.success) {
+        // Add assistant response
+        appendMsg(d.assistant_message, "assistant");
+      } else {
+        // Show error message
+        appendMsg(d.assistant_message || "Sorry, there was an error processing your message.", "assistant");
+      }
+    })
+    .catch(err => {
+      stopThinking();
+      console.error(err);
+      appendMsg("Sorry, there was an error processing your message.", "assistant");
+    })
+    .finally(() => {
+      // Re-enable input
+      messageInput.disabled = false;
+      sendButton.disabled = false;
+      messageInput.focus();
+    });
   }
 
   /* ==================================================== */
@@ -340,8 +599,57 @@ document.addEventListener("DOMContentLoaded", () => {
     const box = document.getElementById("chatContent");
     const div = document.createElement("div");
     div.className = "message" + (role === "user" ? " user" : "");
-    div.innerHTML = text;   // assistant may contain HTML
+    
+    // Configure marked for better security and formatting
+    if (typeof marked !== 'undefined') {
+      console.log('Marked.js loaded successfully');
+      
+      // Configure marked options (updated for newer version)
+      marked.setOptions({
+        breaks: true,        // Convert \n to <br>
+        gfm: true,          // GitHub Flavored Markdown
+        smartLists: true,
+        smartypants: true
+      });
+      
+      // For assistant messages, render as markdown
+      if (role === "assistant") {
+        try {
+          // Normalize double line breaks (\n\n) to single line breaks (\n)
+          // This ensures consistent spacing in the rendered HTML
+          const processedText = text.replace(/\n\n+/g, '\n');
+          const htmlContent = marked.parse(processedText);
+          div.innerHTML = htmlContent;
+          console.log('Markdown rendered successfully');
+        } catch (error) {
+          console.error('Error rendering markdown:', error);
+          div.textContent = text; // Fallback to plain text
+        }
+      } else {
+        // For user messages, normalize double line breaks and escape HTML to prevent XSS
+        const normalizedText = text.replace(/\n\n+/g, '\n');
+        div.textContent = normalizedText;
+      }
+    } else {
+      console.warn('Marked.js not loaded, using fallback');
+      // Fallback if marked is not loaded
+      if (role === "assistant") {
+        // Normalize double line breaks for fallback case too
+        const normalizedText = text.replace(/\n\n+/g, '\n');
+        div.innerHTML = normalizedText;   // assistant may contain HTML
+      } else {
+        // Normalize double line breaks for user messages
+        const normalizedText = text.replace(/\n\n+/g, '\n');
+        div.textContent = normalizedText;
+      }
+    }
+    
     box.appendChild(div);
+    
+    // Force a reflow to ensure the message is immediately visible and positioned correctly
+    div.offsetHeight;
+    
+    // Scroll to bottom after positioning is applied
     box.scrollTop = box.scrollHeight;
   }
 });

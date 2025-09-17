@@ -3,7 +3,9 @@ __pycache__/
 .vscode
 .env
 
+# Ignore JSON files except patient_info
 *.json
+!patient_info/*.json
 data/
 chat_test_env/
 .venv/

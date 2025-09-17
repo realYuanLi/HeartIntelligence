@@ -1,16 +1,17 @@
-from langchain_openai import ChatOpenAI
 import os
+import openai
 from dotenv import load_dotenv
 load_dotenv()
 
-os.environ["OPENAI_API_KEY"] = os.getenv("OPENAI_API_KEY")
+# Set OpenAI API key
+openai.api_key = os.getenv("OPENAI_API_KEY")
 
 class Agent:
     
     def __init__(self, role, llm="",sys_message="",tool="",temperature=0.5,response_schema=None):
         self.role = role
         self.llm = llm
-        self.temperature =temperature
+        self.temperature = temperature
         self.sys_message = sys_message
         self.response_schema = response_schema
         
@@ -25,37 +26,43 @@ class Agent:
 
         # Assign LLM function or handle unknown LLM
         if self.llm in self.llm_name_list:
-            self.llm_reply = self.llm_name_list[self.llm]  # Call the method here
+            self.llm_reply = self.llm_name_list[self.llm]
         else:
             raise ValueError(f"Unknown LLM: {self.llm}")
         
         
     def openai_reply(self, messages):
-        llm_model = ChatOpenAI(
-            model=self.llm,
-            temperature=self.temperature
-        )
-        
         try:
-            if self.response_schema is None:
-                llm_langchain = llm_model 
-            else:
-                llm_langchain = llm_model.with_structured_output(self.response_schema, include_raw=True)
-            return llm_langchain.invoke(messages)
+            # Convert messages to OpenAI format
+            openai_messages = []
+            for msg in messages:
+                if msg.get("role") in ["user", "assistant", "system"]:
+                    openai_messages.append({
+                        "role": msg["role"],
+                        "content": msg["content"]
+                    })
+            
+            # Make API call
+            response = openai.chat.completions.create(
+                model=self.llm,
+                messages=openai_messages,
+                temperature=self.temperature
+            )
+            
+            # Return response in expected format
+            class Response:
+                def __init__(self, content):
+                    self.content = content
+            
+            return Response(response.choices[0].message.content)
         
         except Exception as e:
-            print(f"LLM invocation failed: {e}")
+            print(f"OpenAI API call failed: {e}")
             return None
     
-    
-    
-    def llama_api_reply(self,messages):  
-        llm_model = ChatOpenAI(
-            model="/home/local/PARTNERS/ys670/Medical_FM/Huggingface/Meta-Llama-3.1-70B-Instruct-AWQ-INT4",
-            base_url="http://10.162.9.148:8000/v1",
-            temperature=self.temperature
-            ) 
-
-        return llm_model.invoke(messages)
+    def llama_api_reply(self, messages):  
+        # This would need to be implemented if you want to use local Llama
+        # For now, fall back to OpenAI
+        return self.openai_reply(messages)
     
        

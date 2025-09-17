@@ -662,6 +662,7 @@ main::-webkit-scrollbar-thumb:hover {
   width: 100%;
   box-sizing: border-box;
   transition: height 0.1s ease;
+  text-align: justify;
 }
 
 /* Auto-resize functionality for all message inputs */

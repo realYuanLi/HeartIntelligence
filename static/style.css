@@ -576,13 +576,15 @@ main::-webkit-scrollbar-thumb:hover {
 }
 
 
-/* Fixed height for chat page input - single line like welcome page */
+/* Auto-resize for chat page input - flexible height */
 .input-container.fixed .message-input {
-  height: auto !important;
-  min-height: auto !important;
-  max-height: auto !important;
+  height: auto;
+  min-height: 1.2rem !important;
+  max-height: 12rem !important; /* 8 rows * 1.5rem line-height = 12rem */
   resize: none;
-  overflow: hidden;
+  overflow-y: auto;
+  line-height: 1.5;
+  transition: height 0.1s ease;
 }
 
 /* Welcome page input container - longer than chat */
@@ -596,19 +598,28 @@ main::-webkit-scrollbar-thumb:hover {
   justify-content: center;
 }
 
-/* Fixed height for welcome page input - single line */
+/* Auto-resize for welcome page input - flexible height */
 .welcome-container .message-input {
-  height: auto !important;
-  min-height: auto !important;
-  max-height: auto !important;
+  height: auto;
+  min-height: 1.2rem !important;
+  max-height: 12rem !important; /* 8 rows * 1.5rem line-height = 12rem */
   resize: none;
-  overflow: hidden;
+  overflow-y: auto;
+  line-height: 1.5;
+  transition: height 0.1s ease;
+}
+
+/* Welcome page input wrapper - single row height */
+.welcome-container .input-wrapper {
+  min-height: 2.2rem; /* Reduced height for single row appearance */
+  max-height: 14rem; /* Maximum height to accommodate 8 rows + padding */
+  align-items: center; /* Center align for single row appearance */
 }
 
 .input-wrapper {
   position: relative;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   background: var(--input-bg);
   border: 1px solid var(--input-border);
   border-radius: 1.5rem;
@@ -619,11 +630,13 @@ main::-webkit-scrollbar-thumb:hover {
   box-sizing: border-box;
 }
 
-/* Fixed height for input wrapper in fixed containers */
+/* Flexible height for input wrapper in fixed containers */
 .input-container.fixed .input-wrapper {
-  height: 3.25rem; /* Fixed height to match welcome page */
-  min-height: 3.25rem;
-  max-height: 3.25rem;
+  min-height: 2.2rem; /* Reduced height for single row appearance */
+  max-height: 14rem; /* Maximum height to accommodate 8 rows + padding */
+  align-items: center; /* Center align for single row appearance */
+  padding-top: 0.5rem;
+  padding-bottom: 0.5rem;
 }
 
 .input-wrapper:focus-within {
@@ -640,24 +653,18 @@ main::-webkit-scrollbar-thumb:hover {
   font-size: 1rem;
   line-height: 1.5;
   resize: none;
-  min-height: 1.5rem;
-  max-height: 6rem;
+  min-height: 1.2rem;
+  max-height: 12rem; /* 8 rows * 1.5rem line-height = 12rem */
   overflow-y: auto;
   font-family: inherit;
   padding: 0;
   margin: 0;
   width: 100%;
   box-sizing: border-box;
+  transition: height 0.1s ease;
 }
 
-/* Override for fixed input containers to prevent height changes */
-.input-container.fixed .message-input {
-  min-height: 1.5rem !important;
-  max-height: 1.5rem !important;
-  height: 1.5rem !important;
-  overflow: hidden !important;
-  white-space: nowrap !important;
-}
+/* Auto-resize functionality for all message inputs */
 
 .message-input::placeholder {
   color: #888;
@@ -674,11 +681,13 @@ main::-webkit-scrollbar-thumb:hover {
   justify-content: center;
   padding: 0.375rem;
   margin-left: 0.75rem;
+  margin-top: 0.25rem; /* Slight top margin to align with text baseline */
   transition: all 0.2s ease;
   min-width: 2.25rem;
   height: 2.25rem;
   flex-shrink: 0;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  align-self: flex-start; /* Align to top of flex container */
 }
 
 .send-button:hover:not(:disabled) {
@@ -698,11 +707,7 @@ main::-webkit-scrollbar-thumb:hover {
   box-shadow: none;
 }
 
-/* Auto-resize textarea with smooth transition - disabled for fixed containers */
-.message-input:not(.input-container.fixed .message-input) {
-  overflow: hidden;
-  transition: height 0.1s ease;
-}
+/* Auto-resize textarea with smooth transition for all inputs */
 
 /* Chat page specific styles */
 .chat-page .chat-content {
@@ -758,9 +763,8 @@ main::-webkit-scrollbar-thumb:hover {
   }
   
   .input-container.fixed .input-wrapper {
-    height: 3rem; /* Slightly smaller on mobile */
-    min-height: 3rem;
-    max-height: 3rem;
+    min-height: 2.2rem; /* Single row height on mobile */
+    max-height: 14rem; /* Allow growth up to 8 rows on mobile too */
   }
   
   .welcome-container .input-container {
@@ -812,9 +816,8 @@ main::-webkit-scrollbar-thumb:hover {
   }
   
   .input-container.fixed .input-wrapper {
-    height: 2.75rem; /* Even smaller on small mobile */
-    min-height: 2.75rem;
-    max-height: 2.75rem;
+    min-height: 2.2rem; /* Single row height on small mobile */
+    max-height: 14rem; /* Allow growth up to 8 rows on small mobile too */
   }
   
   .welcome-container .input-container {

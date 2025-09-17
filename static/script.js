@@ -361,7 +361,30 @@ document.addEventListener("DOMContentLoaded", () => {
     const sendButton = document.getElementById("sendButton");
     
     if (messageInput && sendButton) {
-      // Keep single line input (rows="1" in HTML handles this)
+      // Auto-resize functionality
+      function autoResize() {
+        // Reset height to auto to get the natural height
+        messageInput.style.height = 'auto';
+        
+        // Calculate the natural scroll height
+        const scrollHeight = messageInput.scrollHeight;
+        
+        // Calculate max height for 8 rows (8 * 1.5rem = 12rem = 192px at 16px base font size)
+        const lineHeight = parseFloat(getComputedStyle(messageInput).lineHeight) || 24; // 1.5rem = 24px
+        const maxHeight = lineHeight * 8; // 8 rows maximum
+        
+        // Set the new height, limited to max height
+        const newHeight = Math.min(scrollHeight, maxHeight);
+        messageInput.style.height = newHeight + 'px';
+        
+        // Show scrollbar if content exceeds max height
+        if (scrollHeight > maxHeight) {
+          messageInput.style.overflowY = 'auto';
+        } else {
+          messageInput.style.overflowY = 'hidden';
+        }
+        
+      }
       
       // Handle send button click
       sendButton.addEventListener('click', handleSendMessage);
@@ -374,14 +397,22 @@ document.addEventListener("DOMContentLoaded", () => {
         }
       });
       
-      // Update send button state based on input
+      // Update send button state and auto-resize based on input
       messageInput.addEventListener('input', () => {
         const hasText = messageInput.value.trim().length > 0;
         sendButton.disabled = !hasText;
+        autoResize();
       });
       
-      // Initial state
+      // Also trigger auto-resize on keyup to handle paste events
+      messageInput.addEventListener('keyup', autoResize);
+      messageInput.addEventListener('paste', () => {
+        setTimeout(autoResize, 10); // Small delay to allow paste to complete
+      });
+      
+      // Initial state and setup
       sendButton.disabled = true;
+      autoResize(); // Set initial height
     }
   }
   
@@ -397,6 +428,7 @@ document.addEventListener("DOMContentLoaded", () => {
     // Disable input while processing
     messageInput.disabled = true;
     sendButton.disabled = true;
+    messageInput.style.height = 'auto'; // Reset height
     
     // Create new session and immediately redirect with message
     fetch("/api/new_session", {
@@ -442,11 +474,28 @@ document.addEventListener("DOMContentLoaded", () => {
     if (messageInput && sendButton) {
       // Auto-resize textarea
       function autoResize() {
+        // Reset height to auto to get the natural height
         messageInput.style.height = 'auto';
-        messageInput.style.height = Math.min(messageInput.scrollHeight, 6 * 1.5) + 'rem';
+        
+        // Calculate the natural scroll height
+        const scrollHeight = messageInput.scrollHeight;
+        
+        // Calculate max height for 8 rows (8 * 1.5rem = 12rem = 192px at 16px base font size)
+        const lineHeight = parseFloat(getComputedStyle(messageInput).lineHeight) || 24; // 1.5rem = 24px
+        const maxHeight = lineHeight * 8; // 8 rows maximum
+        
+        // Set the new height, limited to max height
+        const newHeight = Math.min(scrollHeight, maxHeight);
+        messageInput.style.height = newHeight + 'px';
+        
+        // Show scrollbar if content exceeds max height
+        if (scrollHeight > maxHeight) {
+          messageInput.style.overflowY = 'auto';
+        } else {
+          messageInput.style.overflowY = 'hidden';
+        }
+        
       }
-      
-      messageInput.addEventListener('input', autoResize);
       
       // Handle send button click
       sendButton.addEventListener('click', () => handleChatMessage(session_id));
@@ -459,14 +508,22 @@ document.addEventListener("DOMContentLoaded", () => {
         }
       });
       
-      // Update send button state based on input
+      // Update send button state and auto-resize based on input
       messageInput.addEventListener('input', () => {
         const hasText = messageInput.value.trim().length > 0;
         sendButton.disabled = !hasText;
+        autoResize();
       });
       
-      // Initial state
+      // Also trigger auto-resize on keyup to handle paste events
+      messageInput.addEventListener('keyup', autoResize);
+      messageInput.addEventListener('paste', () => {
+        setTimeout(autoResize, 10); // Small delay to allow paste to complete
+      });
+      
+      // Initial state and setup
       sendButton.disabled = true;
+      autoResize(); // Set initial height
     }
     
     fetch(`/api/session/${session_id}`)

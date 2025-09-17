@@ -8,7 +8,6 @@ data/
 chat_test_env/
 .venv/
 venv/
-__pycache__/
 *.pyc
 .DS_Store
 node_modules/

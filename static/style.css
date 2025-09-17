@@ -1,24 +1,5 @@
-/* ===================== Theme variables ===================== */
+/* ===================== CSS Variables ===================== */
 :root {
-  --bg: #121212;
-  --text: #e5e5e5;
-  --aside-bg: #1f1f1f;
-  --border: #2c2c2c;
-  --card: #2c2c2c;
-  --user: #3b3b3b;
-  --accent: #ff6850;
-  --accent-hover: #e55a00;
-  --muted: #aaa;
-  --muted-2: #ccc;
-  --overlay-bg: rgba(0,0,0,0.6);
-  --login-bg: #222;
-  --input-bg: #2c2c2c;
-  --input-border: #3d3d3d;
-  --dropdown-bg: #2c2c2c;
-  --dropdown-hover: #3d3d3d;
-}
-
-body.light {
   --bg: #ffffff;
   --text: #111;
   --aside-bg: #f7f7f7;
@@ -36,6 +17,7 @@ body.light {
   --dropdown-bg: #ffffff;
   --dropdown-hover: #f3f4f6;
 }
+
 
 /* ===================== Global layout/colors ===================== */
 body {
@@ -78,14 +60,12 @@ aside {
   font-size: 1rem;
 }
 .nav-item:hover {
-  background: var(--dropdown-hover);
-}
-body.light .nav-item:hover {
-  background: #e5e7eb;
+  background: #ddd;
 }
 .recents {
   flex: 1;
   overflow-y: auto;
+  overflow-x: hidden;
   scroll-behavior: auto;
   -webkit-overflow-scrolling: touch;
   will-change: scroll-position;
@@ -103,21 +83,15 @@ body.light .nav-item:hover {
 }
 
 .recents::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(0, 0, 0, 0.1);
   border-radius: 2px;
 }
 
 .recents::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.18);
-}
-
-body.light .recents::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.1);
-}
-
-body.light .recents::-webkit-scrollbar-thumb:hover {
   background: rgba(0, 0, 0, 0.18);
 }
+
+
 .recent-item {
   padding: 0.5rem 0.75rem;
   border-radius: 0.4rem;
@@ -126,10 +100,7 @@ body.light .recents::-webkit-scrollbar-thumb:hover {
   color: var(--muted-2);
 }
 .recent-item:hover {
-  background: var(--dropdown-hover);
-}
-body.light .recent-item:hover {
-  background: #e5e7eb;
+  background: #ddd;
 }
 .login-btn {
   font-size: 0.9rem;
@@ -167,21 +138,15 @@ main::-webkit-scrollbar-track {
 }
 
 main::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.12);
+  background: rgba(0, 0, 0, 0.12);
   border-radius: 3px;
 }
 
 main::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.2);
-}
-
-body.light main::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.12);
-}
-
-body.light main::-webkit-scrollbar-thumb:hover {
   background: rgba(0, 0, 0, 0.2);
 }
+
+
 .chat-header {
   padding: 1rem 1.5rem;
   border-bottom: 1px solid var(--border);
@@ -192,7 +157,7 @@ body.light main::-webkit-scrollbar-thumb:hover {
   padding: 1.5rem 0rem 0rem 0rem;
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 0.75rem;
   max-width: 850px;
   margin: 0 auto;
   align-items: stretch;
@@ -217,7 +182,7 @@ body.light main::-webkit-scrollbar-thumb:hover {
   white-space: pre-line;
   align-self: flex-start;
   margin-right: auto;
-  margin-left: 0rem;
+  margin-left: 2rem; /* Align with left edge of input content (container padding + wrapper padding) */
   text-align: justify;
   font-size: 1.05rem;
   line-height: 1.5;
@@ -235,13 +200,13 @@ body.light main::-webkit-scrollbar-thumb:hover {
   border: 1px solid var(--user) !important;
   border-radius: 1.5rem !important;
   margin-left: auto !important;
-  margin-right: 2rem !important;
+  margin-right: 0rem !important; /* Align with right outer arc of input box */
   padding: 0.3rem 0.9rem !important;
   max-width: 70% !important;
   box-shadow: 0 1px 3px rgba(0,0,0,0.1) !important;
   word-wrap: break-word;
   overflow-wrap: break-word;
-  text-align: left !important;
+  text-align: justify !important;
   width: auto !important;
   display: block !important;
   position: relative !important;
@@ -251,7 +216,7 @@ body.light main::-webkit-scrollbar-thumb:hover {
 .chat-content .message.user {
   align-self: flex-end !important;
   margin-left: auto !important;
-  margin-right: 2rem !important;
+  margin-right: 2rem !important; /* Align with right edge of input content (container padding + wrapper padding) */
 }
 
 /* Immediate positioning for user messages */
@@ -405,6 +370,9 @@ body.light main::-webkit-scrollbar-thumb:hover {
   align-items: center;
   gap: 0.5rem;
   min-height: 2.5rem;
+  overflow: hidden;
+  width: 100%;
+  box-sizing: border-box;
 }
 .recent-content {
   display: flex;
@@ -412,6 +380,8 @@ body.light main::-webkit-scrollbar-thumb:hover {
   flex: 1;
   gap: 0.2rem;
   justify-content: center;
+  min-width: 0;
+  overflow: hidden;
 }
 .recent-title {
   font-weight: 500;
@@ -419,6 +389,8 @@ body.light main::-webkit-scrollbar-thumb:hover {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  width: 100%;
+  max-width: 100%;
 }
 .recent-time {
   font-size: 0.8rem;
@@ -437,9 +409,6 @@ body.light main::-webkit-scrollbar-thumb:hover {
 }
 .recent-item:hover .more-btn {
   color: #000;
-}
-body:not(.light) .recent-item:hover .more-btn {
-  color: #fff;
 }
 
 .dropdown-menu {
@@ -500,111 +469,6 @@ body:not(.light) .recent-item:hover .more-btn {
   opacity: 1;
 }
 
-/* ===================== Theme toggle switch UI ===================== */
-.theme-toggle {
-  position: fixed;
-  top: 12px;
-  right: 16px;
-  z-index: 1000;
-  user-select: none;
-}
-.switch {
-  position: relative;
-  display: inline-block;
-  width: 48px;
-  height: 26px;
-}
-/* Keep input accessible and focusable (visually hidden only) */
-.switch input {
-  position: absolute;
-  opacity: 0;
-  width: 0;
-  height: 0;
-  margin: 0;
-}
-.slider {
-  position: absolute;
-  cursor: pointer;
-  inset: 0;
-  background: var(--border, #2c2c2c); /* fallback if var missing */
-  transition: background .2s ease, border-color .2s ease, box-shadow .2s ease;
-  border-radius: 999px;
-}
-.slider:before {
-  position: absolute;
-  content: "";
-  height: 20px;
-  width: 20px;
-  left: 3px;
-  top: 3px;
-  background: var(--card, #2c2c2c); /* fallback if var missing */
-  transition: transform .2s ease, background .2s ease;
-  border-radius: 50%;
-  box-shadow: 0 0 0 1px var(--input-border, #3d3d3d) inset; /* fallback if var missing */
-}
-.switch input:checked + .slider {
-  background: var(--accent, #8b4c39); /* fallback if var missing */
-}
-.switch input:checked + .slider:before {
-  transform: translateX(22px);
-  background: #fff;
-  box-shadow: none;
-}
-
-/* Dark mode visibility enhancement (unchecked = dark) */
-body:not(.light) .theme-toggle .slider {
-  background: #383838;               /* brighter track for visibility */
-  border: 1px solid #5a5a5a;         /* clear edge */
-  box-shadow: 0 0 0 2px rgba(255,105,0,0.35); /* subtle brand-colored halo */
-}
-body:not(.light) .theme-toggle .slider:before {
-  background: #ffffff;               /* brighter knob */
-  box-shadow: 0 0 0 1px rgba(0,0,0,0.2), 0 1px 2px rgba(0,0,0,0.25);
-}
-body:not(.light) .theme-toggle .slider:hover {
-  box-shadow:
-    0 0 0 2px rgba(255,105,0,0.55),
-    0 0 0 4px rgba(255,105,0,0.18);
-}
-
-/* Icons: moon in dark, sun in light; offset to avoid overlapping the knob */
-.theme-toggle .slider::after {
-  content: "☾";
-  position: absolute;
-  right: 6px;
-  top: 2px;
-  font-size: 14px;
-  line-height: 22px;
-  color: var(--muted);
-  pointer-events: none;
-  transition: color .2s ease, transform .2s ease;
-}
-.switch input:checked + .slider::after {
-  content: "☀";
-  left: 6px;
-  right: auto;
-  color: #ffffff;
-}
-
-/* Accessibility: visible keyboard focus */
-.switch input:focus-visible + .slider {
-  outline: 2px solid transparent;
-  box-shadow:
-    0 0 0 3px rgba(255,255,255,.7),
-    0 0 0 6px rgba(255,105,0,.35);
-}
-
-/* Improve icon contrast in dark mode (use text color, fallback to white) */
-body:not(.light) .theme-toggle .slider::after {
-  color: var(--text, #fff);
-}
-
-/* Respect reduced motion preference */
-@media (prefers-reduced-motion: reduce) {
-  .slider, .slider:before, .slider::after {
-    transition: none;
-  }
-}
 
 /* ===================== Welcome Page Styles ===================== */
 .welcome-container {
@@ -700,11 +564,11 @@ body:not(.light) .theme-toggle .slider::after {
 /* Fixed input container for chat page */
 .input-container.fixed {
   position: fixed;
-  bottom: 1.2rem;
+  bottom: 0rem;
   left: calc(260px + (100% - 260px) / 2);
   transform: translateX(-50%);
   margin: 0;
-  padding: 1rem;
+  padding: 1rem; /* Align with outer arc */
   background: var(--bg);
   z-index: 100;
   width: calc(100% - 260px); /* Account for sidebar */
@@ -845,6 +709,19 @@ body:not(.light) .theme-toggle .slider::after {
   padding-bottom: 7rem; /* Space for fixed input at bottom */
 }
 
+/* Disclaimer styling */
+.disclaimer {
+  text-align: center;
+  margin-top: 0.5rem;
+  font-size: 0.9rem;
+  color: var(--muted);
+  opacity: 0.7;
+}
+
+.disclaimer span {
+  font-style: normal;
+}
+
 /* Responsive design for welcome page */
 @media (max-width: 768px) {
   .welcome-container {
@@ -859,7 +736,7 @@ body:not(.light) .theme-toggle .slider::after {
   .suggestions-grid {
     grid-template-columns: 1fr;
     gap: 0.75rem;
-    margin-bottom: 1.5rem;
+    margin-bottom: 1rem;
   }
   
   .suggestion-card {
@@ -970,6 +847,9 @@ body:not(.light) .theme-toggle .slider::after {
 .message.assistant {
   white-space: pre-line !important;
   line-height: 1.5 !important;
+  align-self: flex-start !important;
+  margin-left: 2rem !important; /* Align with left edge of input content (container padding + wrapper padding) */
+  margin-right: auto !important;
 }
 
 .message.assistant h1,
@@ -1169,22 +1049,14 @@ body:not(.light) .theme-toggle .slider::after {
   margin-left: -1.5rem;
 }
 
-/* Light theme adjustments */
-body.light .message.assistant {
+
+/* Code and content styling */
+.message.assistant {
   --code-bg: #f6f8fa;
   --code-text: #24292f;
   --blockquote-bg: #f6f8fa;
   --table-header-bg: #f6f8fa;
   --table-row-bg: #fafbfc;
-}
-
-/* Dark theme adjustments */
-body:not(.light) .message.assistant {
-  --code-bg: #161b22;
-  --code-text: #e6edf3;
-  --blockquote-bg: #161b22;
-  --table-header-bg: #21262d;
-  --table-row-bg: #0d1117;
 }
 
 /* ========================================================= */

@@ -1,7 +1,9 @@
 from langchain_openai import ChatOpenAI
 import os
+from dotenv import load_dotenv
+load_dotenv()
 
-os.environ["OPENAI_API_KEY"] = "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"
+os.environ["OPENAI_API_KEY"] = os.getenv("OPENAI_API_KEY")
 
 class Agent:
     

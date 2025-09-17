@@ -34,16 +34,29 @@ except Exception as e:
 APP_DIR = Path(__file__).resolve().parent
 DATA_DIR = APP_DIR / "data"
 CONFIG_PATH = APP_DIR / "config" / "configs.json"
+PATIENT_INFO_PATH = APP_DIR / "patient_info" / "test.json"
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 
 with open(CONFIG_PATH, "r", encoding="utf-8") as f:
     CONFIG = json.load(f)
 
+# Load patient data directly from JSON
+try:
+    with open(PATIENT_INFO_PATH, "r", encoding="utf-8") as f:
+        PATIENT_DATA = json.load(f)
+    print(f"Loaded patient data for: {PATIENT_DATA}")
+except Exception as e:
+    PATIENT_DATA = None
+    print(f"Could not load patient data: {e}")
+
+# Simple system prompt
+system_prompt = """You are a helpful AI assistant specialized in healthcare. When you receive patient information along with user questions, use that data to provide personalized, relevant responses about the patient's medical history, conditions, medications, and health status. Always recommend consulting healthcare providers for medical decisions and maintain patient privacy."""
+
 Chatbot = Agent(
     role="AI Assistant",
     llm=CONFIG["chatbot"]["llm_model"],
     temperature=0.7,
-    sys_message=CONFIG["chatbot"]["system_prompt"]
+    sys_message=system_prompt
 )
 
 SummaryBot = Agent(
@@ -57,7 +70,7 @@ SummaryBot = Agent(
 # Flask setup
 # --------------------------------------------------------------------------------
 app = Flask(__name__, template_folder="templates", static_folder="static")
-app.secret_key = os.environ.get("SECRET_KEY", "replace-with-your-secret")
+app.secret_key = os.environ.get("SECRET_KEY", "replace-with-your-secret-key")
 
 # ---- "account name": password  ----
 USERS = {"Kevin": "123456", "Fang": "123456"}
@@ -239,7 +252,7 @@ def api_new_session():
         "created_at": _now_iso(),
         "updated_at": _now_iso(),
         "conversation": [
-            {"role": "system", "content": Chatbot.sys_message},
+            {"role": "system", "content": system_prompt},
             {"role": "assistant", "content": CONFIG["chatbot"]["prologue"]}
         ]
     }
@@ -256,11 +269,22 @@ def api_get_session(session_id: str):
     if not d:
         return jsonify(success=False, message="Session not found"), 404
     # Hide system messages; chat starts from the assistant greeting
-    convo = [
-        {"role": m.get("role"), "content": m.get("content","")}
-        for m in d.get("conversation", [])
-        if m.get("role") in {"user", "assistant", "assistant-error"} and m.get("content")
-    ]
+    # Also filter out old messages with PATIENT INFORMATION and USER QUESTION labels
+    convo = []
+    for m in d.get("conversation", []):
+        if m.get("role") in {"user", "assistant", "assistant-error"} and m.get("content"):
+            content = m.get("content", "")
+            # Skip messages that contain the old label format
+            if "PATIENT INFORMATION:" in content and "USER QUESTION:" in content:
+                # Extract just the user question part
+                if m.get("role") == "user":
+                    user_question = content.split("USER QUESTION: ", 1)
+                    if len(user_question) > 1:
+                        convo.append({"role": m.get("role"), "content": user_question[1]})
+                # Skip assistant messages that were responses to the old format
+                continue
+            else:
+                convo.append({"role": m.get("role"), "content": content})
     return jsonify(success=True, conversation=convo)
 
 @app.route("/api/message", methods=["POST"])
@@ -279,8 +303,21 @@ def api_message():
     if not d:
         return jsonify(success=False, assistant_message="Session not found."), 404
 
+    # Store user's original message
     d["conversation"].append({"role": "user", "content": text})
-    messages = d["conversation"]
+    
+    # Prepare messages for AI processing
+    messages = d["conversation"].copy()
+    
+    # If patient data exists, modify the system message to include it
+    if PATIENT_DATA:
+        # Find the system message and update it with patient data
+        for i, msg in enumerate(messages):
+            if msg.get("role") == "system":
+                original_system = msg["content"]
+                patient_info = f"\n\nPatient Information:\n{json.dumps(PATIENT_DATA, indent=2)}"
+                messages[i] = {"role": "system", "content": original_system + patient_info}
+                break
 
     try:
         resp = Chatbot.llm_reply(messages)

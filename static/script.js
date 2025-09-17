@@ -172,21 +172,6 @@ document.addEventListener("DOMContentLoaded", () => {
   const recentsList = document.getElementById("recentsList");
   const newChatBtn  = document.getElementById("newChatBtn");
 
-  /* ---------------- Theme toggle (light/dark) ---------------- */
-  const themeSwitch = document.getElementById("themeSwitch");
-  const savedTheme = localStorage.getItem("theme") || "dark";
-  if (savedTheme === "light") {
-    document.body.classList.add("light");
-    if (themeSwitch) themeSwitch.checked = true;
-  }
-  if (themeSwitch) {
-    themeSwitch.addEventListener("change", () => {
-      const useLight = themeSwitch.checked;
-      document.body.classList.toggle("light", useLight);
-      localStorage.setItem("theme", useLight ? "light" : "dark");
-    });
-  }
-  /* ----------------------------------------------------------- */
 
   /* ==================================================== */
   /*  Authentication                                      */

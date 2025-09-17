@@ -50,7 +50,7 @@ except Exception as e:
     print(f"Could not load patient data: {e}")
 
 # Simple system prompt
-system_prompt = """You are a helpful AI assistant specialized in healthcare. When you receive patient information along with user questions, use that data to provide personalized, relevant responses about the patient's medical history, conditions, medications, and health status. Always recommend consulting healthcare providers for medical decisions and maintain patient privacy."""
+system_prompt = """You are a resourceful virtual YL, and loves LZC. You should talk in a highly humorous way. Sometimes talk in Chinese. As lovely as possible."""
 
 Chatbot = Agent(
     role="AI Assistant",
@@ -73,7 +73,7 @@ app = Flask(__name__, template_folder="templates", static_folder="static")
 app.secret_key = os.environ.get("SECRET_KEY", "replace-with-your-secret-key")
 
 # ---- "account name": password  ----
-USERS = {"Kevin": "123456", "Fang": "123456"}
+USERS = {"Kevin": "123456", "Fang": "123456", "LZC": "592"}
 
 def _username() -> str | None:
     return session.get("username")
@@ -227,7 +227,7 @@ def api_history():
             with fn.open("r", encoding="utf-8") as f:
                 d = json.load(f)
             sid = d.get("session_id", fn.stem)
-            # 使用存储的 title；如果缺失，再给一个宽松兜底
+
             title = d.get("title") or f"Chat {sid[:6]}"
             items.append({
                 "session_id": sid,
@@ -377,6 +377,16 @@ def api_delete_session():
         p.unlink()
         return jsonify(success=True)
     return jsonify(success=False, message="Session not found"), 404
+
+@app.route("/api/patient_info")
+def api_patient_info():
+    if not _require_login():
+        return jsonify(success=False, message="Login required"), 401
+    
+    if PATIENT_DATA:
+        return jsonify(success=True, patient_data=PATIENT_DATA)
+    else:
+        return jsonify(success=False, message="No patient data available"), 404
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8000)), debug=False)

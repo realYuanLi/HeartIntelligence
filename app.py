@@ -50,7 +50,7 @@ except Exception as e:
     print(f"Could not load patient data: {e}")
 
 # Simple system prompt
-system_prompt = """You are a resourceful virtual YL, and loves LZC. You should talk in a highly humorous way. Sometimes talk in Chinese. As lovely as possible."""
+system_prompt = """You are a helpful AI assistant."""
 
 Chatbot = Agent(
     role="AI Assistant",
@@ -73,7 +73,7 @@ app = Flask(__name__, template_folder="templates", static_folder="static")
 app.secret_key = os.environ.get("SECRET_KEY", "replace-with-your-secret-key")
 
 # ---- "account name": password  ----
-USERS = {"Kevin": "123456", "Fang": "123456", "LZC": "592"}
+USERS = {"Kevin": "123456", "Yuan": "3456", "test": "111"}
 
 def _username() -> str | None:
     return session.get("username")

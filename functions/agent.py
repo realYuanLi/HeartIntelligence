@@ -1,6 +1,7 @@
 import os
 import openai
 from dotenv import load_dotenv
+from .web_search import web_search, format_search_results, needs_web_search
 load_dotenv()
 
 # Set OpenAI API key
@@ -32,6 +33,11 @@ class Agent:
         
         
     def openai_reply(self, messages):
+        # Define Response class at the beginning
+        class Response:
+            def __init__(self, content):
+                self.content = content
+        
         try:
             # Convert messages to OpenAI format
             openai_messages = []
@@ -42,19 +48,49 @@ class Agent:
                         "content": msg["content"]
                     })
             
-            # Make API call
+            # Get the latest user message to check if web search is needed
+            latest_user_message = None
+            for msg in reversed(openai_messages):
+                if msg.get("role") == "user":
+                    latest_user_message = msg.get("content", "")
+                    break
+            
+            # Use lightweight decision model to determine if web search is needed
+            should_search = False
+            search_query = ""
+            
+            if latest_user_message:
+                should_search = needs_web_search(latest_user_message)
+                if should_search:
+                    search_query = latest_user_message
+            
+            if should_search:
+                # Perform web search first
+                print(f"Web search needed for query: {search_query}")
+                search_results = web_search(search_query)
+                formatted_results = format_search_results(search_results)
+                
+                # Add search results to the conversation
+                openai_messages.append({
+                    "role": "assistant",
+                    "content": f"Let me search for current information about: {search_query}"
+                })
+                openai_messages.append({
+                    "role": "user",
+                    "content": f"Here are the search results:\n\n{formatted_results}\n\nPlease provide a comprehensive answer based on this information."
+                })
+            
+            # Make API call without tools (since we've already done the search if needed)
             response = openai.chat.completions.create(
                 model=self.llm,
                 messages=openai_messages,
                 temperature=self.temperature
             )
             
-            # Return response in expected format
-            class Response:
-                def __init__(self, content):
-                    self.content = content
+            message = response.choices[0].message
             
-            return Response(response.choices[0].message.content)
+            # Return response in expected format
+            return Response(message.content)
         
         except Exception as e:
             print(f"OpenAI API call failed: {e}")
@@ -65,4 +101,3 @@ class Agent:
         # For now, fall back to OpenAI
         return self.openai_reply(messages)
     
-       

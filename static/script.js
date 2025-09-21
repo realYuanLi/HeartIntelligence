@@ -101,48 +101,61 @@ function formatRelativeTime(timestamp) {
 }
 
 /* ========================================================= */
-/*  Markdown test function                                    */
+/*  Enhanced Markdown test function                          */
 /* ========================================================= */
 function testMarkdownRendering() {
-  const testMarkdown = `# Test Markdown
+  const testMarkdown = `# ChatGPT-like Rendering Test
 
-This is **bold text** and this is *italic text*.
+This is a comprehensive test of **bold text** and *italic text* formatting. The text should have proper spacing and line breaks.
 
-## Code Example
+## Code Examples
 Here's some \`inline code\` and a code block:
 
 \`\`\`javascript
 function hello() {
   console.log("Hello, World!");
+  return "Success!";
 }
 \`\`\`
 
-## List Example
-- Item 1
-- Item 2
-  - Nested item
+## Enhanced Lists
+- **Bold item** with proper spacing
+- *Italic item* with good line height
+  - Nested bullet point
   - Another nested item
+    - Third level nesting
+- Final top-level item
 
-## Numbered List
-1. First item
-2. Second item
-3. Third item
+## Numbered Lists
+1. **First item** with bold text
+2. *Second item* with italic text
+3. Third item with \`inline code\`
 
-> This is a blockquote
+## Blockquotes
+> This is a blockquote with proper styling and spacing. It should look clean and readable.
 
-[This is a link](https://example.com)
+> Nested blockquote
+> > Double nested blockquote
+
+## Tables
+| Feature | Status | Notes |
+|---------|--------|-------|
+| Bold text | ✅ | Enhanced weight |
+| Lists | ✅ | Better spacing |
+| Code | ✅ | Improved styling |
+| Tables | ✅ | ChatGPT-like |
 
 ---
 
-**Test completed!**`;
+**Test completed successfully!** All formatting should now look like ChatGPT.`;
 
-  console.log('Testing markdown rendering...');
+  console.log('Testing enhanced markdown rendering...');
   console.log('Test markdown content:', testMarkdown);
   
   if (typeof marked !== 'undefined') {
     try {
       const html = marked.parse(testMarkdown);
-      console.log('Markdown HTML output:', html);
+      console.log('Enhanced markdown HTML output:', html);
       return true;
     } catch (error) {
       console.error('Markdown parsing error:', error);
@@ -155,6 +168,38 @@ function hello() {
 }
 
 /* ========================================================= */
+/*  AI Output Pattern Test Function                          */
+/* ========================================================= */
+function testAIOutputRendering() {
+  const aiOutputPattern = `In 2025, notable competitions for the 100-meter freestyle event produced several winners:
+
+1. **NCAA Division I Men's Swimming and Diving Championships**: Florida's Josh Liendo won the 100-yard freestyle with a time of 39.99 seconds at the championships held from March 26 to 29, 2025. This victory marked his third consecutive NCAA title in this event. Tennessee's Jordan Crooks finished in second place with a time of 40.06 seconds, while his teammate Gui Caribe took third with a time of 40.15 seconds.
+
+2. **World Aquatics Championships**: At the World Aquatics Championships held in Singapore from July 30 to 31, 2025, Romania's David Popovici clinched the gold medal in the men's 100-meter freestyle with a time of 46.51 seconds. The silver medal was awarded to the USA's Jack Alexy, who finished in 46.92 seconds, and Australia's Kyle Chalmers secured the bronze with a time of 47.17 seconds.
+
+3. **USA Swimming Championships**: In June 2025, Jack Alexy won the national title in the 100-meter freestyle at the USA Swimming Championships with a time of 47.17 seconds.
+
+These events showcased some of the top talents in competitive swimming for the year.`;
+
+  console.log('Testing AI output pattern rendering...');
+  console.log('AI output pattern:', aiOutputPattern);
+  
+  if (typeof marked !== 'undefined') {
+    try {
+      const html = marked.parse(aiOutputPattern);
+      console.log('AI pattern HTML output:', html);
+      return true;
+    } catch (error) {
+      console.error('AI pattern parsing error:', error);
+      return false;
+    }
+  } else {
+    console.error('Marked.js not available for AI pattern test');
+    return false;
+  }
+}
+
+/* ========================================================= */
 /*  DOM ready                                                 */
 /* ========================================================= */
 document.addEventListener("DOMContentLoaded", () => {
@@ -162,6 +207,11 @@ document.addEventListener("DOMContentLoaded", () => {
   // Test markdown functionality on page load
   setTimeout(() => {
     testMarkdownRendering();
+    
+    // Also test with actual AI output pattern
+    if (location.pathname.startsWith("/chat/")) {
+      testAIOutputRendering();
+    }
   }, 1000);
 
   /* ---------- Grab common DOM elements ---------- */
@@ -646,20 +696,29 @@ document.addEventListener("DOMContentLoaded", () => {
     if (typeof marked !== 'undefined') {
       console.log('Marked.js loaded successfully');
       
-      // Configure marked options (updated for newer version)
+      // Configure marked options for AI output rendering
       marked.setOptions({
-        breaks: true,        // Convert \n to <br>
+        breaks: true,       // Convert \n to <br> for proper line break handling
         gfm: true,          // GitHub Flavored Markdown
         smartLists: true,
-        smartypants: true
+        smartypants: true,
+        headerIds: false,   // Disable header IDs for cleaner HTML
+        mangle: false,      // Don't mangle email addresses
+        sanitize: false,    // Allow HTML (we'll handle security separately)
+        silent: true,       // Don't throw on malformed markdown
+        pedantic: false,    // Use more relaxed markdown parsing
+        renderer: new marked.Renderer()
       });
       
       // For assistant messages, render as markdown
       if (role === "assistant") {
         try {
-          // Normalize double line breaks (\n\n) to single line breaks (\n)
-          // This ensures consistent spacing in the rendered HTML
-          const processedText = text.replace(/\n\n+/g, '\n');
+          // Process text to handle line breaks properly
+          let processedText = text;
+          
+          // Normalize excessive line breaks: convert 3+ consecutive \n to just \n\n
+          processedText = processedText.replace(/\n{3,}/g, '\n\n');
+          
           const htmlContent = marked.parse(processedText);
           div.innerHTML = htmlContent;
           console.log('Markdown rendered successfully');
@@ -668,21 +727,32 @@ document.addEventListener("DOMContentLoaded", () => {
           div.textContent = text; // Fallback to plain text
         }
       } else {
-        // For user messages, normalize double line breaks and escape HTML to prevent XSS
-        const normalizedText = text.replace(/\n\n+/g, '\n');
-        div.textContent = normalizedText;
+        // For user messages, handle line breaks without excessive spacing
+        // Convert \n to <br> and \n\n to <br><br> for proper rendering
+        let processedText = text
+          .replace(/\n{3,}/g, '\n\n')  // Normalize excessive line breaks
+          .replace(/\n\n/g, '<br><br>') // Convert double line breaks to double <br>
+          .replace(/\n/g, '<br>');     // Convert single line breaks to <br>
+        
+        div.innerHTML = processedText;
       }
     } else {
       console.warn('Marked.js not loaded, using fallback');
       // Fallback if marked is not loaded
       if (role === "assistant") {
-        // Normalize double line breaks for fallback case too
-        const normalizedText = text.replace(/\n\n+/g, '\n');
-        div.innerHTML = normalizedText;   // assistant may contain HTML
+        // Simple fallback with basic line break handling
+        let processedText = text
+          .replace(/\n{3,}/g, '\n\n')  // Normalize excessive line breaks
+          .replace(/\n\n/g, '<br><br>') // Convert double line breaks to double <br>
+          .replace(/\n/g, '<br>');     // Convert single line breaks to <br>
+        div.innerHTML = processedText;
       } else {
-        // Normalize double line breaks for user messages
-        const normalizedText = text.replace(/\n\n+/g, '\n');
-        div.textContent = normalizedText;
+        // For user messages, handle line breaks without excessive spacing
+        let processedText = text
+          .replace(/\n{3,}/g, '\n\n')  // Normalize excessive line breaks
+          .replace(/\n\n/g, '<br><br>') // Convert double line breaks to double <br>
+          .replace(/\n/g, '<br>');     // Convert single line breaks to <br>
+        div.innerHTML = processedText;
       }
     }
     

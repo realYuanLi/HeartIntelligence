@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Line Break Test</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+</head>
+<body>
+    <div style="max-width: 800px; margin: 2rem auto; padding: 1rem;">
+        <h1>Line Break Rendering Test</h1>
+        
+        <h2>Test 1: Single Line Breaks (\n)</h2>
+        <div class="message user" id="test1"></div>
+        
+        <h2>Test 2: Double Line Breaks (\n\n)</h2>
+        <div class="message user" id="test2"></div>
+        
+        <h2>Test 3: Assistant Message with Markdown</h2>
+        <div class="message assistant" id="test3"></div>
+        
+        <h2>Test 4: Mixed Content with Lists and Bold</h2>
+        <div class="message assistant" id="test4"></div>
+    </div>
+
+    <script>
+        // Test data
+        const testData = {
+            singleBreaks: "Line 1\nLine 2\nLine 3",
+            doubleBreaks: "Paragraph 1\n\nParagraph 2\n\nParagraph 3",
+            markdownContent: "This is **bold text** with a line break.\n\nHere's a list:\n- Item 1\n- Item 2\n- Item 3\n\nAnd some *italic text*.",
+            mixedContent: "**Bold paragraph** with content.\n\nHere's a numbered list:\n1. First item\n2. Second item\n3. Third item\n\n*Italic text* with a line break.\n\nFinal paragraph."
+        };
+
+        // Configure marked
+        if (typeof marked !== 'undefined') {
+            marked.setOptions({
+                breaks: true,
+                gfm: true,
+                smartLists: true,
+                smartypants: true,
+                headerIds: false,
+                mangle: false,
+                sanitize: false,
+                silent: true,
+                pedantic: false,
+                renderer: new marked.Renderer()
+            });
+        }
+
+        // Function to process text like in the app
+        function processText(text, role) {
+            if (role === "assistant") {
+                // For assistant messages, render as markdown
+                if (typeof marked !== 'undefined') {
+                    try {
+                        let processedText = text.replace(/\n{3,}/g, '\n\n');
+                        return marked.parse(processedText);
+                    } catch (error) {
+                        console.error('Error rendering markdown:', error);
+                        return text;
+                    }
+                }
+            } else {
+                // For user messages, handle line breaks without excessive spacing
+                let processedText = text
+                    .replace(/\n{3,}/g, '\n\n')
+                    .replace(/\n\n/g, '<br><br>')
+                    .replace(/\n/g, '<br>');
+                return processedText;
+            }
+        }
+
+        // Populate test divs
+        document.getElementById('test1').innerHTML = processText(testData.singleBreaks, 'user');
+        document.getElementById('test2').innerHTML = processText(testData.doubleBreaks, 'user');
+        document.getElementById('test3').innerHTML = processText(testData.markdownContent, 'assistant');
+        document.getElementById('test4').innerHTML = processText(testData.mixedContent, 'assistant');
+    </script>
+</body>
+</html>

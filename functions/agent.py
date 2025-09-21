@@ -4,7 +4,6 @@ from dotenv import load_dotenv
 from .web_search import web_search, format_search_results, needs_web_search
 load_dotenv()
 
-# Set OpenAI API key
 openai.api_key = os.getenv("OPENAI_API_KEY")
 
 class Agent:

@@ -179,7 +179,7 @@ main::-webkit-scrollbar-thumb:hover {
 .message {
   max-width: 850px;
   padding: 1rem;
-  white-space: pre-line;
+  white-space: normal;  /* Changed from pre-line to normal for better control */
   align-self: flex-start;
   margin-right: auto;
   margin-left: 2rem; /* Align with left edge of input content (container padding + wrapper padding) */
@@ -196,7 +196,7 @@ main::-webkit-scrollbar-thumb:hover {
   align-self: flex-end !important;
   background: var(--user) !important;
   color: var(--text) !important;
-  white-space: pre-line;
+  white-space: normal;  /* Changed from pre-line to normal for better control */
   border: 1px solid var(--user) !important;
   border-radius: 1.5rem !important;
   margin-left: auto !important;
@@ -844,142 +844,258 @@ main::-webkit-scrollbar-thumb:hover {
 }
 
 /* ========================================================= */
-/*  Markdown formatting styles                               */
+/*  Markdown formatting styles - ChatGPT-like                */
 /* ========================================================= */
 
 /* Markdown content within assistant messages */
 .message.assistant {
-  white-space: pre-line !important;
-  line-height: 1.5 !important;
+  white-space: normal !important;  /* Override pre-line to allow markdown control */
+  line-height: 1.6 !important;
   align-self: flex-start !important;
   margin-left: 2rem !important; /* Align with left edge of input content (container padding + wrapper padding) */
   margin-right: auto !important;
+  font-size: 1rem;
+  color: #374151;
+  text-align: left !important;  /* Override justify for better markdown rendering */
 }
 
+/* Refined headings spacing - based on AI output patterns */
 .message.assistant h1,
 .message.assistant h2,
 .message.assistant h3,
 .message.assistant h4,
 .message.assistant h5,
 .message.assistant h6 {
-  margin: 0.5rem 0 0.3rem 0;
+  margin: 1rem 0 0.5rem 0;
   font-weight: 600;
-  line-height: 1.5;
-  color: var(--text);
+  line-height: 1.4;
+  color: #111827;
+  font-family: inherit;
 }
 
 .message.assistant h1 {
-  font-size: 1.5rem;
-  border-bottom: 2px solid var(--border);
+  font-size: 1.75rem;
+  font-weight: 700;
+  margin-top: 1.5rem;
+  margin-bottom: 0.75rem;
+  border-bottom: 2px solid #e5e7eb;
   padding-bottom: 0.5rem;
 }
 
 .message.assistant h2 {
-  font-size: 1.3rem;
-  border-bottom: 1px solid var(--border);
-  padding-bottom: 0.3rem;
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin-top: 1.25rem;
+  margin-bottom: 0.5rem;
+  border-bottom: 1px solid #e5e7eb;
+  padding-bottom: 0.25rem;
 }
 
 .message.assistant h3 {
-  font-size: 1.2rem;
-  font-weight: 700;
-  color: var(--accent);
-  margin: 1.5rem 0 0.5rem 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-top: 1rem;
+  margin-bottom: 0.375rem;
+  color: #374151;
 }
 
-.message.assistant h4,
+.message.assistant h4 {
+  font-size: 1.125rem;
+  font-weight: 600;
+  margin-top: 0.875rem;
+  margin-bottom: 0.375rem;
+}
+
 .message.assistant h5,
 .message.assistant h6 {
   font-size: 1rem;
+  font-weight: 600;
+  margin-top: 0.75rem;
+  margin-bottom: 0.375rem;
 }
 
-
-/* Bold and italic text */
+/* Enhanced bold and italic text */
 .message.assistant strong,
 .message.assistant b {
-  font-weight: 600;
-  color: var(--text);
+  font-weight: 700;
+  color: #111827;
+  letter-spacing: -0.01em;
 }
 
 .message.assistant em,
 .message.assistant i {
   font-style: italic;
+  color: #374151;
 }
 
-/* Code formatting */
+/* Combined bold and italic */
+.message.assistant strong em,
+.message.assistant em strong,
+.message.assistant b i,
+.message.assistant i b {
+  font-weight: 700;
+  font-style: italic;
+  color: #111827;
+}
+
+/* Enhanced Code formatting - ChatGPT-like */
 .message.assistant code {
-  background: var(--code-bg);
-  color: var(--code-text);
-  padding: 0.2rem 0.4rem;
+  background: #f1f5f9;
+  color: #e11d48;
+  padding: 0.125rem 0.25rem;
   border-radius: 0.25rem;
-  font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', 'Source Code Pro', monospace;
-  font-size: 0.9em;
-  border: 1px solid var(--border);
+  font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', 'Source Code Pro', 'Consolas', monospace;
+  font-size: 0.875em;
+  font-weight: 500;
+  border: 1px solid #e2e8f0;
+  white-space: nowrap;
 }
 
 .message.assistant pre {
-  background: var(--code-bg);
-  color: var(--code-text);
-  padding: 0.8rem;
+  background: #f8fafc;
+  color: #334155;
+  padding: 1rem;
   border-radius: 0.5rem;
   overflow-x: auto;
-  margin: 0.6rem 0;
-  border: 1px solid var(--border);
-  font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', 'Source Code Pro', monospace;
-  font-size: 0.9em;
+  margin: 0.75rem 0;
+  border: 1px solid #e2e8f0;
+  font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', 'Source Code Pro', 'Consolas', monospace;
+  font-size: 0.875em;
   line-height: 1.5;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 .message.assistant pre code {
   background: none;
+  color: inherit;
   padding: 0;
   border: none;
   border-radius: 0;
   font-size: inherit;
+  font-weight: normal;
+  white-space: pre;
 }
 
-/* Lists */
+/* Code block with language indicator */
+.message.assistant pre[class*="language-"] {
+  position: relative;
+}
+
+.message.assistant pre[class*="language-"]::before {
+  content: attr(class);
+  position: absolute;
+  top: 0.5rem;
+  right: 0.75rem;
+  font-size: 0.75em;
+  color: #64748b;
+  text-transform: uppercase;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+}
+
+/* Refined Lists - based on AI output patterns */
 .message.assistant ul,
 .message.assistant ol {
-  margin: 0.3rem 0 !important;
-  padding-left: 1.2rem;
+  margin: 0.5rem 0 !important;
+  padding-left: 1.5rem;
+  line-height: 1.6;
 }
 
 .message.assistant li {
-  margin: 0.1rem 0 !important;
-  line-height: 1.5 !important;
-  padding-left: 0.3rem;
+  margin: 0.15rem 0 !important;
+  line-height: 1.6 !important;
+  padding-left: 0.25rem;
+  position: relative;
 }
 
 .message.assistant ul li {
-  list-style-type: disc;
+  list-style-type: none;
+  position: relative;
+}
+
+.message.assistant ul li::before {
+  content: "•";
+  color: #6b7280;
+  font-weight: bold;
+  position: absolute;
+  left: -1.25rem;
+  top: 0;
+  font-size: 1.1em;
 }
 
 .message.assistant ol li {
   list-style-type: decimal;
+  padding-left: 0.5rem;
 }
 
+/* Nested lists with proper indentation */
 .message.assistant ul ul,
 .message.assistant ol ol,
 .message.assistant ul ol,
 .message.assistant ol ul {
-  margin: 0.2rem 0;
-  padding-left: 1rem;
+  margin: 0.25rem 0;
+  padding-left: 1.25rem;
 }
 
-/* Blockquotes */
+/* Second level bullet points */
+.message.assistant ul ul li::before {
+  content: "◦";
+  color: #9ca3af;
+  font-size: 1em;
+}
+
+/* Third level bullet points */
+.message.assistant ul ul ul li::before {
+  content: "▪";
+  color: #d1d5db;
+  font-size: 0.9em;
+}
+
+/* List spacing improvements */
+.message.assistant li p {
+  margin: 0.25rem 0 !important;
+  line-height: 1.6 !important;
+}
+
+.message.assistant li:first-child {
+  margin-top: 0 !important;
+}
+
+.message.assistant li:last-child {
+  margin-bottom: 0 !important;
+}
+
+/* Refined Blockquotes - based on AI output patterns */
 .message.assistant blockquote {
-  margin: 0.6rem 0;
-  padding: 0.6rem 0.8rem;
-  border-left: 4px solid var(--accent);
-  background: var(--blockquote-bg);
-  border-radius: 0 0.25rem 0.25rem 0;
-  font-style: italic;
-  color: var(--text-secondary);
+  margin: 0.75rem 0;
+  padding: 0.75rem 1rem;
+  border-left: 4px solid #3b82f6;
+  background: #f8fafc;
+  border-radius: 0 0.375rem 0.375rem 0;
+  font-style: normal;
+  color: #475569;
+  position: relative;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
 .message.assistant blockquote p {
   margin: 0;
+  line-height: 1.6;
+}
+
+.message.assistant blockquote p:first-child {
+  margin-top: 0;
+}
+
+.message.assistant blockquote p:last-child {
+  margin-bottom: 0;
+}
+
+/* Nested blockquotes */
+.message.assistant blockquote blockquote {
+  margin: 0.5rem 0;
+  border-left-color: #64748b;
+  background: #f1f5f9;
 }
 
 /* Links */
@@ -994,27 +1110,37 @@ main::-webkit-scrollbar-thumb:hover {
   border-bottom-color: var(--accent);
 }
 
-/* Tables */
+/* Refined Tables - based on AI output patterns */
 .message.assistant table {
   width: 100%;
   border-collapse: collapse;
-  margin: 0.6rem 0;
-  border: 1px solid var(--border);
+  margin: 0.75rem 0;
+  border: 1px solid #e2e8f0;
   border-radius: 0.5rem;
   overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  font-size: 0.9em;
 }
 
 .message.assistant th,
 .message.assistant td {
-  padding: 0.75rem;
+  padding: 0.75rem 1rem;
   text-align: left;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid #e2e8f0;
+  line-height: 1.5;
 }
 
 .message.assistant th {
-  background: var(--table-header-bg);
+  background: #f8fafc;
   font-weight: 600;
-  color: var(--text);
+  color: #374151;
+  font-size: 0.875em;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.message.assistant td {
+  color: #475569;
 }
 
 .message.assistant tr:last-child td {
@@ -1022,7 +1148,26 @@ main::-webkit-scrollbar-thumb:hover {
 }
 
 .message.assistant tr:nth-child(even) {
-  background: var(--table-row-bg);
+  background: #fafbfc;
+}
+
+.message.assistant tr:hover {
+  background: #f1f5f9;
+}
+
+/* Responsive table */
+.message.assistant table {
+  display: block;
+  overflow-x: auto;
+  white-space: nowrap;
+}
+
+.message.assistant table thead,
+.message.assistant table tbody,
+.message.assistant table tr {
+  display: table;
+  width: 100%;
+  table-layout: fixed;
 }
 
 /* Horizontal rule */
@@ -1054,46 +1199,37 @@ main::-webkit-scrollbar-thumb:hover {
 }
 
 
-/* Code and content styling */
+/* Code and content styling - ChatGPT-like colors */
 .message.assistant {
-  --code-bg: #f6f8fa;
-  --code-text: #24292f;
-  --blockquote-bg: #f6f8fa;
-  --table-header-bg: #f6f8fa;
+  --code-bg: #f1f5f9;
+  --code-text: #e11d48;
+  --blockquote-bg: #f8fafc;
+  --table-header-bg: #f1f5f9;
   --table-row-bg: #fafbfc;
+  --text-secondary: #64748b;
 }
 
 /* ========================================================= */
 /*  Line break normalization                                 */
 /* ========================================================= */
 
-/* Normalize line breaks in all messages */
-.message {
-  /* Set consistent line height for single line breaks */
+/* Normalize line breaks in user messages only */
+.message.user {
+  /* Set consistent line height for user messages */
   line-height: 1.5 !important;
 }
 
-/* Ensure consistent spacing for line breaks */
-.message.user,
-.message.assistant {
-  /* Set a smaller, fixed line height for consistent spacing */
-  line-height: 1.5 !important;
-}
-
-/* Normalize spacing in assistant messages with markdown-rendered HTML */
-.message.assistant {
-  line-height: 1.5 !important;
-}
-
-/* Normalize paragraph spacing in markdown-rendered content */
+/* Refined paragraph spacing - based on AI output patterns */
 .message.assistant p {
-  margin: 0 0 0.3rem 0 !important;  /* Small, consistent spacing between paragraphs */
-  line-height: 1.5 !important;
+  margin: 0 0 0.75rem 0 !important;  /* Controlled spacing between paragraphs */
+  line-height: 1.6 !important;
+  color: #374151;
+  font-size: 1rem;
 }
 
 /* Remove extra spacing from consecutive paragraphs */
 .message.assistant p + p {
-  margin-top: 0.3rem !important;
+  margin-top: 0.75rem !important;
 }
 
 /* Ensure our normalization overrides any other paragraph rules */
@@ -1105,10 +1241,52 @@ main::-webkit-scrollbar-thumb:hover {
   margin-bottom: 0 !important;
 }
 
+/* Refined spacing for paragraphs after headings */
+.message.assistant h1 + p,
+.message.assistant h2 + p,
+.message.assistant h3 + p,
+.message.assistant h4 + p,
+.message.assistant h5 + p,
+.message.assistant h6 + p {
+  margin-top: 0.25rem !important;
+}
+
+/* Refined spacing for paragraphs before headings */
+.message.assistant p + h1,
+.message.assistant p + h2,
+.message.assistant p + h3,
+.message.assistant p + h4,
+.message.assistant p + h5,
+.message.assistant p + h6 {
+  margin-top: 1rem !important;
+}
+
 /* Normalize line breaks in user messages (raw text) */
 .message.user {
-  white-space: pre-line !important;
+  white-space: normal !important;  /* Changed from pre-line to normal */
   line-height: 1.5 !important;
+}
+
+/* Ensure proper line break handling in assistant messages */
+.message.assistant {
+  white-space: normal !important;
+}
+
+/* Handle line breaks within paragraphs - controlled spacing */
+.message.assistant br,
+.message.user br {
+  line-height: 1.5 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  display: block !important;
+  content: "" !important;
+  margin-bottom: 0.25rem !important;  /* Small spacing for single line breaks */
+}
+
+/* Handle double line breaks (paragraph breaks) with more spacing */
+.message.assistant br + br,
+.message.user br + br {
+  margin-bottom: 0.75rem !important;  /* More spacing for paragraph breaks */
 }
 
 /* Normalize spacing for other markdown elements */

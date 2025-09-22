@@ -103,6 +103,13 @@ def _clean_urls(urls: List[str]) -> List[str]:
     for url in urls:
         # Remove trailing punctuation and clean up
         url = url.rstrip('.,;!?)')
+        
+        # Remove utm_source=openai parameter
+        if '?utm_source=openai' in url:
+            url = url.replace('?utm_source=openai', '')
+        elif '&utm_source=openai' in url:
+            url = url.replace('&utm_source=openai', '')
+        
         if url and url not in seen:
             cleaned.append(url)
             seen.add(url)
@@ -175,13 +182,13 @@ def web_search(query: str) -> Dict[str, Any]:
 
 def format_search_results(search_results: Dict[str, Any]) -> str:
     """
-    Format search results for display in the chat.
+    Format search results for display in the chat with in-text citations.
     
     Args:
         search_results (Dict): The search results from web_search
         
     Returns:
-        str: Formatted search results
+        str: Formatted search results with in-text citations
     """
     if "error" in search_results:
         return f"Search error: {search_results['error']}"
@@ -190,14 +197,60 @@ def format_search_results(search_results: Dict[str, Any]) -> str:
     urls = search_results.get("urls", [])
     journal = search_results.get("journal", "")
     
-    formatted = f"**Search Results:**\n\n{answer}\n\n"
+    # Add in-text citations to the answer
+    answer_with_citations = _add_in_text_citations(answer, urls)
     
-    if journal:
-        formatted += f"**Source:** {journal}\n\n"
+    formatted = f"**Search Results:**\n\n{answer_with_citations}\n\n"
     
     if urls:
-        formatted += "**References:**\n"
-        for i, url in enumerate(urls[:5], 1):  # Limit to 5 URLs
-            formatted += f"{i}. {url}\n"
+        # Extract domain from the first URL for source display
+        try:
+            first_url = urls[0]
+            if '://' in first_url:
+                domain = first_url.split('://')[1].split('/')[0]
+            else:
+                domain = first_url.split('/')[0]
+            # Clean up domain (remove www, etc.)
+            domain = domain.replace('www.', '')
+            formatted += f"**Source:** {domain}\n\n"
+        except:
+            # Fallback to journal if URL parsing fails
+            if journal:
+                formatted += f"**Source:** {journal}\n\n"
     
     return formatted
+
+def _add_in_text_citations(text: str, urls: List[str]) -> str:
+    """
+    Add domain-based citations to the text content based on URLs.
+    
+    Args:
+        text (str): The original text content
+        urls (List[str]): List of URLs to cite
+        
+    Returns:
+        str: Text with in-text citations added using domain names
+    """
+    if not urls or not text:
+        return text
+    
+    # Check if the text already contains proper citations
+    if '[http' in text or '](http' in text:
+        # Text already has citations, just return as is
+        return text
+    
+    # If no citations found, add them at the end
+    citation_text = "\n\n**Sources:**\n"
+    for i, url in enumerate(urls[:3], 1):  # Limit to first 3 URLs
+        try:
+            if '://' in url:
+                domain = url.split('://')[1].split('/')[0]
+            else:
+                domain = url.split('/')[0]
+            # Clean up domain (remove www, etc.)
+            domain = domain.replace('www.', '')
+            citation_text += f"{i}. [{domain}]({url})\n"
+        except:
+            citation_text += f"{i}. {url}\n"
+    
+    return text + citation_text

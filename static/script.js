@@ -697,6 +697,34 @@ document.addEventListener("DOMContentLoaded", () => {
       console.log('Marked.js loaded successfully');
       
       // Configure marked options for AI output rendering
+      const renderer = new marked.Renderer();
+      
+      // Override link renderer to add target="_blank" and detect citations
+      renderer.link = function(href, title, text) {
+        const titleAttr = title ? ` title="${title}"` : '';
+        
+        // Check if this looks like a citation link (domain name as text, external URL)
+        const linkText = text.trim();
+        let citationClass = '';
+        
+        // Improved citation detection logic
+        if (href && href.startsWith('http') && 
+            linkText.includes('.') && 
+            !linkText.includes(' ') && 
+            linkText.length > 3 && 
+            linkText.length < 100 && // Increased from 50 to 100
+            // Additional checks for domain-like patterns
+            (linkText.match(/^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/) || // Standard domain
+             linkText.match(/^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}\/[a-zA-Z0-9.-]*$/) || // Domain with path
+             linkText.match(/^[a-zA-Z0-9.-]+\.(com|org|net|edu|gov|io|co|uk|de|fr|jp|cn|au|ca|us)$/i))) { // Common TLDs
+          citationClass = ' class="citation-badge"';
+          console.log('Detected citation in renderer:', linkText);
+        }
+        
+        return `<a href="${href}"${titleAttr}${citationClass} target="_blank" rel="noopener noreferrer">${text}</a>`;
+      };
+      
+      
       marked.setOptions({
         breaks: true,       // Convert \n to <br> for proper line break handling
         gfm: true,          // GitHub Flavored Markdown
@@ -707,7 +735,8 @@ document.addEventListener("DOMContentLoaded", () => {
         sanitize: false,    // Allow HTML (we'll handle security separately)
         silent: true,       // Don't throw on malformed markdown
         pedantic: false,    // Use more relaxed markdown parsing
-        renderer: new marked.Renderer()
+        renderer: renderer,
+        xhtml: false        // Don't force XHTML compliance which might escape HTML 
       });
       
       // For assistant messages, render as markdown
@@ -719,8 +748,43 @@ document.addEventListener("DOMContentLoaded", () => {
           // Normalize excessive line breaks: convert 3+ consecutive \n to just \n\n
           processedText = processedText.replace(/\n{3,}/g, '\n\n');
           
+          // Fix citation format: convert ([domain](url)) to [domain](url)
+          const originalText = processedText;
+          processedText = processedText.replace(/\(\[([^\]]+)\]\(([^)]+)\)\)/g, '[$1]($2)');
+          
+          // Additional citation format fixes
+          // Fix cases where AI might use different citation formats
+          processedText = processedText.replace(/\[([^\]]+)\]\(([^)]+)\)\s*\(([^)]+)\)/g, '[$1]($2)'); // Remove trailing parentheses
+          processedText = processedText.replace(/\[([^\]]+)\]\(([^)]+)\)\s*\[([^\]]+)\]\(([^)]+)\)/g, '[$1]($2) [$3]($4)'); // Fix double citations
+          
+          // Move citations to end of sentences (after periods)
+          processedText = processedText.replace(/([^.!?])\s*\[([^\]]+)\]\(([^)]+)\)\s*([.!?])/g, '$1$4 [$2]($3)');
+          
+          // Remove utm_source=openai parameter from URLs
+          processedText = processedText.replace(/\[([^\]]+)\]\(([^)]*)\?utm_source=openai([^)]*)\)/g, '[$1]($2$3)');
+          processedText = processedText.replace(/\[([^\]]+)\]\(([^)]*)\&utm_source=openai([^)]*)\)/g, '[$1]($2$3)');
+          
+          if (originalText !== processedText) {
+            console.log('🔧 Fixed citation format:', originalText.substring(0, 100), '->', processedText.substring(0, 100));
+          }
+          
           const htmlContent = marked.parse(processedText);
           div.innerHTML = htmlContent;
+          
+          // Check if citation badges were added
+          const citationBadges = div.querySelectorAll('.citation-badge');
+          console.log(`📊 Found ${citationBadges.length} citation badges in message`);
+          
+          // Debug: Log all links to help troubleshoot citation detection
+          const allLinks = div.querySelectorAll('a');
+          console.log(`🔗 Total links found: ${allLinks.length}`);
+          allLinks.forEach((link, index) => {
+            const href = link.getAttribute('href');
+            const text = link.textContent;
+            const isCitation = link.classList.contains('citation-badge');
+            console.log(`  Link ${index + 1}: "${text}" -> "${href}" (citation: ${isCitation})`);
+          });
+          
           console.log('Markdown rendered successfully');
         } catch (error) {
           console.error('Error rendering markdown:', error);

@@ -76,7 +76,7 @@ class Agent:
                 })
                 openai_messages.append({
                     "role": "user",
-                    "content": f"Here are the search results:\n\n{formatted_results}\n\nPlease provide a comprehensive answer based on this information."
+                    "content": f"Here are the search results:\n\n{formatted_results}\n\nPlease provide a comprehensive answer based on this information. IMPORTANT: When referencing sources, use the exact citation format [domain.com](url) where 'domain.com' is the website domain and 'url' is the full URL. Do NOT use parentheses around citations like ([domain.com](url)). Examples: [example.com](https://example.com/article) or [wikipedia.org](https://en.wikipedia.org/wiki/topic)."
                 })
             
             # Make API call without tools (since we've already done the search if needed)

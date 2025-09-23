@@ -32,7 +32,7 @@ except Exception as e:
 # Paths & config
 # --------------------------------------------------------------------------------
 APP_DIR = Path(__file__).resolve().parent
-DATA_DIR = APP_DIR / "data"
+DATA_DIR = APP_DIR / "chat_history"
 CONFIG_PATH = APP_DIR / "config" / "configs.json"
 PATIENT_INFO_PATH = APP_DIR / "patient_info" / "test.json"
 DATA_DIR.mkdir(parents=True, exist_ok=True)

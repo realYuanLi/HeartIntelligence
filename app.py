@@ -49,6 +49,16 @@ except Exception as e:
     PATIENT_DATA = None
     print(f"Could not load patient data: {e}")
 
+# Load EHR test data
+EHR_DATA_PATH = APP_DIR / "data" / "test_file" / "ehr_test_data.json"
+try:
+    with open(EHR_DATA_PATH, "r", encoding="utf-8") as f:
+        EHR_DATA = json.load(f)
+    print(f"Loaded EHR data with {EHR_DATA.get('metadata', {}).get('summary', {}).get('total_records', 0)} records")
+except Exception as e:
+    EHR_DATA = None
+    print(f"Could not load EHR data: {e}")
+
 # Simple system prompt
 system_prompt = """You are a helpful AI assistant."""
 
@@ -56,14 +66,15 @@ Chatbot = Agent(
     role="AI Assistant",
     llm=CONFIG["chatbot"]["llm_model"],
     temperature=0.7,
-    sys_message=system_prompt
+    sys_message=system_prompt,
+    ehr_data=EHR_DATA
 )
 
 SummaryBot = Agent(
     role="Summary assistant",
     llm="gpt-4o",
     temperature=0.1,
-    sys_message="You are a chat title generator. You must create a 2-5 word title that summarizes the main topic of the conversation. Return ONLY the title words, no explanations, no prefixes, no quotes."
+    sys_message="You are a summarizer. You must create a 3-5 word title that summarizes the main topic of the conversation. Be specific and concise. Return ONLY the title words, no explanations, no prefixes, no quotes."
 )
 
 # --------------------------------------------------------------------------------

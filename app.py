@@ -51,24 +51,17 @@ except Exception as e:
 
 # Load EHR test data
 EHR_DATA_PATH = APP_DIR / "data" / "test_file" / "ehr_test_data.json"
-print(f"Attempting to load EHR data from: {EHR_DATA_PATH}")
-print(f"APP_DIR is: {APP_DIR}")
-print(f"EHR_DATA_PATH exists: {EHR_DATA_PATH.exists()}")
-print(f"EHR_DATA_PATH is file: {EHR_DATA_PATH.is_file()}")
-
 try:
     if EHR_DATA_PATH.exists() and EHR_DATA_PATH.is_file():
         with open(EHR_DATA_PATH, "r", encoding="utf-8") as f:
             EHR_DATA = json.load(f)
-        print(f"✅ Successfully loaded EHR data with {EHR_DATA.get('metadata', {}).get('summary', {}).get('total_records', 0)} records")
+        print(f"Loaded EHR data with {EHR_DATA.get('metadata', {}).get('summary', {}).get('total_records', 0)} records")
     else:
-        print(f"❌ EHR data file not found at: {EHR_DATA_PATH}")
         EHR_DATA = None
+        print("EHR data file not found")
 except Exception as e:
     EHR_DATA = None
-    print(f"❌ Could not load EHR data: {e}")
-    import traceback
-    traceback.print_exc()
+    print(f"Could not load EHR data: {e}")
 
 # Simple system prompt
 system_prompt = """You are a helpful AI assistant."""
@@ -198,6 +191,14 @@ def index():
     
     # For logged in users, show welcome page
     return render_template("welcome.html", username=session.get("username"))
+
+@app.route("/health")
+def health_check():
+    """Health check endpoint"""
+    return jsonify({
+        "status": "healthy",
+        "ehr_data_available": EHR_DATA is not None
+    })
 
 @app.route("/new")
 def new_chat():
@@ -410,33 +411,6 @@ def api_patient_info():
     else:
         return jsonify(success=False, message="No patient data available"), 404
 
-@app.route("/api/debug/data")
-def api_debug_data():
-    """Debug endpoint to check data file access"""
-    if not _require_login():
-        return jsonify(success=False, message="Login required"), 401
-    
-    debug_info = {
-        "app_dir": str(APP_DIR),
-        "ehr_data_path": str(EHR_DATA_PATH),
-        "ehr_file_exists": EHR_DATA_PATH.exists(),
-        "ehr_file_is_file": EHR_DATA_PATH.is_file() if EHR_DATA_PATH.exists() else False,
-        "ehr_data_loaded": EHR_DATA is not None,
-        "ehr_data_records": EHR_DATA.get('metadata', {}).get('summary', {}).get('total_records', 0) if EHR_DATA else 0,
-        "patient_data_loaded": PATIENT_DATA is not None,
-        "current_working_directory": os.getcwd(),
-        "files_in_data_dir": []
-    }
-    
-    # List files in data directory
-    data_dir = APP_DIR / "data"
-    if data_dir.exists():
-        try:
-            debug_info["files_in_data_dir"] = [str(p.relative_to(APP_DIR)) for p in data_dir.rglob("*") if p.is_file()]
-        except Exception as e:
-            debug_info["files_in_data_dir"] = f"Error listing files: {e}"
-    
-    return jsonify(success=True, debug_info=debug_info)
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8000)), debug=False)

@@ -3,13 +3,24 @@ __pycache__/
 .vscode
 .env
 
-# Ignore JSON files except patient_info
+# Ignore JSON files except specific ones we want to include
 *.json
 !patient_info/*.json
-data/
+!data/test_file/ehr_test_data.json
+
+# Ignore chat history and other data directories
+chat_history/
+data/processed_embeddings/
+data/test_folder/
+
+# Python and environment files
 chat_test_env/
 .venv/
 venv/
 *.pyc
 .DS_Store
 node_modules/
+
+# Keep data/test_file/ directory structure but ignore other files in it
+data/test_file/*
+!data/test_file/ehr_test_data.json

@@ -1,6 +1,7 @@
 import os
 import openai
 import threading
+import tiktoken
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dotenv import load_dotenv
 from .web_search import web_search, format_search_results, needs_web_search
@@ -66,6 +67,138 @@ class Agent:
         
         return web_results, health_results
     
+    def _count_tokens(self, text: str, model: str = "gpt-3.5-turbo") -> int:
+        """Count tokens in text using tiktoken."""
+        try:
+            encoding = tiktoken.encoding_for_model(model)
+            return len(encoding.encode(text))
+        except:
+            # Fallback: rough estimation (1 token ≈ 4 characters)
+            return len(text) // 4
+    
+    def _split_text_by_tokens(self, text: str, max_tokens: int, model: str = "gpt-3.5-turbo") -> list:
+        """Split text into chunks that don't exceed max_tokens."""
+        try:
+            encoding = tiktoken.encoding_for_model(model)
+            tokens = encoding.encode(text)
+            chunks = []
+            for i in range(0, len(tokens), max_tokens):
+                chunk_tokens = tokens[i:i + max_tokens]
+                chunk_text = encoding.decode(chunk_tokens)
+                chunks.append(chunk_text)
+            return chunks
+        except:
+            # Fallback: split by characters
+            chunk_size = max_tokens * 4  # rough estimation
+            return [text[i:i + chunk_size] for i in range(0, len(text), chunk_size)]
+    
+    def _summarize_chunk(self, chunk: str, category: str) -> str:
+        """Summarize a single chunk of health data."""
+        try:
+            response = openai.chat.completions.create(
+                model="gpt-4o",
+                messages=[
+                    {
+                        "role": "system",
+                        "content": f"You are a health data summarizer. Create a concise, accurate summary of the {category} data. Focus on key information like dates, values, medications, conditions, and important details. Be factual and informative."
+                    },
+                    {
+                        "role": "user",
+                        "content": f"Summarize this {category} data:\n\n{chunk}"
+                    }
+                ],
+                temperature=0.1,
+                max_tokens=10000
+            )
+            return response.choices[0].message.content.strip()
+        except Exception as e:
+            print(f"Error summarizing chunk: {e}")
+            return f"[Summary unavailable for {category} chunk]"
+    
+    def _summarize_health_data(self, raw_data_output: str, max_tokens_per_chunk: int = 10000) -> str:
+        """Summarize health data, splitting into chunks if necessary."""
+        if not raw_data_output or raw_data_output == "No raw data available.":
+            return "No health data available for summarization."
+        
+        # Count total tokens
+        total_tokens = self._count_tokens(raw_data_output)
+        
+        # If data is small enough, summarize directly
+        if total_tokens <= max_tokens_per_chunk:
+            try:
+                response = openai.chat.completions.create(
+                    model="gpt-4o",
+                    messages=[
+                        {
+                            "role": "system",
+                            "content": "You are a health data summarizer. Create a concise, accurate summary of the health data. Focus on key information like dates, values, medications, conditions, and important details. Be factual and informative."
+                        },
+                        {
+                            "role": "user",
+                            "content": f"Summarize this health data:\n\n{raw_data_output}"
+                        }
+                    ],
+                    temperature=0.1,
+                    max_tokens=10000
+                )
+                return response.choices[0].message.content.strip()
+            except Exception as e:
+                print(f"Error summarizing health data: {e}")
+                return raw_data_output
+        
+        # Split into chunks and summarize in parallel
+        chunks = self._split_text_by_tokens(raw_data_output, max_tokens_per_chunk)
+        
+        # Extract category from the data for better context
+        category = "health data"
+        if "CATEGORY:" in raw_data_output:
+            lines = raw_data_output.split('\n')
+            for line in lines:
+                if line.startswith("CATEGORY:"):
+                    category = line.replace("CATEGORY:", "").strip()
+                    break
+        
+        # Summarize chunks in parallel
+        summaries = []
+        with ThreadPoolExecutor(max_workers=min(len(chunks), 4)) as executor:
+            future_to_chunk = {executor.submit(self._summarize_chunk, chunk, category): chunk for chunk in chunks}
+            
+            for future in as_completed(future_to_chunk):
+                try:
+                    summary = future.result()
+                    summaries.append(summary)
+                except Exception as e:
+                    print(f"Error in parallel summarization: {e}")
+                    summaries.append("[Summary chunk failed]")
+        
+        # Combine summaries
+        combined_summary = "\n\n".join(summaries)
+        
+        # Final summary of summaries if still too long
+        if self._count_tokens(combined_summary) > 1000:
+            try:
+                response = openai.chat.completions.create(
+                    model="gpt-3.5-turbo",
+                    messages=[
+                        {
+                            "role": "system",
+                            "content": "You are a health data summarizer. Create a final, concise summary by combining multiple health data summaries. Focus on the most important information."
+                        },
+                        {
+                            "role": "user",
+                            "content": f"Create a final summary from these health data summaries:\n\n{combined_summary}"
+                        }
+                    ],
+                    temperature=0.1,
+                    max_tokens=800
+                )
+                return response.choices[0].message.content.strip()
+            except Exception as e:
+                print(f"Error in final summarization: {e}")
+                return combined_summary
+        
+        return combined_summary
+    
     def _web_search_task(self, query: str):
         """Task for web search analysis."""
         try:
@@ -127,43 +260,69 @@ class Agent:
                 print(f"Running parallel analysis for query: {latest_user_message}")
                 web_results, health_results = self._parallel_analysis(latest_user_message)
             
+            # Process and summarize data sources
+            web_summary = None
+            health_summary = None
+            
             # Process web search results
             if web_results and web_results.get('needs_search'):
                 search_results = web_results['search_results']
                 formatted_results = format_search_results(search_results)
-                
-                # Add search results to the conversation
+                web_summary = formatted_results
+            
+            # Process health data analysis results
+            if health_results and health_results.get('health_analysis'):
+                health_analysis = health_results['health_analysis']
+                if health_analysis.get('raw_data_output'):
+                    # Summarize health data
+                    health_summary = self._summarize_health_data(health_analysis['raw_data_output'])
+                elif health_analysis.get('formatted_output'):
+                    health_summary = f"Available Health Data Categories:\n{health_analysis['formatted_output']}"
+            
+            # Build intelligent response based on available sources
+            if web_summary and health_summary:
+                # Both sources available - integrate them
+                openai_messages.append({
+                    "role": "assistant",
+                    "content": f"Let me analyze your query using both current information and your personal health data."
+                })
+                openai_messages.append({
+                    "role": "user",
+                    "content": f"""Based on your query: "{latest_user_message}"
+
+CURRENT INFORMATION:
+{web_summary}
+
+PERSONAL HEALTH DATA:
+{health_summary}
+
+Please provide a comprehensive answer that integrates both the current information and your personal health data. When referencing sources, use the exact citation format [domain.com](url). Focus on how the current information relates to your specific health situation."""
+                })
+            elif web_summary:
+                # Only web search available
                 openai_messages.append({
                     "role": "assistant",
                     "content": f"Let me search for current information about: {latest_user_message}"
                 })
                 openai_messages.append({
                     "role": "user",
-                    "content": f"Here are the search results:\n\n{formatted_results}\n\nPlease provide a comprehensive answer based on this information. IMPORTANT: When referencing sources, use the exact citation format [domain.com](url) where 'domain.com' is the website domain and 'url' is the full URL. Do NOT use parentheses around citations like ([domain.com](url)). Examples: [example.com](https://example.com/article) or [wikipedia.org](https://en.wikipedia.org/wiki/topic)."
+                    "content": f"Here are the search results:\n\n{web_summary}\n\nPlease provide a comprehensive answer based on this information. IMPORTANT: When referencing sources, use the exact citation format [domain.com](url) where 'domain.com' is the website domain and 'url' is the full URL. Do NOT use parentheses around citations like ([domain.com](url)). Examples: [example.com](https://example.com/article) or [wikipedia.org](https://en.wikipedia.org/wiki/topic)."
                 })
-            
-            # Process health data analysis results
-            if health_results and health_results.get('health_analysis'):
-                health_analysis = health_results['health_analysis']
-                if health_analysis.get('formatted_output'):
-                    # Add health data information to the conversation
-                    openai_messages.append({
-                        "role": "assistant",
-                        "content": f"Let me analyze what health data is available for your query."
-                    })
-                    
-                    # Include both formatted categories and raw data
-                    health_content = f"Available Health Data Categories:\n{health_analysis['formatted_output']}"
-                    
-                    if health_analysis.get('raw_data_output'):
-                        health_content += f"\n\nRaw Health Data Extracted:\n{health_analysis['raw_data_output']}"
-                    
-                    health_content += "\n\nPlease provide a comprehensive answer based on this actual health data. Include specific details from the raw data when relevant."
-                    
-                    openai_messages.append({
-                        "role": "user",
-                        "content": health_content
-                    })
+            elif health_summary:
+                # Only health data available
+                openai_messages.append({
+                    "role": "assistant",
+                    "content": f"Let me analyze your personal health data for your query."
+                })
+                openai_messages.append({
+                    "role": "user",
+                    "content": f"""Based on your query: "{latest_user_message}"
+
+PERSONAL HEALTH DATA:
+{health_summary}
+
+Please provide a comprehensive answer based on your personal health data. Include specific details and insights relevant to your health situation."""
+                })
             
             # Make API call without tools (since we've already done the search if needed)
             response = openai.chat.completions.create(

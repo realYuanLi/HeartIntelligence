@@ -242,10 +242,8 @@ def extract_categories_from_ehr(ehr_data: Dict) -> Dict[str, List[str]]:
     """
     categories = {}
     
-    # Get categories from metadata summary if available
     summary_categories = ehr_data.get('metadata', {}).get('summary', {}).get('categories', [])
     
-    # Extract subcategories from each category
     for category in summary_categories:
         if category in ehr_data:
             subcategories = list(ehr_data[category].keys())
@@ -253,14 +251,14 @@ def extract_categories_from_ehr(ehr_data: Dict) -> Dict[str, List[str]]:
     
     return categories
 
-def extract_raw_data_from_categories(ehr_data: Dict, categories: Dict[str, List[str]], max_records_per_subcategory: int = 3) -> Dict[str, Dict[str, List[Dict]]]:
+def extract_raw_data_from_categories(ehr_data: Dict, categories: Dict[str, List[str]], max_items_per_subcategory: int = 100) -> Dict[str, Dict[str, List[Dict]]]:
     """
     Extract raw data from EHR for specified categories and subcategories.
     
     Args:
         ehr_data (Dict): The EHR data dictionary
         categories (Dict[str, List[str]]): Categories and subcategories to extract
-        max_records_per_subcategory (int): Maximum number of records to return per subcategory
+        max_items_per_subcategory (int): Maximum number of items to analyze per subcategory (default: 100)
         
     Returns:
         Dict[str, Dict[str, List[Dict]]]: Raw data organized by category and subcategory
@@ -272,13 +270,17 @@ def extract_raw_data_from_categories(ehr_data: Dict, categories: Dict[str, List[
             raw_data[category] = {}
             for subcategory in subcategories:
                 if subcategory in ehr_data[category]:
-                    # Get the data for this subcategory
+                    # Get data for this subcategory
                     subcategory_data = ehr_data[category][subcategory]
                     
-                    # Limit the number of records for display
+                    # Limit to max_items_per_subcategory for analysis if it's a list
                     if isinstance(subcategory_data, list):
-                        limited_data = subcategory_data[:max_records_per_subcategory]
-                        raw_data[category][subcategory] = limited_data
+                        if len(subcategory_data) > max_items_per_subcategory:
+                            # Take first 100 items for analysis
+                            raw_data[category][subcategory] = subcategory_data[:max_items_per_subcategory]
+                        else:
+                            # Take all items if less than 100
+                            raw_data[category][subcategory] = subcategory_data
                     else:
                         raw_data[category][subcategory] = [subcategory_data]
                 else:
@@ -304,17 +306,22 @@ def print_raw_health_data(raw_data: Dict[str, Dict[str, List[Dict]]]) -> str:
     output += "=" * 80 + "\n\n"
     
     for category, subcategories in raw_data.items():
-        output += f"📁 {category.upper().replace('_', ' ')}\n"
+        output += f"CATEGORY: {category.upper().replace('_', ' ')}\n"
         output += "-" * 50 + "\n"
         
         for subcategory, records in subcategories.items():
-            output += f"\n  📋 {subcategory}:\n"
+            output += f"\n  SUBCATEGORY: {subcategory}\n"
             output += "  " + "-" * 30 + "\n"
             
             if not records:
-                output += "    ❌ No data available\n"
+                output += "    No data available\n"
             else:
-                for i, record in enumerate(records, 1):
+                total_records = len(records)
+                output += f"    Total records: {total_records}\n"
+                
+                # Show first few records as examples (max 5 for display)
+                display_records = min(5, total_records)
+                for i, record in enumerate(records[:display_records], 1):
                     output += f"    Record {i}:\n"
                     # Format the record data
                     if isinstance(record, dict):
@@ -330,6 +337,9 @@ def print_raw_health_data(raw_data: Dict[str, Dict[str, List[Dict]]]) -> str:
                     else:
                         output += f"      {record}\n"
                     output += "\n"
+                
+                if total_records > display_records:
+                    output += f"    ... and {total_records - display_records} more records (showing first {display_records} for display)\n\n"
         
         output += "\n"
     

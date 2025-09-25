@@ -34,20 +34,13 @@ except Exception as e:
 APP_DIR = Path(__file__).resolve().parent
 DATA_DIR = APP_DIR / "chat_history"
 CONFIG_PATH = APP_DIR / "config" / "configs.json"
-PATIENT_INFO_PATH = APP_DIR / "patient_info" / "test.json"
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 
 with open(CONFIG_PATH, "r", encoding="utf-8") as f:
     CONFIG = json.load(f)
 
-# Load patient data directly from JSON
-try:
-    with open(PATIENT_INFO_PATH, "r", encoding="utf-8") as f:
-        PATIENT_DATA = json.load(f)
-    print(f"Loaded patient data for: {PATIENT_DATA}")
-except Exception as e:
-    PATIENT_DATA = None
-    print(f"Could not load patient data: {e}")
+# Patient data is now handled through EHR data
+PATIENT_DATA = None
 
 # Load EHR test data
 EHR_DATA_PATH = APP_DIR / "data" / "test_file" / "ehr_test_data.json"
@@ -197,7 +190,8 @@ def health_check():
     """Health check endpoint"""
     return jsonify({
         "status": "healthy",
-        "ehr_data_available": EHR_DATA is not None
+        "ehr_data_available": EHR_DATA is not None,
+        "ehr_records": EHR_DATA.get('metadata', {}).get('summary', {}).get('total_records', 0) if EHR_DATA else 0
     })
 
 @app.route("/new")

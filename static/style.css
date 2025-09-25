@@ -162,7 +162,6 @@ main::-webkit-scrollbar-thumb:hover {
   margin: 0 auto;
   align-items: stretch;
   width: 100%;
-  direction: rtl;
 }
 
 .chat-content::after {

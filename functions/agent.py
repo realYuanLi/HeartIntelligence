@@ -295,7 +295,7 @@ CURRENT MEDICAL INFORMATION:
 PERSONAL HEALTH DATA:
 {health_summary}
 
-Provide a comprehensive answer that integrates both current information and personal health data. Reference specific values and trends from their data. Use citation format [domain.com](url). Examples: [example.com](https://example.com/article) or [wikipedia.org](https://en.wikipedia.org/wiki/topic)Include medical disclaimers about consulting healthcare providers."""
+Provide a comprehensive answer that integrates both current information and personal health data. Reference specific values and trends from their data. Use citation format [domain.com](url). Examples: [example.com](https://example.com/article) or [wikipedia.org](https://en.wikipedia.org/wiki/topic). Include medical disclaimers about consulting healthcare providers."""
                 })
             elif web_summary:
                 # Only web search available
@@ -310,7 +310,7 @@ Provide a comprehensive answer that integrates both current information and pers
 CURRENT MEDICAL INFORMATION:
 {web_summary}
 
-Provide an accurate, evidence-based answer based on this information. Use citation format [domain.com](url). Examples: [example.com](https://example.com/article) or [wikipedia.org](https://en.wikipedia.org/wiki/topic)Include relevant safety information and medical disclaimers about consulting healthcare providers."""
+Provide an accurate, evidence-based answer based on this information. Use citation format [domain.com](url). Examples: [example.com](https://example.com/article) or [wikipedia.org](https://en.wikipedia.org/wiki/topic). Include relevant safety information and medical disclaimers about consulting healthcare providers."""
                 })
             elif health_summary:
                 # Only health data available

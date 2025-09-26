@@ -200,6 +200,51 @@ These events showcased some of the top talents in competitive swimming for the y
 }
 
 /* ========================================================= */
+/*  Citation Format Test Function                            */
+/* ========================================================= */
+function testCitationRendering() {
+  const citationTestPattern = `Here are some medical guidelines with citations:
+
+The American Heart Association recommends regular exercise [heart.org](https://www.heart.org/en/healthy-living/fitness) for cardiovascular health. According to recent studies [pubmed.ncbi.nlm.nih.gov](https://pubmed.ncbi.nlm.nih.gov/example), regular physical activity can reduce the risk of heart disease by up to 30%.
+
+Additional resources include:
+- [mayoclinic.org](https://www.mayoclinic.org/healthy-lifestyle/fitness) for comprehensive health information
+- [cdc.gov](https://www.cdc.gov/physicalactivity) for government guidelines
+- [webmd.com](https://www.webmd.com/fitness-exercise) for patient education
+
+These sources provide evidence-based recommendations for maintaining cardiovascular health.`;
+
+  console.log('Testing citation rendering...');
+  console.log('Citation test pattern:', citationTestPattern);
+  
+  if (typeof marked !== 'undefined') {
+    try {
+      const html = marked.parse(citationTestPattern);
+      console.log('Citation test HTML output:', html);
+      
+      // Count citation badges
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = html;
+      const citationBadges = tempDiv.querySelectorAll('.citation-badge');
+      console.log(`📊 Found ${citationBadges.length} citation badges in test`);
+      
+      // Log each citation
+      citationBadges.forEach((badge, index) => {
+        console.log(`  Citation ${index + 1}: "${badge.textContent}" -> "${badge.href}"`);
+      });
+      
+      return true;
+    } catch (error) {
+      console.error('Citation test parsing error:', error);
+      return false;
+    }
+  } else {
+    console.error('Marked.js not available for citation test');
+    return false;
+  }
+}
+
+/* ========================================================= */
 /*  DOM ready                                                 */
 /* ========================================================= */
 document.addEventListener("DOMContentLoaded", () => {
@@ -211,6 +256,7 @@ document.addEventListener("DOMContentLoaded", () => {
     // Also test with actual AI output pattern
     if (location.pathname.startsWith("/chat/")) {
       testAIOutputRendering();
+      testCitationRendering(); // Test citation detection
     }
   }, 1000);
 
@@ -712,11 +758,12 @@ document.addEventListener("DOMContentLoaded", () => {
             linkText.includes('.') && 
             !linkText.includes(' ') && 
             linkText.length > 3 && 
-            linkText.length < 100 && // Increased from 50 to 100
-            // Additional checks for domain-like patterns
+            linkText.length < 100 && 
+            // More comprehensive domain-like patterns
             (linkText.match(/^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/) || // Standard domain
              linkText.match(/^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}\/[a-zA-Z0-9.-]*$/) || // Domain with path
-             linkText.match(/^[a-zA-Z0-9.-]+\.(com|org|net|edu|gov|io|co|uk|de|fr|jp|cn|au|ca|us)$/i))) { // Common TLDs
+             linkText.match(/^[a-zA-Z0-9.-]+\.(com|org|net|edu|gov|io|co|uk|de|fr|jp|cn|au|ca|us|mil|int|info|biz|name|pro|aero|coop|museum)$/i) || // Extended TLDs
+             linkText.match(/^[a-zA-Z0-9.-]+\.(ac|ad|ae|af|ag|ai|al|am|ao|aq|ar|as|at|aw|ax|az|ba|bb|bd|be|bf|bg|bh|bi|bj|bm|bn|bo|br|bs|bt|bv|bw|by|bz|cc|cd|cf|cg|ch|ci|ck|cl|cm|cn|cr|cu|cv|cx|cy|cz|dj|dk|dm|do|dz|ec|ee|eg|eh|er|es|et|fi|fj|fk|fm|fo|fr|ga|gb|gd|ge|gf|gg|gh|gi|gl|gm|gn|gp|gq|gr|gs|gt|gu|gw|gy|hk|hm|hn|hr|ht|hu|id|ie|il|im|in|io|iq|ir|is|it|je|jm|jo|ke|kg|kh|ki|km|kn|kp|kr|kw|ky|kz|la|lb|lc|li|lk|lr|ls|lt|lu|lv|ly|ma|mc|md|me|mg|mh|mk|ml|mm|mn|mo|mp|mq|mr|ms|mt|mu|mv|mw|mx|my|mz|na|nc|ne|nf|ng|ni|nl|no|np|nr|nu|nz|om|pa|pe|pf|pg|ph|pk|pl|pm|pn|pr|ps|pt|pw|py|qa|re|ro|rs|ru|rw|sa|sb|sc|sd|se|sg|sh|si|sj|sk|sl|sm|sn|so|sr|st|sv|sy|sz|tc|td|tf|tg|th|tj|tk|tl|tm|tn|to|tr|tt|tv|tw|tz|ua|ug|um|us|uy|uz|va|vc|ve|vg|vi|vn|vu|wf|ws|ye|yt|za|zm|zw)$/i))) { // All country codes
           citationClass = ' class="citation-badge"';
           console.log('Detected citation in renderer:', linkText);
         }
@@ -757,12 +804,21 @@ document.addEventListener("DOMContentLoaded", () => {
           processedText = processedText.replace(/\[([^\]]+)\]\(([^)]+)\)\s*\(([^)]+)\)/g, '[$1]($2)'); // Remove trailing parentheses
           processedText = processedText.replace(/\[([^\]]+)\]\(([^)]+)\)\s*\[([^\]]+)\]\(([^)]+)\)/g, '[$1]($2) [$3]($4)'); // Fix double citations
           
+          // Fix malformed citations with extra brackets or parentheses
+          processedText = processedText.replace(/\[\[([^\]]+)\]\]\(([^)]+)\)/g, '[$1]($2)'); // Double brackets
+          processedText = processedText.replace(/\[([^\]]+)\]\(\(([^)]+)\)\)/g, '[$1]($2)'); // Double parentheses
+          processedText = processedText.replace(/\[([^\]]+)\]\(([^)]+)\)\s*\)/g, '[$1]($2)'); // Trailing closing parenthesis
+          
           // Move citations to end of sentences (after periods)
           processedText = processedText.replace(/([^.!?])\s*\[([^\]]+)\]\(([^)]+)\)\s*([.!?])/g, '$1$4 [$2]($3)');
           
           // Remove utm_source=openai parameter from URLs
           processedText = processedText.replace(/\[([^\]]+)\]\(([^)]*)\?utm_source=openai([^)]*)\)/g, '[$1]($2$3)');
           processedText = processedText.replace(/\[([^\]]+)\]\(([^)]*)\&utm_source=openai([^)]*)\)/g, '[$1]($2$3)');
+          
+          // Clean up URLs with other tracking parameters
+          processedText = processedText.replace(/\[([^\]]+)\]\(([^)]*)\?utm_[^)]*\)/g, '[$1]($2)');
+          processedText = processedText.replace(/\[([^\]]+)\]\(([^)]*)\&utm_[^)]*\)/g, '[$1]($2)');
           
           if (originalText !== processedText) {
             console.log('🔧 Fixed citation format:', originalText.substring(0, 100), '->', processedText.substring(0, 100));

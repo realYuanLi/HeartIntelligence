@@ -31,7 +31,7 @@ def needs_web_search(query: str) -> bool:
             messages=[
                 {
                     "role": "system",
-                    "content": """You are a decision maker. Determine if a user query requires web search to answer accurately. When uncertain, default to YES.
+                    "content": """You are a decision maker. Determine if a user query requires web search to answer accurately. When uncertain, default to YES since usually retrieving information from the web is helpful.
 
 Return ONLY "YES" for:
 - Current clinical guidelines, drug info, recalls, vaccines
@@ -40,9 +40,7 @@ Return ONLY "YES" for:
 - Location/provider-specific details
 
 Return ONLY "NO" for:
-- General medical knowledge, definitions
-- How-to instructions, calculations
-- Established facts, theories
+- Simple questions that can be answered without web search
 
 Examples:
 - "Current COVID vaccine schedule" → YES
@@ -96,13 +94,21 @@ def _clean_urls(urls: List[str]) -> List[str]:
         # Remove trailing punctuation and clean up
         url = url.rstrip('.,;!?)')
         
-        # Remove utm_source=openai parameter
-        if '?utm_source=openai' in url:
-            url = url.replace('?utm_source=openai', '')
-        elif '&utm_source=openai' in url:
-            url = url.replace('&utm_source=openai', '')
+        # Remove common tracking parameters
+        tracking_params = ['utm_source=openai', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content', 'fbclid', 'gclid']
+        for param in tracking_params:
+            if f'?{param}' in url:
+                url = url.replace(f'?{param}', '')
+            elif f'&{param}' in url:
+                url = url.replace(f'&{param}', '')
         
-        if url and url not in seen:
+        # Clean up any remaining double separators
+        url = url.replace('?&', '?').replace('&&', '&')
+        if url.endswith('?'):
+            url = url[:-1]
+        
+        # Ensure URL is valid and not seen before
+        if url and url.startswith('http') and url not in seen:
             cleaned.append(url)
             seen.add(url)
     
@@ -231,14 +237,29 @@ def _add_in_text_citations(text: str, urls: List[str]) -> str:
     citation_text = "\n\n**Sources:**\n"
     for i, url in enumerate(urls[:3], 1):  # Limit to first 3 URLs
         try:
+            # Extract domain from URL
             if '://' in url:
                 domain = url.split('://')[1].split('/')[0]
             else:
                 domain = url.split('/')[0]
-            # Clean up domain (remove www, etc.)
+            
+            # Clean up domain (remove www, subdomains, etc.)
             domain = domain.replace('www.', '')
-            citation_text += f"{i}. [{domain}]({url})\n"
-        except:
+            
+            # Handle common subdomains that should be removed
+            subdomains_to_remove = ['m.', 'mobile.', 'en.', 'www.', 'api.', 'blog.', 'news.', 'support.']
+            for subdomain in subdomains_to_remove:
+                if domain.startswith(subdomain):
+                    domain = domain[len(subdomain):]
+                    break
+            
+            # Ensure domain is not empty and has proper format
+            if domain and '.' in domain:
+                citation_text += f"{i}. [{domain}]({url})\n"
+            else:
+                citation_text += f"{i}. {url}\n"
+        except Exception as e:
+            logger.warning(f"Error processing URL {url}: {e}")
             citation_text += f"{i}. {url}\n"
     
     return text + citation_text

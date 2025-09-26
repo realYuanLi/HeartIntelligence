@@ -44,34 +44,26 @@ def needs_health_data(query: str) -> bool:
         client = openai.OpenAI()
         
         response = client.chat.completions.create(
-            model="gpt-3.5-turbo",
+            model="gpt-4o",
             messages=[
                 {
                     "role": "system",
-                    "content": """You are a health data analyzer. Determine if a user query requires personal health data to answer accurately.
+                    "content": """You are a health data analyzer. Determine if a user query requires retrieving personal health data 
+                    to answer accurately. Respond with EXACTLY one word: YES or NO.
 
-Return ONLY "YES" if the query needs personal health data for:
-- Personal health questions, symptoms, conditions
-- Medication-related questions about the user
-- Lab results, vital signs, or health metrics
-- Personal medical history or records
-- Health recommendations based on personal data
-- Questions about the user's specific health status
+YES - Query needs PHI not provided:
+- Personal records: labs, vitals, medications, allergies, diagnoses, procedures, immunizations, notes, appointments
+- "My" questions: trends, history, baselines, due dates, interactions, contraindications
+- Data requests: "show/list/find/compare my..."
 
-Return ONLY "NO" if the query can be answered with:
-- General health information, definitions
-- General medical advice not specific to the user
-- Educational content about diseases, treatments
-- General lifestyle recommendations
-- Questions about health topics in general
-- Non-health related questions
+NO - Query can be answered without PHI:
+- General knowledge: definitions, guidelines, education, mechanisms
+- Provided values: user already includes all needed data in question
+- Hypotheticals: examples not requiring actual personal data
 
 Examples:
-- "What are my current medications?" → YES
-- "What is diabetes?" → NO
-- "How is my blood pressure?" → YES
-- "What causes high blood pressure?" → NO
-- "Show me my sleep data" → YES"""
+YES: "Am I due for Tdap?" "What were my last 3 A1c results?" "Is Paxlovid safe with my meds?" "Compare my heart rate to baseline"
+NO: "What is diabetes?" "Normal A1c range?" "My BP is 130/85—what does this mean?" "Compare Ozempic vs tirzepatide" """
                 },
                 {
                     "role": "user",
@@ -79,7 +71,7 @@ Examples:
                 }
             ],
             temperature=0.1,
-            max_tokens=10
+            max_tokens=3
         )
         
         decision = response.choices[0].message.content.strip().upper()
@@ -117,7 +109,7 @@ def analyze_required_categories(query: str, available_categories: Dict[str, List
             categories_text += f"\n{category}: {', '.join(subcategories)}"
         
         response = client.chat.completions.create(
-            model="gpt-3.5-turbo",
+            model="gpt-4o",
             messages=[
                 {
                     "role": "system",
@@ -156,7 +148,7 @@ Examples (using only available categories):
                 }
             ],
             temperature=0,
-            max_tokens=500
+            max_tokens=1000
         )
         
         result = response.choices[0].message.content.strip()
@@ -190,8 +182,7 @@ def get_health_data_keys(ehr_data: Dict, required_categories: Dict[str, List[str
     
     Args:
         ehr_data (Dict): The EHR data dictionary
-        required_categories (Dict[str, List[str]]): Required categories and subcategories
-        
+        required_categories (Dict[str, List[str]]): Required categories and subcategories 
     Returns:
         Dict[str, List[str]]: Available data keys for each category
     """
@@ -213,8 +204,7 @@ def format_health_categories(categories: Dict[str, List[str]]) -> str:
     Format the health categories for display.
     
     Args:
-        categories (Dict[str, List[str]]): Categories and subcategories
-        
+        categories (Dict[str, List[str]]): Categories and subcategories 
     Returns:
         str: Formatted string for display
     """
@@ -236,7 +226,6 @@ def extract_categories_from_ehr(ehr_data: Dict) -> Dict[str, List[str]]:
     
     Args:
         ehr_data (Dict): The EHR data dictionary
-        
     Returns:
         Dict[str, List[str]]: Dictionary with actual categories as keys and subcategories as values
     """
@@ -290,60 +279,51 @@ def extract_raw_data_from_categories(ehr_data: Dict, categories: Dict[str, List[
 
 def print_raw_health_data(raw_data: Dict[str, Dict[str, List[Dict]]]) -> str:
     """
-    Format and print raw health data in a readable format.
+    Format and print raw health data in a concise format.
     
     Args:
         raw_data (Dict[str, Dict[str, List[Dict]]]): Raw data to format
-        
     Returns:
         str: Formatted string representation of the raw data
     """
     if not raw_data:
-        return "No raw data available."
+        return "No personal health data available."
     
-    output = "=" * 80 + "\n"
-    output += "RAW HEALTH DATA EXTRACTED\n"
-    output += "=" * 80 + "\n\n"
+    output = []
     
     for category, subcategories in raw_data.items():
-        output += f"CATEGORY: {category.upper().replace('_', ' ')}\n"
-        output += "-" * 50 + "\n"
+        category_name = category.replace('_', ' ').title()
+        output.append(f"\n{category_name}:")
         
         for subcategory, records in subcategories.items():
-            output += f"\n  SUBCATEGORY: {subcategory}\n"
-            output += "  " + "-" * 30 + "\n"
+            count = len(records) if records else 0
+            output.append(f"  {subcategory}: {count} records")
             
-            if not records:
-                output += "    No data available\n"
-            else:
-                total_records = len(records)
-                output += f"    Total records: {total_records}\n"
+            # Show sample data from records (up to 50 per subcategory)
+            if records and len(records) > 0:
+                sample_records = records[:50]  # Show up to 50 records per subcategory
                 
-                # Show first few records as examples (max 5 for display)
-                display_records = min(5, total_records)
-                for i, record in enumerate(records[:display_records], 1):
-                    output += f"    Record {i}:\n"
-                    # Format the record data
+                for i, record in enumerate(sample_records, 1):
                     if isinstance(record, dict):
+                        # Show all key-value pairs for each record
+                        record_fields = []
                         for key, value in record.items():
                             if isinstance(value, (str, int, float, bool)):
-                                output += f"      {key}: {value}\n"
-                            elif isinstance(value, list) and len(value) > 0:
-                                output += f"      {key}: [{len(value)} items]\n"
+                                record_fields.append(f"{key}={value}")
+                            elif isinstance(value, list):
+                                record_fields.append(f"{key}=[{len(value)} items]")
                             elif isinstance(value, dict):
-                                output += f"      {key}: {{dict with {len(value)} keys}}\n"
-                            else:
-                                output += f"      {key}: {type(value).__name__}\n"
+                                record_fields.append(f"{key}={{dict}}")
+                        if record_fields:
+                            output.append(f"    Record {i}: {', '.join(record_fields)}")
                     else:
-                        output += f"      {record}\n"
-                    output += "\n"
+                        output.append(f"    Record {i}: {record}")
                 
-                if total_records > display_records:
-                    output += f"    ... and {total_records - display_records} more records (showing first {display_records} for display)\n\n"
-        
-        output += "\n"
+                # Show count of remaining records if there are more than 50
+                if len(records) > 50:
+                    output.append(f"    ... and {len(records) - 50} more records")
     
-    return output
+    return '\n'.join(output)
 
 def analyze_health_query_with_raw_data(query: str, ehr_data: Optional[Dict] = None, show_raw_data: bool = False) -> Tuple[bool, Dict[str, List[str]], str, str]:
     """

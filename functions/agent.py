@@ -29,7 +29,6 @@ class Agent:
             "llama3.1_api": self.llama_api_reply
         }
 
-        # Assign LLM function or handle unknown LLM
         if self.llm in self.llm_name_list:
             self.llm_reply = self.llm_name_list[self.llm]
         else:
@@ -67,7 +66,7 @@ class Agent:
         
         return web_results, health_results
     
-    def _count_tokens(self, text: str, model: str = "gpt-3.5-turbo") -> int:
+    def _count_tokens(self, text: str, model: str = "gpt-4o") -> int:
         """Count tokens in text using tiktoken."""
         try:
             encoding = tiktoken.encoding_for_model(model)
@@ -76,7 +75,7 @@ class Agent:
             # Fallback: rough estimation (1 token ≈ 4 characters)
             return len(text) // 4
     
-    def _split_text_by_tokens(self, text: str, max_tokens: int, model: str = "gpt-3.5-turbo") -> list:
+    def _split_text_by_tokens(self, text: str, max_tokens: int, model: str = "gpt-4o") -> list:
         """Split text into chunks that don't exceed max_tokens."""
         try:
             encoding = tiktoken.encoding_for_model(model)
@@ -100,11 +99,11 @@ class Agent:
                 messages=[
                     {
                         "role": "system",
-                        "content": f"You are a health data summarizer. Create a concise, accurate summary of the {category} data. Focus on key information like dates, values, medications, conditions, and important details. Be factual and informative."
+                        "content": f"Create a concise, clinically relevant summary of this {category} data. Include key metrics, dates, trends, medications, conditions, and important findings. Focus on clinically significant information and exclude administrative data like ID numbers."
                     },
                     {
                         "role": "user",
-                        "content": f"Summarize this {category} data:\n\n{chunk}"
+                        "content": f"Summarize this {category} data, focusing on clinically relevant information and patterns:\n\n{chunk}"
                     }
                 ],
                 temperature=0.1,
@@ -131,15 +130,15 @@ class Agent:
                     messages=[
                         {
                             "role": "system",
-                            "content": "You are a health data summarizer. Create a concise, accurate summary of the health data. Focus on key information like dates, values, medications, conditions, and important details. Be factual and informative."
+                            "content": "Create a concise, clinically relevant summary of this health data. Include key metrics, dates, trends, medications, conditions, and important findings. Focus on clinically significant information and exclude administrative data like ID numbers."
                         },
                         {
                             "role": "user",
-                            "content": f"Summarize this health data:\n\n{raw_data_output}"
+                            "content": f"Summarize this health data, focusing on clinically relevant information and patterns:\n\n{raw_data_output}"
                         }
                     ],
                     temperature=0.1,
-                    max_tokens=10000
+                    max_tokens=16000
                 )
                 return response.choices[0].message.content.strip()
             except Exception as e:
@@ -175,22 +174,22 @@ class Agent:
         combined_summary = "\n\n".join(summaries)
         
         # Final summary of summaries if still too long
-        if self._count_tokens(combined_summary) > 1000:
+        if self._count_tokens(combined_summary) > 15000:
             try:
                 response = openai.chat.completions.create(
-                    model="gpt-3.5-turbo",
+                    model="gpt-4o",
                     messages=[
                         {
                             "role": "system",
-                            "content": "You are a health data summarizer. Create a final, concise summary by combining multiple health data summaries. Focus on the most important information."
+                            "content": "Create a final, concise summary by combining these health data summaries. Focus on the most clinically significant findings, key trends, current status, and areas needing attention. Maintain clinical accuracy while providing a complete health overview."
                         },
                         {
                             "role": "user",
-                            "content": f"Create a final summary from these health data summaries:\n\n{combined_summary}"
+                            "content": f"Create a final, comprehensive summary from these health data summaries, focusing on the most clinically relevant information:\n\n{combined_summary}"
                         }
                     ],
                     temperature=0.1,
-                    max_tokens=800
+                    max_tokens=10000
                 )
                 return response.choices[0].message.content.strip()
             except Exception as e:
@@ -284,44 +283,49 @@ class Agent:
                 # Both sources available - integrate them
                 openai_messages.append({
                     "role": "assistant",
-                    "content": f"Let me analyze your query using both current information and your personal health data."
+                    "content": f"I'll analyze your query using both current medical information and your personal health data to provide you with the most relevant and accurate response."
                 })
                 openai_messages.append({
                     "role": "user",
-                    "content": f"""Based on your query: "{latest_user_message}"
+                    "content": f"""Query: "{latest_user_message}"
 
-CURRENT INFORMATION:
+CURRENT MEDICAL INFORMATION:
 {web_summary}
 
 PERSONAL HEALTH DATA:
 {health_summary}
 
-Please provide a comprehensive answer that integrates both the current information and your personal health data. When referencing sources, use the exact citation format [domain.com](url). Focus on how the current information relates to your specific health situation."""
+Provide a comprehensive answer that integrates both current information and personal health data. Reference specific values and trends from their data. Use citation format [domain.com](url). Examples: [example.com](https://example.com/article) or [wikipedia.org](https://en.wikipedia.org/wiki/topic)Include medical disclaimers about consulting healthcare providers."""
                 })
             elif web_summary:
                 # Only web search available
                 openai_messages.append({
                     "role": "assistant",
-                    "content": f"Let me search for current information about: {latest_user_message}"
+                    "content": f"I'll search for current, evidence-based information to help answer your health question."
                 })
                 openai_messages.append({
                     "role": "user",
-                    "content": f"Here are the search results:\n\n{web_summary}\n\nPlease provide a comprehensive answer based on this information. IMPORTANT: When referencing sources, use the exact citation format [domain.com](url) where 'domain.com' is the website domain and 'url' is the full URL. Do NOT use parentheses around citations like ([domain.com](url)). Examples: [example.com](https://example.com/article) or [wikipedia.org](https://en.wikipedia.org/wiki/topic)."
+                    "content": f"""Query: "{latest_user_message}"
+
+CURRENT MEDICAL INFORMATION:
+{web_summary}
+
+Provide an accurate, evidence-based answer based on this information. Use citation format [domain.com](url). Examples: [example.com](https://example.com/article) or [wikipedia.org](https://en.wikipedia.org/wiki/topic)Include relevant safety information and medical disclaimers about consulting healthcare providers."""
                 })
             elif health_summary:
                 # Only health data available
                 openai_messages.append({
                     "role": "assistant",
-                    "content": f"Let me analyze your personal health data for your query."
+                    "content": f"I'll analyze your personal health data to provide insights relevant to your question."
                 })
                 openai_messages.append({
                     "role": "user",
-                    "content": f"""Based on your query: "{latest_user_message}"
+                    "content": f"""Query: "{latest_user_message}"
 
 PERSONAL HEALTH DATA:
 {health_summary}
 
-Please provide a comprehensive answer based on your personal health data. Include specific details and insights relevant to your health situation."""
+Analyze this health data thoroughly, referencing specific values and trends. Provide insights and actionable recommendations. Include medical disclaimers about consulting healthcare providers for medical decisions."""
                 })
             
             # Make API call without tools (since we've already done the search if needed)

@@ -264,7 +264,6 @@ def api_new_session():
     session_id = uuid.uuid4().hex[:12]
     payload = {
         "session_id": session_id,
-        # 初始标题可自定义；这里给一个默认值，之后可通过 /api/rename_session 重命名
         "title": f"Chat {session_id[:6]}",
         "created_at": _now_iso(),
         "updated_at": _now_iso(),

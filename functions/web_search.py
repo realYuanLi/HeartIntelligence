@@ -27,43 +27,36 @@ def needs_web_search(query: str) -> bool:
         
         # Use a very lightweight model for quick decision making
         response = client.chat.completions.create(
-            model="gpt-3.5-turbo",  # Fast and cheap model
+            model="gpt-4o",  # Fast and cheap model
             messages=[
                 {
                     "role": "system",
-                    "content": """You are a decision maker. Determine if a user query requires web search to answer accurately.
+                    "content": """You are a decision maker. Determine if a user query requires web search to answer accurately. When uncertain, default to YES.
 
-Return ONLY "YES" if the query needs web search for:
-- Current events, news, recent developments
-- Real-time information (stock prices, weather, sports scores)
-- Recent research, studies, or publications
-- Current technology, software versions, or product information
-- Live data, statistics, or facts that change frequently
-- Information about recent people, places, or events
+Return ONLY "YES" for:
+- Current clinical guidelines, drug info, recalls, vaccines
+- Recent research, trials, safety alerts
+- Real-time data, current events, live information
+- Location/provider-specific details
 
-Return ONLY "NO" if the query can be answered with:
-- General knowledge, definitions, explanations
-- Historical facts, established theories
-- How-to instructions, tutorials
-- Mathematical problems, calculations
-- Creative writing, brainstorming
-- Personal advice, opinions, or subjective topics
+Return ONLY "NO" for:
+- General medical knowledge, definitions
+- How-to instructions, calculations
+- Established facts, theories
 
 Examples:
-- "What's the weather today?" → YES
-- "Explain photosynthesis" → NO
-- "Latest iPhone features" → YES
-- "How to cook pasta" → NO
-- "Current stock price of Apple" → YES
-- "What is machine learning?" → NO"""
+- "Current COVID vaccine schedule" → YES
+- "What is hypertension?" → NO
+- "Drug recalls this month" → YES
+- "How to take blood pressure" → NO"""
                 },
                 {
                     "role": "user",
                     "content": f"Query: {query}"
                 }
             ],
-            temperature=0.1,  # Low temperature for consistent decisions
-            max_tokens=10  # Very short response
+            temperature=0,  # Low temperature for consistent decisions
+            max_tokens=3
         )
         
         decision = response.choices[0].message.content.strip().upper()
@@ -71,7 +64,6 @@ Examples:
         
     except Exception as e:
         logger.error(f"Error in needs_web_search: {e}")
-        # Default to True if there's an error to be safe
         return True
 
 def _extract_urls_from_metadata(message) -> List[str]:
@@ -131,7 +123,7 @@ def openai_search_tool(
         client = openai.OpenAI()
 
         completion = client.chat.completions.create(
-            model="gpt-4o-mini-search-preview",
+            model="gpt-4o-search-preview",
             web_search_options={"search_context_size": "high"},
             messages=[{"role": "user", "content": query}],
         )
@@ -141,14 +133,13 @@ def openai_search_tool(
         urls = _extract_urls_from_metadata(msg) or _extract_urls_from_text(answer)
         urls = _clean_urls(urls)
 
-        # Try to extract journal name from answer (improved heuristic)
+        # Extract journal name from answer
         journal = ""
         patterns = [
             r'Published in: ([^\n]+)',
             r'Journal: ([^\n]+)',
             r'Published by ([^\n]+)',
-            r'Source: ([^\n]+)',
-            r'In: ([^\n]+)'
+            r'Source: ([^\n]+)'
         ]
         for pat in patterns:
             match = re.search(pat, answer)
@@ -174,7 +165,6 @@ def web_search(query: str) -> Dict[str, Any]:
     
     Args:
         query (str): The search query string
-        
     Returns:
         Dict containing search results with sources
     """
@@ -186,7 +176,6 @@ def format_search_results(search_results: Dict[str, Any]) -> str:
     
     Args:
         search_results (Dict): The search results from web_search
-        
     Returns:
         str: Formatted search results with in-text citations
     """
@@ -227,7 +216,6 @@ def _add_in_text_citations(text: str, urls: List[str]) -> str:
     Args:
         text (str): The original text content
         urls (List[str]): List of URLs to cite
-        
     Returns:
         str: Text with in-text citations added using domain names
     """

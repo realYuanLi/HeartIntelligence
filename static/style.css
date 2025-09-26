@@ -13,7 +13,7 @@
   --overlay-bg: rgba(0,0,0,0.4);
   --login-bg: #ffffff;
   --input-bg: #ffffff;
-  --input-border: #9ca3af;
+  --input-border: #d1d5db;
   --dropdown-bg: #ffffff;
   --dropdown-hover: #f3f4f6;
 }
@@ -502,7 +502,7 @@ main::-webkit-scrollbar-thumb:hover {
 
 .welcome-title {
   font-size: 2rem;
-  font-weight: 600;
+  font-weight: 400;
   margin: 0 auto;
   color: var(--text);
   line-height: 1.2;
@@ -592,9 +592,10 @@ main::-webkit-scrollbar-thumb:hover {
   min-width: 700px; /* Ensure minimum width */
   max-width: 1000px;
   margin: 1rem auto 0;
-  padding: 0 1rem;
+  padding: 0;
   display: flex;
   justify-content: center;
+  align-items: center;
 }
 
 /* Auto-resize for welcome page input - flexible height */
@@ -618,7 +619,7 @@ main::-webkit-scrollbar-thumb:hover {
 .input-wrapper {
   position: relative;
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   background: var(--input-bg);
   border: 1px solid var(--input-border);
   border-radius: 1.5rem;
@@ -727,11 +728,71 @@ main::-webkit-scrollbar-thumb:hover {
   font-style: normal;
 }
 
+/* Hide sidebar on small screens */
+@media (max-width: 1200px) {
+  aside {
+    display: none;
+  }
+  
+  main {
+    width: 100%;
+  }
+  
+  .input-container.fixed {
+    left: 50%;
+    transform: translateX(-50%);
+    width: calc(100% - 2rem);
+    max-width: 850px;
+  }
+}
+
 /* Responsive design for welcome page */
-@media (max-width: 768px) {
+@media (max-width: 1200px) {
+  /* Hide sidebar on welcome page for small screens */
+  body:has(.welcome-container) aside {
+    display: none;
+  }
+  
+  /* Make main take full width on welcome page for small screens */
+  body:has(.welcome-container) main {
+    width: 100%;
+  }
+}
+
+/* Center input on medium screens */
+@media (max-width: 1200px) and (min-width: 901px) {
+  .welcome-container .input-container {
+    margin: 1rem auto 0;
+    justify-content: center;
+  }
+}
+
+/* Make input responsive to narrow screens */
+@media (max-width: 900px) {
+  /* Remove min-width constraint for narrow screens */
+  .welcome-container .input-container {
+    min-width: unset;
+  }
+}
+
+/* Move input to bottom when screen is smaller than input min-width */
+@media (max-width: 900px) {
+  /* Hide sidebar on welcome page for small screens */
+  body:has(.welcome-container) aside {
+    display: none;
+  }
+  
+  /* Make main take full width on welcome page for small screens */
+  body:has(.welcome-container) main {
+    width: 100%;
+  }
+  
   .welcome-container {
     padding: 1rem;
     height: 100%;
+    padding-top: 0; /* Remove top padding for small screens */
+    padding-bottom: 5rem; /* Add bottom padding to account for fixed input */
+    justify-content: center; /* Center content vertically */
   }
   
   .welcome-title {
@@ -767,11 +828,18 @@ main::-webkit-scrollbar-thumb:hover {
     max-height: 14rem; /* Allow growth up to 8 rows on mobile too */
   }
   
+  /* Move welcome page input to bottom on small screens */
   .welcome-container .input-container {
-    width: calc(100% - 2rem); /* Same as chat page on mobile */
+    position: fixed;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: calc(100% - 2rem);
     max-width: 100%;
-    margin: 1.5rem auto 0;
-    padding: 0 0.5rem;
+    margin: 0;
+    padding: 0.75rem 1rem;
+    background: var(--bg);
+    z-index: 100;
   }
   
   .input-wrapper {
@@ -786,8 +854,20 @@ main::-webkit-scrollbar-thumb:hover {
 }
 
 @media (max-width: 480px) {
+  /* Hide sidebar on welcome page for small screens */
+  body:has(.welcome-container) aside {
+    display: none;
+  }
+  
+  /* Make main take full width on welcome page for small screens */
+  body:has(.welcome-container) main {
+    width: 100%;
+  }
+  
   .welcome-container {
     padding: 0.75rem;
+    padding-top: 1.5rem; /* Reduce top padding for very small screens */
+    padding-bottom: 4.5rem; /* Add bottom padding to account for fixed input */
   }
   
   .welcome-title {
@@ -820,11 +900,18 @@ main::-webkit-scrollbar-thumb:hover {
     max-height: 14rem; /* Allow growth up to 8 rows on small mobile too */
   }
   
+  /* Move welcome page input to bottom on very small screens */
   .welcome-container .input-container {
-    width: calc(100% - 1rem); /* Same as chat page on small mobile */
+    position: fixed;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: calc(100% - 1rem);
     max-width: 100%;
-    margin: 1rem auto 0;
-    padding: 0 0.25rem;
+    margin: 0;
+    padding: 0.5rem 0.75rem;
+    background: var(--bg);
+    z-index: 100;
   }
   
   .input-wrapper {

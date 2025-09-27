@@ -1446,8 +1446,8 @@ a.citation-badge:hover {
   align-items: center;
   gap: 0.5rem;
   background: transparent;
-  border: 1px solid var(--border);
-  border-radius: 0.5rem;
+  border: none;
+  border-radius: 1rem;
   padding: 0.5rem 0.75rem;
   margin: 0.75rem 0 0 0;
   font-size: 0.875rem;
@@ -1458,8 +1458,7 @@ a.citation-badge:hover {
 }
 
 .sources-button:hover {
-  background: var(--card);
-  border-color: var(--accent);
+  background: #e5e7eb;
   color: var(--text);
 }
 

@@ -36,6 +36,7 @@ class Agent:
         
         # Define available LLM functions
         self.llm_name_list = {
+            "gpt-5": self.openai_reply,
             "gpt-4o": self.openai_reply,
             "gpt-4o-mini": self.openai_reply,
             "gpt-4-turbo": self.openai_reply,
@@ -347,8 +348,10 @@ Analyze this health data thoroughly, referencing specific values and trends. Pro
                 })
             
             # Make API call without tools (since we've already done the search if needed)
+            # Use GPT-5 for final answers, GPT-4o for other operations
+            final_model = "gpt-5"
             response = openai.chat.completions.create(
-                model=self.llm,
+                model=final_model,
                 messages=openai_messages,
                 temperature=self.temperature
             )

@@ -1482,14 +1482,17 @@ a.citation-badge:hover {
   background: var(--bg);
   border-left: 1px solid var(--border);
   z-index: 1000;
-  transition: right 0.3s ease;
   display: flex;
   flex-direction: column;
   box-shadow: -4px 0 12px rgba(0, 0, 0, 0.1);
+  /* Only transition when explicitly active, not during responsive changes */
+  transition: none;
 }
 
 .sources-sidebar.active {
   right: 0;
+  /* Enable transition only when active */
+  transition: right 0.3s ease;
 }
 
 .sources-header {
@@ -1664,7 +1667,8 @@ body.sources-sidebar-open .input-container.fixed {
 
 /* Reduced motion support */
 @media (prefers-reduced-motion: reduce) {
-  .sources-sidebar {
+  .sources-sidebar,
+  .sources-sidebar.active {
     transition: none;
   }
   
@@ -1699,6 +1703,13 @@ body.sources-sidebar-open .input-container.fixed {
   .sources-sidebar {
     width: 100vw;
     right: -100vw;
+    /* Ensure no transition during responsive changes */
+    transition: none;
+  }
+  
+  .sources-sidebar.active {
+    /* Enable transition only when active on mobile */
+    transition: right 0.3s ease;
   }
   
   .sources-header {

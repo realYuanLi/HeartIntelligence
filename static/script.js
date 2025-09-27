@@ -730,6 +730,280 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   /* ==================================================== */
+  /*  Sources functionality                                 */
+  /* ==================================================== */
+  
+  /** Extract sources from a message element */
+  function extractSourcesFromMessage(messageElement) {
+    const sources = [];
+    const links = messageElement.querySelectorAll('a[href]');
+    
+    links.forEach(link => {
+      const href = link.getAttribute('href');
+      const text = link.textContent.trim();
+      
+      // Only include external links that look like sources
+      if (href && href.startsWith('http') && text.includes('.')) {
+        try {
+          const url = new URL(href);
+          const domain = url.hostname.replace('www.', '');
+          
+          // Extract title from link text or use domain as fallback
+          let title = text;
+          if (text === domain || text.length < 5) {
+            title = domain;
+          }
+          
+          sources.push({
+            url: href,
+            domain: domain,
+            title: title,
+            favicon: `https://www.google.com/s2/favicons?domain=${url.hostname}&sz=32`
+          });
+        } catch (e) {
+          // Skip invalid URLs
+        }
+      }
+    });
+    
+    // Remove duplicates based on URL
+    const uniqueSources = [];
+    const seenUrls = new Set();
+    
+    sources.forEach(source => {
+      if (!seenUrls.has(source.url)) {
+        seenUrls.add(source.url);
+        uniqueSources.push(source);
+      }
+    });
+    
+    return uniqueSources;
+  }
+  
+  /** Create sources button */
+  function createSourcesButton(sources) {
+    const button = document.createElement('button');
+    button.className = 'sources-button';
+    button.innerHTML = `
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        <polyline points="14,2 14,8 20,8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        <line x1="16" y1="13" x2="8" y2="13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        <line x1="16" y1="17" x2="8" y2="17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        <polyline points="10,9 9,9 8,9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <span>Sources</span>
+    `;
+    
+    button.addEventListener('click', () => {
+      openSourcesSidebar(sources);
+    });
+    
+    return button;
+  }
+  
+  /** Open sources sidebar */
+  function openSourcesSidebar(sources) {
+    // Create or get existing sidebar
+    let sidebar = document.getElementById('sourcesSidebar');
+    if (!sidebar) {
+      sidebar = createSourcesSidebar();
+    }
+    
+    // Populate sources
+    populateSourcesSidebar(sidebar, sources);
+    
+    // Show sidebar
+    sidebar.classList.add('active');
+    document.body.classList.add('sources-sidebar-open');
+    
+    // Focus management
+    const firstButton = sidebar.querySelector('.source-card');
+    if (firstButton) {
+      firstButton.focus();
+    }
+  }
+  
+  /** Create sources sidebar element */
+  function createSourcesSidebar() {
+    const sidebar = document.createElement('div');
+    sidebar.id = 'sourcesSidebar';
+    sidebar.className = 'sources-sidebar';
+    sidebar.innerHTML = `
+      <div class="sources-header">
+        <h3>Sources</h3>
+        <button class="sources-close" aria-label="Close sources">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <line x1="18" y1="6" x2="6" y2="18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <line x1="6" y1="6" x2="18" y2="18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+      </div>
+      <div class="sources-content">
+        <div class="sources-list"></div>
+      </div>
+    `;
+    
+    // Add close functionality
+    const closeBtn = sidebar.querySelector('.sources-close');
+    closeBtn.addEventListener('click', closeSourcesSidebar);
+    
+    // Add escape key handler
+    const handleKeydown = (e) => {
+      if (e.key === 'Escape' && sidebar.classList.contains('active')) {
+        closeSourcesSidebar();
+      }
+    };
+    document.addEventListener('keydown', handleKeydown);
+    
+    // Add backdrop click handler
+    sidebar.addEventListener('click', (e) => {
+      if (e.target === sidebar) {
+        closeSourcesSidebar();
+      }
+    });
+    
+    document.body.appendChild(sidebar);
+    return sidebar;
+  }
+  
+  /** Populate sources sidebar with source cards */
+  function populateSourcesSidebar(sidebar, sources) {
+    const sourcesList = sidebar.querySelector('.sources-list');
+    sourcesList.innerHTML = '';
+    
+    if (sources.length === 0) {
+      sourcesList.innerHTML = '<div class="no-sources">No sources available</div>';
+      return;
+    }
+    
+    sources.forEach((source, index) => {
+      const sourceCard = createSourceCard(source, index);
+      sourcesList.appendChild(sourceCard);
+    });
+  }
+  
+  /** Create individual source card */
+  function createSourceCard(source, index) {
+    const card = document.createElement('div');
+    card.className = 'source-card';
+    card.tabIndex = 0;
+    card.innerHTML = `
+      <div class="source-favicon">
+        <img src="${source.favicon}" alt="" onerror="this.style.display='none'">
+      </div>
+      <div class="source-content">
+        <div class="source-title">${source.title}</div>
+        <div class="source-domain">${source.domain}</div>
+      </div>
+      <button class="source-open" aria-label="Open in new tab">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <polyline points="15,3 21,3 21,9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <line x1="10" y1="14" x2="21" y2="3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </button>
+    `;
+    
+    // Add click handler to open source
+    const openBtn = card.querySelector('.source-open');
+    openBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      window.open(source.url, '_blank', 'noopener,noreferrer');
+    });
+    
+    // Add click handler to card for highlighting
+    card.addEventListener('click', (e) => {
+      if (e.target !== openBtn && !openBtn.contains(e.target)) {
+        e.preventDefault();
+        // Find the message element that contains this source
+        const messageElements = document.querySelectorAll('.message.assistant');
+        messageElements.forEach(msg => {
+          const links = msg.querySelectorAll('a[href]');
+          links.forEach(link => {
+            if (link.getAttribute('href') === source.url) {
+              highlightSourceInMessage(source.url, msg);
+            }
+          });
+        });
+      }
+    });
+    
+    // Add keyboard navigation
+    card.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        if (e.target === openBtn) {
+          window.open(source.url, '_blank', 'noopener,noreferrer');
+        } else {
+          // Find the message element that contains this source
+          const messageElements = document.querySelectorAll('.message.assistant');
+          messageElements.forEach(msg => {
+            const links = msg.querySelectorAll('a[href]');
+            links.forEach(link => {
+              if (link.getAttribute('href') === source.url) {
+                highlightSourceInMessage(source.url, msg);
+              }
+            });
+          });
+        }
+      }
+    });
+    
+    return card;
+  }
+  
+  /** Close sources sidebar */
+  function closeSourcesSidebar() {
+    const sidebar = document.getElementById('sourcesSidebar');
+    if (sidebar) {
+      sidebar.classList.remove('active');
+      document.body.classList.remove('sources-sidebar-open');
+    }
+  }
+  
+  /** Highlight source in message when clicked from sidebar */
+  function highlightSourceInMessage(sourceUrl, messageElement) {
+    // Remove any existing highlights
+    const existingHighlights = messageElement.querySelectorAll('.source-highlight');
+    existingHighlights.forEach(highlight => {
+      highlight.classList.remove('source-highlight');
+    });
+    
+    // Find the link with matching URL
+    const links = messageElement.querySelectorAll('a[href]');
+    let targetLink = null;
+    
+    links.forEach(link => {
+      if (link.getAttribute('href') === sourceUrl) {
+        targetLink = link;
+      }
+    });
+    
+    if (targetLink) {
+      // Add highlight class
+      targetLink.classList.add('source-highlight');
+      
+      // Scroll to the message if it's not fully visible
+      const rect = messageElement.getBoundingClientRect();
+      const chatContent = document.getElementById('chatContent');
+      const chatRect = chatContent.getBoundingClientRect();
+      
+      if (rect.top < chatRect.top || rect.bottom > chatRect.bottom) {
+        messageElement.scrollIntoView({ 
+          behavior: 'smooth', 
+          block: 'center' 
+        });
+      }
+      
+      // Remove highlight after a few seconds
+      setTimeout(() => {
+        targetLink.classList.remove('source-highlight');
+      }, 3000);
+    }
+  }
+
+  /* ==================================================== */
   /*  Helper: render a bubble                              */
   /* ==================================================== */
   function appendMsg(text, role) {
@@ -873,6 +1147,15 @@ document.addEventListener("DOMContentLoaded", () => {
           .replace(/\n\n/g, '<br><br>') // Convert double line breaks to double <br>
           .replace(/\n/g, '<br>');     // Convert single line breaks to <br>
         div.innerHTML = processedText;
+      }
+    }
+    
+    // Add Sources button for assistant messages with citations
+    if (role === "assistant") {
+      const sources = extractSourcesFromMessage(div);
+      if (sources.length > 0) {
+        const sourcesBtn = createSourcesButton(sources);
+        div.appendChild(sourcesBtn);
       }
     }
     

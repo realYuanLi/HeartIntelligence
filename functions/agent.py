@@ -10,6 +10,20 @@ load_dotenv()
 
 openai.api_key = os.getenv("OPENAI_API_KEY")
 
+# Global status tracking
+current_status = {"status": "idle"}
+status_lock = threading.Lock()
+
+def update_status(status):
+    """Update the global status with thread safety."""
+    with status_lock:
+        current_status["status"] = status
+
+def get_status():
+    """Get the current status."""
+    with status_lock:
+        return current_status["status"]
+
 class Agent:
     
     def __init__(self, role, llm="",sys_message="",tool="",temperature=0.5,response_schema=None,ehr_data=None):
@@ -202,7 +216,9 @@ class Agent:
         """Task for web search analysis."""
         try:
             if needs_web_search(query):
+                update_status("searching_web")
                 search_results = web_search(query)
+                update_status("analyzing_web_data")
                 return {
                     'search_results': search_results,
                     'needs_search': True
@@ -257,6 +273,7 @@ class Agent:
             
             if latest_user_message:
                 print(f"Running parallel analysis for query: {latest_user_message}")
+                update_status("processing")
                 web_results, health_results = self._parallel_analysis(latest_user_message)
             
             # Process and summarize data sources
@@ -273,7 +290,8 @@ class Agent:
             if health_results and health_results.get('health_analysis'):
                 health_analysis = health_results['health_analysis']
                 if health_analysis.get('raw_data_output'):
-                    # Summarize health data
+                    # Update status before starting summarization
+                    update_status("summarizing_health_data")
                     health_summary = self._summarize_health_data(health_analysis['raw_data_output'])
                 elif health_analysis.get('formatted_output'):
                     health_summary = f"Available Health Data Categories:\n{health_analysis['formatted_output']}"
@@ -337,11 +355,15 @@ Analyze this health data thoroughly, referencing specific values and trends. Pro
             
             message = response.choices[0].message
             
+            # Update status to complete
+            update_status("idle")
+            
             # Return response in expected format
             return Response(message.content)
         
         except Exception as e:
             print(f"OpenAI API call failed: {e}")
+            update_status("idle")
             return None
     
     def llama_api_reply(self, messages):  

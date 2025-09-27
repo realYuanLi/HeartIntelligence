@@ -341,6 +341,12 @@ def analyze_health_query_with_raw_data(query: str, ehr_data: Optional[Dict] = No
         - formatted_output: Formatted string for display
         - raw_data_output: Formatted raw data (empty if show_raw_data=False)
     """
+    # Import here to avoid circular imports
+    from .agent import update_status
+    
+    # Update status before checking if health data is needed
+    update_status("analyzing_health_data")
+    
     # Check if health data is needed
     needs_health = needs_health_data(query)
     
@@ -359,6 +365,9 @@ def analyze_health_query_with_raw_data(query: str, ehr_data: Optional[Dict] = No
         return True, {}, "", ""
     
     if ehr_data:
+        # Update status before retrieving data from EHR
+        update_status("retrieving_health_data")
+        
         # Filter to only what's actually available in the EHR data
         available_categories = get_health_data_keys(ehr_data, required_categories)
         formatted_output = format_health_categories(available_categories)

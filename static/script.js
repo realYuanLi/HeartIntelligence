@@ -18,56 +18,94 @@ let isErpThinking  = false;       // distinguishes ERP vs. profile sequence
 // Simple breathing dots animation instead of step-by-step thinking
 const thinkingDotCount = 3;
 
-/** Start a breathing dots thinking animation. */
+// Status polling variables
+let statusPollingInterval = null;
+let currentStatusContainer = null;
+
+/** Start a real-time status label. */
 function startThinking() {
   stopThinking();                 // ensure clean state
 
   const chat = document.getElementById("chatContent");
   const div = document.createElement("div");
-  div.className = "message assistant thinking-dots";
+  div.className = "message assistant status-label";
   
-  // Create breathing dots
-  const dotsContainer = document.createElement("div");
-  dotsContainer.className = "breathing-dots";
-  for (let i = 0; i < thinkingDotCount; i++) {
-    const dot = document.createElement("span");
-    dot.className = "breathing-dot";
-    dot.style.animationDelay = `${i * 0.2}s`;
-    dotsContainer.appendChild(dot);
-  }
+  // Create status label
+  const statusContainer = document.createElement("div");
+  statusContainer.className = "status-container processing";
+  statusContainer.textContent = "";
   
-  div.appendChild(dotsContainer);
+  div.appendChild(statusContainer);
   chat.appendChild(div);
   chat.scrollTop = chat.scrollHeight;
+  
+  // Start polling for status updates
+  startStatusPolling(statusContainer);
 }
 
 /** Cancel timers and remove all thinking bubbles. */
 function stopThinking() {
   thinkingTimers.forEach(t => clearTimeout(t));
   thinkingTimers = [];
-  document.querySelectorAll(".thinking-dots").forEach(n => n.remove());
+  // Remove all status indicators and stop animations
+  document.querySelectorAll(".thinking-dots, .status-label").forEach(n => n.remove());
   currentSteps = [];
+  stopStatusPolling();
+}
+
+/** Start polling for status updates */
+function startStatusPolling(statusContainer) {
+  currentStatusContainer = statusContainer;
+  
+  // Poll every 500ms for status updates
+  statusPollingInterval = setInterval(() => {
+    fetch("/api/status")
+      .then(response => response.json())
+      .then(data => {
+        if (data.success && currentStatusContainer) {
+          const label = data.label;
+          if (label === "Processing...") {
+            currentStatusContainer.className = "status-container processing";
+            currentStatusContainer.textContent = "";
+          } else {
+            currentStatusContainer.className = "status-container";
+            currentStatusContainer.textContent = label;
+          }
+        }
+      })
+      .catch(error => {
+        console.error("Status polling error:", error);
+      });
+  }, 500);
+}
+
+/** Stop status polling */
+function stopStatusPolling() {
+  if (statusPollingInterval) {
+    clearInterval(statusPollingInterval);
+    statusPollingInterval = null;
+  }
+  currentStatusContainer = null;
 }
 
 /** Show a waiting message while processing user input */
 function showWaitingMessage() {
   const chat = document.getElementById("chatContent");
   const div = document.createElement("div");
-  div.className = "message assistant waiting-message";
+  div.className = "message assistant waiting-message status-label";
   
-  // Create breathing dots instead of emoji and text
-  const dotsContainer = document.createElement("div");
-  dotsContainer.className = "breathing-dots";
-  for (let i = 0; i < thinkingDotCount; i++) {
-    const dot = document.createElement("span");
-    dot.className = "breathing-dot";
-    dot.style.animationDelay = `${i * 0.2}s`;
-    dotsContainer.appendChild(dot);
-  }
+  // Create status label
+  const statusContainer = document.createElement("div");
+  statusContainer.className = "status-container processing";
+  statusContainer.textContent = "";
   
-  div.appendChild(dotsContainer);
+  div.appendChild(statusContainer);
   chat.appendChild(div);
   chat.scrollTop = chat.scrollHeight;
+  
+  // Start polling for status updates
+  startStatusPolling(statusContainer);
+  
   return div;
 }
 
@@ -77,6 +115,7 @@ function removeWaitingMessage() {
   if (waitingMsg) {
     waitingMsg.remove();
   }
+  stopStatusPolling();
 }
 
 /** Return true for strings that begin with "y" (yes-like answers). */

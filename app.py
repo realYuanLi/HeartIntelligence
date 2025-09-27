@@ -13,7 +13,7 @@ from flask import Flask, render_template, jsonify, request, session, redirect, u
 try:
     import sys
     # sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-    from functions.agent import Agent
+    from functions.agent import Agent, get_status
 except Exception as e:
     class _Resp:
         def __init__(self, content: str):
@@ -27,6 +27,9 @@ except Exception as e:
         def llm_reply(self, messages: list[dict]):
             last_user = next((m["content"] for m in reversed(messages) if m.get("role") == "user"), "")
             return _Resp(f"(dummy {self.llm}) You said: {last_user}")
+    
+    def get_status():
+        return "idle"
 
 # --------------------------------------------------------------------------------
 # Paths & config
@@ -193,6 +196,29 @@ def health_check():
         "ehr_data_available": EHR_DATA is not None,
         "ehr_records": EHR_DATA.get('metadata', {}).get('summary', {}).get('total_records', 0) if EHR_DATA else 0
     })
+
+@app.route("/api/status")
+def api_status():
+    """Get current backend processing status"""
+    if not _require_login():
+        return jsonify(success=False, message="Login required"), 401
+    
+    status = get_status()
+    
+    # Map backend status to frontend labels
+    status_labels = {
+        "idle": "Processing...",
+        "processing": "Processing...",
+        "searching_web": "Searching the web",
+        "retrieving_health_data": "Retrieving health data",
+        "analyzing_health_data": "Analyzing health data",
+        "analyzing_web_data": "Analyzing web data",
+        "summarizing_health_data": "Summarizing health data"
+    }
+    
+    label = status_labels.get(status, "Processing...")
+    
+    return jsonify(success=True, status=status, label=label)
 
 @app.route("/new")
 def new_chat():

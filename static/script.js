@@ -956,57 +956,19 @@ document.addEventListener("DOMContentLoaded", () => {
         <div class="source-title">${source.title}</div>
         <div class="source-preview">${source.preview}</div>
       </div>
-      <button class="source-open" aria-label="Open in new tab">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-          <polyline points="15,3 21,3 21,9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-          <line x1="10" y1="14" x2="21" y2="3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-      </button>
     `;
     
-    // Add click handler to open source
-    const openBtn = card.querySelector('.source-open');
-    openBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      window.open(source.url, '_blank', 'noopener,noreferrer');
-    });
-    
-    // Add click handler to card for highlighting
+    // Add click handler to card for URL redirection
     card.addEventListener('click', (e) => {
-      if (e.target !== openBtn && !openBtn.contains(e.target)) {
-        e.preventDefault();
-        // Find the message element that contains this source
-        const messageElements = document.querySelectorAll('.message.assistant');
-        messageElements.forEach(msg => {
-          const links = msg.querySelectorAll('a[href]');
-          links.forEach(link => {
-            if (link.getAttribute('href') === source.url) {
-              highlightSourceInMessage(source.url, msg);
-            }
-          });
-        });
-      }
+      e.preventDefault();
+      window.open(source.url, '_blank', 'noopener,noreferrer');
     });
     
     // Add keyboard navigation
     card.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' || e.key === ' ') {
         e.preventDefault();
-        if (e.target === openBtn) {
-          window.open(source.url, '_blank', 'noopener,noreferrer');
-        } else {
-          // Find the message element that contains this source
-          const messageElements = document.querySelectorAll('.message.assistant');
-          messageElements.forEach(msg => {
-            const links = msg.querySelectorAll('a[href]');
-            links.forEach(link => {
-              if (link.getAttribute('href') === source.url) {
-                highlightSourceInMessage(source.url, msg);
-              }
-            });
-          });
-        }
+        window.open(source.url, '_blank', 'noopener,noreferrer');
       }
     });
     

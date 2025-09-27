@@ -1199,8 +1199,8 @@ main::-webkit-scrollbar-thumb:hover {
 /* Citation badges */
 a.citation-badge {
   display: inline-block !important;
-  background: #f3f4f6 !important;
-  color: #6b7280 !important;
+  background: #f4f4f4 !important;
+  color: #5d5d5d !important;
   padding: 0.125rem 0.375rem !important;
   border-radius: 1rem !important;
   font-size: 0.75rem !important;

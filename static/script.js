@@ -749,17 +749,18 @@ document.addEventListener("DOMContentLoaded", () => {
           const url = new URL(href);
           const domain = url.hostname.replace('www.', '');
           
-          // Extract title from link text or use domain as fallback
-          let title = text;
-          if (text === domain || text.length < 5) {
-            title = domain;
-          }
+          // Generate smart title from URL path
+          let title = generateTitleFromUrl(url);
+          
+          // Generate preview from surrounding context
+          let preview = generatePreviewFromContext(link);
           
           sources.push({
             url: href,
             domain: domain,
             title: title,
-            favicon: `https://www.google.com/s2/favicons?domain=${url.hostname}&sz=32`
+            favicon: `https://www.google.com/s2/favicons?domain=${url.hostname}&sz=32`,
+            preview: preview
           });
         } catch (e) {
           // Skip invalid URLs
@@ -779,6 +780,62 @@ document.addEventListener("DOMContentLoaded", () => {
     });
     
     return uniqueSources;
+  }
+  
+  /** Generate title from URL path */
+  function generateTitleFromUrl(url) {
+    const path = url.pathname;
+    const segments = path.split('/').filter(s => s && s !== 'index.html');
+    
+    if (segments.length === 0) {
+      return url.hostname.replace('www.', '');
+    }
+    
+    // Use the last meaningful segment
+    const lastSegment = segments[segments.length - 1];
+    
+    // Clean up the segment
+    let title = lastSegment
+      .replace(/[-_]/g, ' ')           // Replace dashes/underscores with spaces
+      .replace(/\.[^.]+$/, '')         // Remove file extension
+      .replace(/^\d+[-_]/, '')         // Remove leading numbers
+      .toLowerCase()
+      .split(' ')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
+    
+    return title || url.hostname.replace('www.', '');
+  }
+  
+  /** Generate preview from link context */
+  function generatePreviewFromContext(link) {
+    // Look for surrounding text in the same paragraph or nearby elements
+    let context = '';
+    
+    // Try to get text from the same paragraph
+    const paragraph = link.closest('p');
+    if (paragraph) {
+      context = paragraph.textContent.trim();
+    } else {
+      // Look at parent elements for context
+      let parent = link.parentElement;
+      while (parent && !context) {
+        const text = parent.textContent.trim();
+        if (text.length > link.textContent.length + 20) {
+          context = text;
+          break;
+        }
+        parent = parent.parentElement;
+      }
+    }
+    
+    // Clean up and truncate
+    if (context) {
+      context = context.replace(/\s+/g, ' ').trim();
+      return context.length > 120 ? context.substring(0, 120) + '...' : context;
+    }
+    
+    return 'Source page content';
   }
   
   /** Create sources button */
@@ -887,13 +944,17 @@ document.addEventListener("DOMContentLoaded", () => {
     const card = document.createElement('div');
     card.className = 'source-card';
     card.tabIndex = 0;
+    card.dataset.url = source.url;
     card.innerHTML = `
       <div class="source-favicon">
         <img src="${source.favicon}" alt="" onerror="this.style.display='none'">
       </div>
       <div class="source-content">
+        <div class="source-domain-line">
+          <span class="source-domain">${source.domain}</span>
+        </div>
         <div class="source-title">${source.title}</div>
-        <div class="source-domain">${source.domain}</div>
+        <div class="source-preview">${source.preview}</div>
       </div>
       <button class="source-open" aria-label="Open in new tab">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">

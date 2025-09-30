@@ -128,6 +128,9 @@ main {
   scroll-padding-bottom: 0;
   scroll-snap-type: none;
   overscroll-behavior: none;
+  /* Ensure main takes available space between sidebars */
+  width: 0;
+  flex-grow: 1;
 }
 
 main::-webkit-scrollbar {
@@ -163,6 +166,8 @@ main::-webkit-scrollbar-thumb:hover {
   margin: 0 auto;
   align-items: stretch;
   width: 100%;
+  /* Ensure content stays centered and doesn't overflow */
+  box-sizing: border-box;
 }
 
 .chat-content::after {
@@ -191,6 +196,11 @@ main::-webkit-scrollbar-thumb:hover {
   transform: translateZ(0);
   will-change: transform;
   direction: ltr;
+}
+
+/* Increase message max-width when sources panel is open */
+body.sources-sidebar-open .message {
+  max-width: 1200px;
 }
 .message.user {
   align-self: flex-end !important;
@@ -579,6 +589,7 @@ main::-webkit-scrollbar-thumb:hover {
   margin: 2rem auto 0;
   padding: 0 1rem;
   position: relative;
+  box-sizing: border-box;
 }
 
 /* Fixed input container for chat page */
@@ -594,6 +605,10 @@ main::-webkit-scrollbar-thumb:hover {
   max-width: 850px;
   margin-left: auto;
   margin-right: auto;
+  box-sizing: border-box;
+  /* Ensure input doesn't extend beyond viewport */
+  width: calc(100vw - 260px);
+  max-width: min(850px, calc(100vw - 260px - 2rem));
 }
 
 
@@ -758,6 +773,7 @@ main::-webkit-scrollbar-thumb:hover {
   
   main {
     width: 100%;
+    flex-grow: 1;
   }
   
   .input-container.fixed {
@@ -766,6 +782,8 @@ main::-webkit-scrollbar-thumb:hover {
     margin: 0 auto;
     max-width: 850px;
     padding: 1rem;
+    width: calc(100vw - 2rem);
+    max-width: min(850px, calc(100vw - 2rem));
   }
 }
 
@@ -844,7 +862,8 @@ main::-webkit-scrollbar-thumb:hover {
     padding: 0.75rem 1rem;
     bottom: 0;
     max-width: 850px;
-    width: calc(100% - 2rem);
+    width: calc(100vw - 2rem);
+    max-width: min(850px, calc(100vw - 2rem));
   }
   
   .input-container.fixed .input-wrapper {
@@ -917,7 +936,8 @@ main::-webkit-scrollbar-thumb:hover {
     padding: 0.5rem 0.75rem;
     bottom: 0;
     max-width: 850px;
-    width: calc(100% - 1rem);
+    width: calc(100vw - 1rem);
+    max-width: min(850px, calc(100vw - 1rem));
   }
   
   .input-container.fixed .input-wrapper {
@@ -1665,12 +1685,14 @@ body.sources-sidebar-open {
 /* Chat content layout adjustment when sources panel is open */
 body.sources-sidebar-open .chat-content {
   padding-right: 400px;
+  max-width: 1200px; /* Increase max-width when sources panel is open */
   transition: padding-right 0.3s ease;
 }
 
 /* Input container adjustment when sources panel is open */
 body.sources-sidebar-open .input-container.fixed {
   padding-right: 400px;
+  max-width: 1200px; /* Increase max-width when sources panel is open */
   transition: padding-right 0.3s ease;
 }
 
@@ -1749,6 +1771,8 @@ body.sources-sidebar-open .input-container.fixed {
   
   body.sources-sidebar-open .input-container.fixed {
     padding-right: 1rem;
+    width: calc(100vw - 1rem);
+    max-width: calc(100vw - 1rem); /* Ensure input doesn't extend beyond viewport on mobile */
   }
 }
 

@@ -114,6 +114,7 @@ aside {
 }
 main {
   flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   position: relative;
@@ -153,6 +154,7 @@ main::-webkit-scrollbar-thumb:hover {
 }
 .chat-content {
   flex: 1;
+  min-width: 0;
   padding: 1.5rem 0rem 0rem 0rem;
   display: flex;
   flex-direction: column;
@@ -583,14 +585,15 @@ main::-webkit-scrollbar-thumb:hover {
 .input-container.fixed {
   position: fixed;
   bottom: 0rem;
-  left: calc(260px + (100% - 260px) / 2);
-  transform: translateX(-50%);
+  left: 260px;
+  right: 0;
   margin: 0;
   padding: 1rem; /* Align with outer arc */
   background: var(--bg);
   z-index: 100;
-  width: calc(100% - 260px); /* Account for sidebar */
   max-width: 850px;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 
@@ -758,10 +761,11 @@ main::-webkit-scrollbar-thumb:hover {
   }
   
   .input-container.fixed {
-    left: 50%;
-    transform: translateX(-50%);
-    width: calc(100% - 2rem);
+    left: 0;
+    right: 0;
+    margin: 0 auto;
     max-width: 850px;
+    padding: 1rem;
   }
 }
 
@@ -835,11 +839,12 @@ main::-webkit-scrollbar-thumb:hover {
   }
   
   .input-container.fixed {
-    width: calc(100% - 2rem);
-    padding: 0.75rem 1rem;
-    bottom: 0;
     left: 50%;
     transform: translateX(-50%);
+    padding: 0.75rem 1rem;
+    bottom: 0;
+    max-width: 850px;
+    width: calc(100% - 2rem);
   }
   
   .input-container.fixed .input-wrapper {
@@ -907,11 +912,12 @@ main::-webkit-scrollbar-thumb:hover {
   }
   
   .input-container.fixed {
-    width: calc(100% - 1rem);
-    padding: 0.5rem 0.75rem;
-    bottom: 0;
     left: 50%;
     transform: translateX(-50%);
+    padding: 0.5rem 0.75rem;
+    bottom: 0;
+    max-width: 850px;
+    width: calc(100% - 1rem);
   }
   
   .input-container.fixed .input-wrapper {

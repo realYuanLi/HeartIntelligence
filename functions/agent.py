@@ -121,7 +121,7 @@ class Agent:
                         "content": f"Summarize this {category} data, focusing on clinically relevant information and patterns:\n\n{chunk}"
                     }
                 ],
-                temperature=0.1,
+                temperature=self.temperature,
                 max_tokens=10000
             )
             return response.choices[0].message.content.strip()
@@ -152,7 +152,7 @@ class Agent:
                             "content": f"Summarize this health data, focusing on clinically relevant information and patterns:\n\n{raw_data_output}"
                         }
                     ],
-                    temperature=0.1,
+                    temperature=self.temperature,
                     max_tokens=16000
                 )
                 return response.choices[0].message.content.strip()
@@ -203,7 +203,7 @@ class Agent:
                             "content": f"Create a final, comprehensive summary from these health data summaries, focusing on the most clinically relevant information:\n\n{combined_summary}"
                         }
                     ],
-                    temperature=0.1,
+                    temperature=self.temperature,
                     max_tokens=10000
                 )
                 return response.choices[0].message.content.strip()
@@ -350,11 +350,18 @@ Analyze this health data thoroughly, referencing specific values and trends. Pro
             # Make API call without tools (since we've already done the search if needed)
             # Use GPT-5 for final answers, GPT-4o for other operations
             final_model = "gpt-5"
-            response = openai.chat.completions.create(
-                model=final_model,
-                messages=openai_messages,
-                temperature=self.temperature
-            )
+            
+            # GPT-5 only supports default temperature (1), other models support custom temperature
+            api_params = {
+                "model": final_model,
+                "messages": openai_messages
+            }
+            
+            # Only add temperature parameter for models that support it
+            if final_model != "gpt-5":
+                api_params["temperature"] = self.temperature
+            
+            response = openai.chat.completions.create(**api_params)
             
             message = response.choices[0].message
             

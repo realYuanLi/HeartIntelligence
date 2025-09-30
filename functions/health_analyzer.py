@@ -344,10 +344,7 @@ def analyze_health_query_with_raw_data(query: str, ehr_data: Optional[Dict] = No
     # Import here to avoid circular imports
     from .agent import update_status
     
-    # Update status before checking if health data is needed
-    update_status("analyzing_health_data")
-    
-    # Check if health data is needed
+    # Check if health data is needed first (no status update needed for this check)
     needs_health = needs_health_data(query)
     
     if not needs_health:
@@ -375,6 +372,8 @@ def analyze_health_query_with_raw_data(query: str, ehr_data: Optional[Dict] = No
         # Extract raw data if requested
         raw_data_output = ""
         if show_raw_data and available_categories:
+            # Update status when actually analyzing the retrieved data
+            update_status("analyzing_health_data")
             raw_data = extract_raw_data_from_categories(ehr_data, available_categories)
             raw_data_output = print_raw_health_data(raw_data)
         

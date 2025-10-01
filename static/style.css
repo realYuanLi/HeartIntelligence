@@ -1890,8 +1890,7 @@ body.sources-sidebar-open .input-container.fixed {
 }
 
 .dashboard-header {
-  padding: 2rem 2rem 1rem;
-  border-bottom: 1px solid var(--border);
+  padding: 1rem 2rem 1rem;
   background: var(--bg);
   position: sticky;
   top: 0;

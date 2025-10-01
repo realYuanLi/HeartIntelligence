@@ -230,6 +230,15 @@ def new_chat():
     # For logged in users, show welcome page
     return render_template("welcome.html", username=session.get("username"))
 
+@app.route("/dashboard")
+def dashboard():
+    # Show dashboard page
+    if not _require_login():
+        return redirect(url_for("index"))
+    
+    # For logged in users, show dashboard page
+    return render_template("dashboard.html", username=session.get("username"))
+
 @app.route("/chat/<session_id>")
 def chat(session_id: str):
     return render_template("chat.html", username=session.get("username"))
@@ -430,6 +439,198 @@ def api_patient_info():
         return jsonify(success=True, patient_data=PATIENT_DATA)
     else:
         return jsonify(success=False, message="No patient data available"), 404
+
+@app.route("/api/dashboard_data")
+def api_dashboard_data():
+    """Get dashboard health data"""
+    if not _require_login():
+        return jsonify(success=False, message="Login required"), 401
+    
+    if not EHR_DATA:
+        return jsonify(success=False, message="No health data available"), 404
+    
+    # Extract relevant health information
+    dashboard_data = {
+        "demographics": {},
+        "vital_signs": [],
+        "medications": [],
+        "activity": {},
+        "lab_results": [],
+        "clinical": {},
+        "cardiovascular": {},
+        "mobility": {}
+    }
+    
+    # Get demographics
+    if "demographics" in EHR_DATA:
+        demographics_records = EHR_DATA["demographics"]
+        if "Demographics" in demographics_records and len(demographics_records["Demographics"]) > 0:
+            demo = demographics_records["Demographics"][0]
+            dashboard_data["demographics"] = {
+                "name": demo.get("DisplayName", "N/A"),
+                "birth_date": demo.get("BirthDate", "N/A"),
+                "sex": demo.get("BiologicalSex", "N/A"),
+                "age": demo.get("Age", "N/A")
+            }
+    
+    # Get vital signs with normal ranges
+    if "vital_signs" in EHR_DATA:
+        vital_signs_records = EHR_DATA["vital_signs"]
+        vital_types = {}
+        
+        # Collect the most recent vital sign of each type
+        for vital_type in ["ClinicalHeartRate", "ClinicalBloodPressure", "ClinicalBodyTemperature", 
+                          "ClinicalRespiratoryRate", "ClinicalOxygenSaturation"]:
+            if vital_type in vital_signs_records and len(vital_signs_records[vital_type]) > 0:
+                vital = vital_signs_records[vital_type][0]  # Most recent
+                vital_types[vital_type] = vital
+        
+        # Format vital signs with normal ranges
+        normal_ranges = {
+            "ClinicalHeartRate": {"min": 60, "max": 100, "unit": "bpm"},
+            "ClinicalBloodPressure": {"systolic": {"min": 90, "max": 120}, "diastolic": {"min": 60, "max": 80}, "unit": "mmHg"},
+            "ClinicalBodyTemperature": {"min": 97.0, "max": 99.0, "unit": "°F"},
+            "ClinicalRespiratoryRate": {"min": 12, "max": 20, "unit": "breaths/min"},
+            "ClinicalOxygenSaturation": {"min": 95, "max": 100, "unit": "%"}
+        }
+        
+        for vital_type, vital in vital_types.items():
+            display_name = vital.get("DisplayName", vital_type.replace("Clinical", ""))
+            value = vital.get("Value")
+            unit = vital.get("Unit", "")
+            date = vital.get("Date", "")
+            
+            vital_info = {
+                "name": display_name,
+                "value": value,
+                "unit": unit,
+                "date": date,
+                "normal_range": normal_ranges.get(vital_type, {})
+            }
+            
+            dashboard_data["vital_signs"].append(vital_info)
+    
+    # Get medications (recent 5)
+    if "medications" in EHR_DATA:
+        medications_records = EHR_DATA["medications"]
+        if "ClinicalMedication" in medications_records:
+            meds = medications_records["ClinicalMedication"][:5]
+            for med in meds:
+                dashboard_data["medications"].append({
+                    "name": med.get("DisplayName", "N/A"),
+                    "date": med.get("Date", "N/A")
+                })
+    
+    # Get activity data (most recent)
+    if "activity" in EHR_DATA:
+        activity_records = EHR_DATA["activity"]
+        
+        # Steps
+        if "StepCount" in activity_records and len(activity_records["StepCount"]) > 0:
+            steps = activity_records["StepCount"][0]
+            dashboard_data["activity"]["steps"] = {
+                "value": steps.get("Value", "N/A"),
+                "unit": steps.get("Unit", "steps"),
+                "date": steps.get("Date", "N/A")
+            }
+        
+        # Active Energy
+        if "ActiveEnergyBurned" in activity_records and len(activity_records["ActiveEnergyBurned"]) > 0:
+            energy = activity_records["ActiveEnergyBurned"][0]
+            dashboard_data["activity"]["active_energy"] = {
+                "value": energy.get("Value", "N/A"),
+                "unit": energy.get("Unit", "Cal"),
+                "date": energy.get("Date", "N/A")
+            }
+        
+        # Exercise Time
+        if "AppleExerciseTime" in activity_records and len(activity_records["AppleExerciseTime"]) > 0:
+            exercise = activity_records["AppleExerciseTime"][0]
+            dashboard_data["activity"]["exercise_time"] = {
+                "value": exercise.get("Value", "N/A"),
+                "unit": exercise.get("Unit", "min"),
+                "date": exercise.get("Date", "N/A")
+            }
+    
+    # Get lab results (recent 5)
+    if "lab_results" in EHR_DATA:
+        lab_records = EHR_DATA["lab_results"]
+        if "ClinicalLabResult" in lab_records:
+            labs = lab_records["ClinicalLabResult"][:5]
+            for lab in labs:
+                dashboard_data["lab_results"].append({
+                    "name": lab.get("DisplayName", "N/A"),
+                    "value": lab.get("Value", "N/A"),
+                    "unit": lab.get("Unit", ""),
+                    "date": lab.get("Date", "N/A"),
+                    "status": lab.get("Status", "")
+                })
+    
+    # Get clinical data
+    if "clinical" in EHR_DATA:
+        clinical_records = EHR_DATA["clinical"]
+        
+        # Allergies
+        if "ClinicalAllergy" in clinical_records:
+            allergies = clinical_records["ClinicalAllergy"][:5]
+            dashboard_data["clinical"]["allergies"] = [
+                {"name": a.get("DisplayName", "N/A"), "date": a.get("Date", "N/A")}
+                for a in allergies
+            ]
+        
+        # Conditions
+        if "ClinicalCondition" in clinical_records:
+            conditions = clinical_records["ClinicalCondition"][:5]
+            dashboard_data["clinical"]["conditions"] = [
+                {"name": c.get("DisplayName", "N/A"), "date": c.get("Date", "N/A")}
+                for c in conditions
+            ]
+    
+    # Get cardiovascular data
+    if "cardiovascular" in EHR_DATA:
+        cardio_records = EHR_DATA["cardiovascular"]
+        
+        # Resting Heart Rate
+        if "RestingHeartRate" in cardio_records and len(cardio_records["RestingHeartRate"]) > 0:
+            rhr = cardio_records["RestingHeartRate"][0]
+            dashboard_data["cardiovascular"]["resting_hr"] = {
+                "value": rhr.get("Value", "N/A"),
+                "unit": rhr.get("Unit", "bpm"),
+                "date": rhr.get("Date", "N/A")
+            }
+        
+        # HRV
+        if "HeartRateVariabilitySDNN" in cardio_records and len(cardio_records["HeartRateVariabilitySDNN"]) > 0:
+            hrv = cardio_records["HeartRateVariabilitySDNN"][0]
+            dashboard_data["cardiovascular"]["hrv"] = {
+                "value": hrv.get("Value", "N/A"),
+                "unit": hrv.get("Unit", "ms"),
+                "date": hrv.get("Date", "N/A")
+            }
+    
+    # Get mobility data
+    if "mobility" in EHR_DATA:
+        mobility_records = EHR_DATA["mobility"]
+        
+        # Walking Speed
+        if "WalkingSpeed" in mobility_records and len(mobility_records["WalkingSpeed"]) > 0:
+            speed = mobility_records["WalkingSpeed"][0]
+            dashboard_data["mobility"]["walking_speed"] = {
+                "value": speed.get("Value", "N/A"),
+                "unit": speed.get("Unit", "mph"),
+                "date": speed.get("Date", "N/A")
+            }
+        
+        # Walking Step Length
+        if "WalkingStepLength" in mobility_records and len(mobility_records["WalkingStepLength"]) > 0:
+            step_length = mobility_records["WalkingStepLength"][0]
+            dashboard_data["mobility"]["step_length"] = {
+                "value": step_length.get("Value", "N/A"),
+                "unit": step_length.get("Unit", "in"),
+                "date": step_length.get("Date", "N/A")
+            }
+    
+    return jsonify(success=True, data=dashboard_data)
 
 # --------------------------------------------------------------------------------
 # Speech-to-Text endpoints

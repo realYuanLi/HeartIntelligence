@@ -451,6 +451,14 @@ document.addEventListener("DOMContentLoaded", () => {
     window.location.href = "/new";
   });
 
+  const dashboardBtn = document.getElementById("dashboardBtn");
+  if (dashboardBtn) {
+    dashboardBtn.addEventListener("click", () => {
+      // Navigate to dashboard page
+      window.location.href = "/dashboard";
+    });
+  }
+
   /* ==================================================== */
   /*  Welcome page functionality                           */
   /* ==================================================== */

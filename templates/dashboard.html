@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block main %}
+  <div class="dashboard-page">
+    <div class="dashboard-header">
+      <h1>Health Dashboard</h1>
+    </div>
+    
+    <div id="dashboardData" class="dashboard-content">
+      <div class="loading">Loading health data...</div>
+    </div>
+  </div>
+{% endblock %}
+
+{% block input %}
+  <!-- Input box fixed at bottom -->
+  <div class="input-container fixed">
+    <div class="input-wrapper">
+      <button id="micButton" class="mic-button" type="button" title="Voice input">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z" fill="currentColor"/>
+          <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z" fill="currentColor"/>
+        </svg>
+      </button>
+      <textarea 
+        id="messageInput" 
+        class="message-input" 
+        placeholder="Ask anything" 
+        rows="1"
+        maxlength="2000"
+      ></textarea>
+      <button id="sendButton" class="send-button" type="button">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" fill="currentColor"/>
+        </svg>
+      </button>
+    </div>
+    <div class="disclaimer">
+      <span>Disclaimer</span>
+    </div>
+  </div>
+{% endblock %}
+
+{% block scripts %}
+  <!-- Dashboard-specific JavaScript -->
+  <script src="{{ url_for('static', filename='dashboard.js') }}"></script>
+{% endblock %}

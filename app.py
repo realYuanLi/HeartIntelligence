@@ -2,6 +2,7 @@ import os
 import json
 import uuid
 import threading
+import time
 from datetime import datetime
 from pathlib import Path
 from flask import Flask, render_template, jsonify, request, session, redirect, url_for
@@ -429,6 +430,95 @@ def api_patient_info():
         return jsonify(success=True, patient_data=PATIENT_DATA)
     else:
         return jsonify(success=False, message="No patient data available"), 404
+
+# --------------------------------------------------------------------------------
+# Speech-to-Text endpoints
+# --------------------------------------------------------------------------------
+# Global transcriber instance (per user session)
+transcriber_instances = {}
+
+@app.route("/api/speech/start", methods=["POST"])
+def api_speech_start():
+    if not _require_login():
+        return jsonify(success=False, message="Login required"), 401
+    
+    user = _username()
+    
+    try:
+        # Import here to avoid errors if module is not installed
+        from functions.speech_to_text import SpeechToText
+        
+        # Stop existing transcriber if any
+        if user in transcriber_instances:
+            try:
+                transcriber_instances[user].stop()
+            except:
+                pass
+        
+        # Create new transcriber
+        transcriber = SpeechToText(model='base.en')
+        transcriber.start()
+        transcriber_instances[user] = transcriber
+        
+        return jsonify(success=True, message="Recording started")
+    except ImportError:
+        return jsonify(success=False, message="Speech-to-text module not installed"), 500
+    except Exception as e:
+        return jsonify(success=False, message=f"Failed to start recording: {str(e)}"), 500
+
+@app.route("/api/speech/stop", methods=["POST"])
+def api_speech_stop():
+    if not _require_login():
+        return jsonify(success=False, message="Login required"), 401
+    
+    user = _username()
+    
+    if user not in transcriber_instances:
+        return jsonify(success=False, message="No active recording"), 400
+    
+    try:
+        transcriber = transcriber_instances[user]
+        
+        # Get all transcribed text
+        transcriber.process_pending_audio()
+        time.sleep(0.5)  # Wait for any final audio processing
+        transcriber.process_pending_audio()
+        
+        history = transcriber.get_transcription_history()
+        
+        # Combine all transcriptions
+        all_text = " ".join([entry["text"] for entry in history])
+        
+        # Stop and cleanup
+        transcriber.stop()
+        del transcriber_instances[user]
+        
+        return jsonify(success=True, transcribed_text=all_text)
+    except Exception as e:
+        return jsonify(success=False, message=f"Failed to stop recording: {str(e)}"), 500
+
+@app.route("/api/speech/poll", methods=["GET"])
+def api_speech_poll():
+    """Poll for new transcribed text while recording"""
+    if not _require_login():
+        return jsonify(success=False, message="Login required"), 401
+    
+    user = _username()
+    
+    if user not in transcriber_instances:
+        return jsonify(success=False, is_recording=False, text="")
+    
+    try:
+        transcriber = transcriber_instances[user]
+        transcriber.process_pending_audio()
+        
+        # Get latest text from history
+        history = transcriber.get_transcription_history()
+        latest_text = " ".join([entry["text"] for entry in history])
+        
+        return jsonify(success=True, is_recording=True, text=latest_text)
+    except Exception as e:
+        return jsonify(success=False, message=f"Polling failed: {str(e)}"), 500
 
 
 if __name__ == "__main__":

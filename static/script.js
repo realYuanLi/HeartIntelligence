@@ -1065,6 +1065,196 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   /* ==================================================== */
+  /*  Speech-to-Text functionality                         */
+  /* ==================================================== */
+  let isRecording = false;
+  let recordingPollInterval = null;
+  
+  const micButton = document.getElementById("micButton");
+  
+  if (micButton) {
+    micButton.addEventListener("click", handleMicClick);
+  }
+  
+  function handleMicClick() {
+    if (!isRecording) {
+      startRecording();
+    } else {
+      stopRecording();
+    }
+  }
+  
+  function startRecording() {
+    // Call backend to start recording
+    fetch("/api/speech/start", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" }
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (data.success) {
+        isRecording = true;
+        
+        // Update UI
+        const micButton = document.getElementById("micButton");
+        const inputWrapper = document.querySelector(".input-wrapper");
+        const messageInput = document.getElementById("messageInput");
+        
+        if (micButton) {
+          micButton.classList.add("recording");
+          micButton.title = "Stop recording";
+        }
+        
+        if (inputWrapper) {
+          inputWrapper.classList.add("recording");
+        }
+        
+        if (messageInput) {
+          messageInput.placeholder = "Listening...";
+        }
+        
+        // Start polling for transcribed text
+        startRecordingPoll();
+      } else {
+        alert(data.message || "Failed to start recording");
+      }
+    })
+    .catch(err => {
+      console.error("Failed to start recording:", err);
+      alert("Failed to start recording. Make sure the speech-to-text module is installed.");
+    });
+  }
+  
+  function stopRecording() {
+    // Stop polling first
+    stopRecordingPoll();
+    
+    // Call backend to stop recording
+    fetch("/api/speech/stop", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" }
+    })
+    .then(r => r.json())
+    .then(data => {
+      isRecording = false;
+      
+      // Update UI
+      const micButton = document.getElementById("micButton");
+      const inputWrapper = document.querySelector(".input-wrapper");
+      const messageInput = document.getElementById("messageInput");
+      
+      if (micButton) {
+        micButton.classList.remove("recording");
+        micButton.title = "Voice input";
+      }
+      
+      if (inputWrapper) {
+        inputWrapper.classList.remove("recording");
+      }
+      
+      if (messageInput) {
+        messageInput.placeholder = "Ask anything";
+      }
+      
+      if (data.success && data.transcribed_text) {
+        // Insert transcribed text into input box
+        if (messageInput) {
+          const currentText = messageInput.value.trim();
+          if (currentText) {
+            messageInput.value = currentText + " " + data.transcribed_text;
+          } else {
+            messageInput.value = data.transcribed_text;
+          }
+          
+          // Trigger input event to update send button state and auto-resize
+          messageInput.dispatchEvent(new Event('input'));
+          messageInput.focus();
+        }
+      } else if (!data.success) {
+        console.error("Failed to stop recording:", data.message);
+      }
+    })
+    .catch(err => {
+      console.error("Failed to stop recording:", err);
+      isRecording = false;
+      
+      // Reset UI
+      const micButton = document.getElementById("micButton");
+      const inputWrapper = document.querySelector(".input-wrapper");
+      const messageInput = document.getElementById("messageInput");
+      
+      if (micButton) {
+        micButton.classList.remove("recording");
+        micButton.title = "Voice input";
+      }
+      
+      if (inputWrapper) {
+        inputWrapper.classList.remove("recording");
+      }
+      
+      if (messageInput) {
+        messageInput.placeholder = "Ask anything";
+      }
+    });
+  }
+  
+  function startRecordingPoll() {
+    // Poll every 1 second for new transcribed text
+    recordingPollInterval = setInterval(() => {
+      fetch("/api/speech/poll")
+        .then(r => r.json())
+        .then(data => {
+          if (data.success && data.is_recording && data.text) {
+            const messageInput = document.getElementById("messageInput");
+            if (messageInput) {
+              // Append transcribed text to existing text
+              const currentText = messageInput.value.trim();
+              if (currentText) {
+                messageInput.value = currentText + " " + data.text;
+              } else {
+                messageInput.value = data.text;
+              }
+              
+              // Trigger input event to update send button state and auto-resize
+              messageInput.dispatchEvent(new Event('input'));
+            }
+          } else if (!data.is_recording) {
+            // Recording stopped on server side
+            stopRecordingPoll();
+            isRecording = false;
+            
+            const micButton = document.getElementById("micButton");
+            const inputWrapper = document.querySelector(".input-wrapper");
+            const messageInput = document.getElementById("messageInput");
+            
+            if (micButton) {
+              micButton.classList.remove("recording");
+              micButton.title = "Voice input";
+            }
+            
+            if (inputWrapper) {
+              inputWrapper.classList.remove("recording");
+            }
+            
+            if (messageInput) {
+              messageInput.placeholder = "Ask anything";
+            }
+          }
+        })
+        .catch(err => {
+          console.error("Polling error:", err);
+        });
+    }, 1000);
+  }
+  
+  function stopRecordingPoll() {
+    if (recordingPollInterval) {
+      clearInterval(recordingPollInterval);
+      recordingPollInterval = null;
+    }
+  }
+
+  /* ==================================================== */
   /*  Helper: render a bubble                              */
   /* ==================================================== */
   function appendMsg(text, role) {

@@ -12,3 +12,8 @@ requests==2.32.4
 
 # Additional dependencies needed by the app
 tiktoken==0.9.0
+
+# To enable speech-to-text transcription, install:
+git+https://github.com/absadiki/pywhispercpp
+sounddevice
+webrtcvad

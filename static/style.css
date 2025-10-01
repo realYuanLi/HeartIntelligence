@@ -745,6 +745,69 @@ body.sources-sidebar-open .message {
   box-shadow: none;
 }
 
+/* ===================== Microphone Button Styles ===================== */
+.mic-button {
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.375rem;
+  margin-right: 0.5rem;
+  transition: all 0.2s ease;
+  min-width: 2rem;
+  height: 2rem;
+  flex-shrink: 0;
+  border-radius: 0.5rem;
+}
+
+.mic-button:hover {
+  background: var(--card);
+  color: var(--text);
+}
+
+.mic-button:active {
+  transform: scale(0.95);
+}
+
+/* Recording state */
+.mic-button.recording {
+  background: var(--accent);
+  color: white;
+  animation: pulse-recording 1.5s ease-in-out infinite;
+}
+
+.mic-button.recording:hover {
+  background: var(--accent-hover);
+}
+
+@keyframes pulse-recording {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(255, 104, 80, 0.7);
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgba(255, 104, 80, 0);
+  }
+}
+
+/* Recording visual effect in input wrapper */
+.input-wrapper.recording {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(255, 104, 80, 0.15), 0 2px 12px rgba(0, 0, 0, 0.15);
+  animation: border-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes border-pulse {
+  0%, 100% {
+    border-color: var(--accent);
+  }
+  50% {
+    border-color: var(--accent-hover);
+  }
+}
+
 /* Auto-resize textarea with smooth transition for all inputs */
 
 /* Chat page specific styles */

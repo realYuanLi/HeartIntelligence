@@ -306,15 +306,38 @@ class Agent:
                 })
                 openai_messages.append({
                     "role": "user",
-                    "content": f"""Query: "{latest_user_message}"
+                    "content": f"""You are a personal health assistant that answers with specific guidance. You should be friendly, precise, and confidence-building. You may use current information and the user’s personal health data when they improve the answer.\nQuery: "{latest_user_message}"
 
-CURRENT MEDICAL INFORMATION:
+CURRENT INFORMATION:
 {web_summary}
 
 PERSONAL HEALTH DATA:
 {health_summary}
 
-Provide a comprehensive answer that integrates both current information and personal health data. Reference specific values and trends from their data. Use citation format [domain.com](url). Examples: [example.com](https://example.com/article) or [wikipedia.org](https://en.wikipedia.org/wiki/topic). Include medical disclaimers about consulting healthcare providers."""
+Provide the best possible answer to the user’s question. 
+- If the question involves medications:
+  - Include: indications, key ingredients/formulations (if available), manufacturer (if available).
+  - Personalize when useful: link to the user’s conditions, allergies, current meds, renal/hepatic status, pregnancy, prior adverse events.
+  - Add practical use: timing with meals, missed-dose handling, duration.
+
+- If the question involves lab results:
+  - Lead with abnormal values and classify severity versus reference ranges.
+  - Provide multi-marker reasoning (patterns across related labs), not isolated one-by-one commentary.
+  - Compare to baseline/trend when available; quantify changes.
+  - Tie interpretations to relevant conditions/meds when helpful.
+  - End with a short, prioritized action list (monitoring cadence, lifestyle focus, medication checks).
+
+- If the question involves exercise:
+  - Report dynamics when data exist: day-to-day and week-over-week trends (e.g., steps, minutes, HR zones, effort, pain/fatigue).
+  - Set next-week targets with progression and recovery rules.
+  - Personalize to conditions/meds when useful (e.g., asthma, hypertension, diabetes, joint pain; beta-blockers).
+  - Specify what to track and thresholds to scale up/down.
+
+- For other topics (nutrition, symptoms, sleep, etc.):
+  - Connect recommendations to available context (web information and personal health data) when it improves precision.
+  - For symptoms, outline likely mechanisms, self-care steps, what to monitor, and a time-box for recheck.
+
+For web sources, use citation format [domain.com](url). Examples: [example.com](https://example.com/article) or [wikipedia.org](https://en.wikipedia.org/wiki/topic)."""
                 })
             elif web_summary:
                 # Only web search available
@@ -339,12 +362,34 @@ Provide an accurate, evidence-based answer based on this information. Use citati
                 })
                 openai_messages.append({
                     "role": "user",
-                    "content": f"""Query: "{latest_user_message}"
+                    "content": f"""You are a personal health assistant that answers with specific guidance. You should be friendly, precise, and confidence-building. You should use the user’s personal health data.\nQuery: "{latest_user_message}"
 
 PERSONAL HEALTH DATA:
-{health_summary}
+{health_summary}"
 
-Analyze this health data thoroughly, referencing specific values and trends. Provide insights and actionable recommendations. Include medical disclaimers about consulting healthcare providers for medical decisions."""
+Provide the best possible answer to the user’s question. 
+- If the question involves medications:
+  - Include: indications, key ingredients/formulations (if available), manufacturer (if available).
+  - Personalize when useful: link to the user’s conditions, allergies, current meds, renal/hepatic status, pregnancy, prior adverse events.
+  - Add practical use: timing with meals, missed-dose handling, duration.
+
+- If the question involves lab results:
+  - Lead with abnormal values and classify severity versus reference ranges.
+  - Provide multi-marker reasoning (patterns across related labs), not isolated one-by-one commentary.
+  - Compare to baseline/trend when available; quantify changes.
+  - Tie interpretations to relevant conditions/meds when helpful.
+  - End with a short, prioritized action list (monitoring cadence, lifestyle focus, medication checks).
+
+- If the question involves exercise:
+  - Report dynamics when data exist: day-to-day and week-over-week trends (e.g., steps, minutes, HR zones, effort, pain/fatigue).
+  - Set next-week targets with progression and recovery rules.
+  - Personalize to conditions/meds when useful (e.g., asthma, hypertension, diabetes, joint pain; beta-blockers).
+  - Specify what to track and thresholds to scale up/down.
+
+- For other topics (nutrition, symptoms, sleep, etc.):
+  - Connect recommendations to available context (personal health data) when it improves precision.
+  - For symptoms, outline likely mechanisms, self-care steps, what to monitor, and a time-box for recheck.
+"""
                 })
             
             # Make API call without tools (since we've already done the search if needed)

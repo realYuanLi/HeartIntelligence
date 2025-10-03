@@ -17,3 +17,8 @@ tiktoken==0.9.0
 git+https://github.com/absadiki/pywhispercpp
 sounddevice
 webrtcvad
+
+# Medical imaging dependencies
+nibabel==5.2.1
+numpy==1.26.4
+Pillow==10.2.0

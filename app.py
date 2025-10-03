@@ -3,9 +3,14 @@ import json
 import uuid
 import threading
 import time
+import base64
+import io
 from datetime import datetime
 from pathlib import Path
-from flask import Flask, render_template, jsonify, request, session, redirect, url_for
+from flask import Flask, render_template, jsonify, request, session, redirect, url_for, send_file, Response
+import numpy as np
+import nibabel as nib
+from PIL import Image
 
 # --------------------------------------------------------------------------------
 # Attempt to import the user's Agent class (from functions/agent.py)
@@ -59,6 +64,29 @@ try:
 except Exception as e:
     EHR_DATA = None
     print(f"Could not load EHR data: {e}")
+
+# Load digital twin data
+DIGITAL_TWIN_DATA_PATH = APP_DIR / "data" / "digital_twins"
+DIGITAL_TWIN_STATS_PATH = DIGITAL_TWIN_DATA_PATH / "statistics.json"
+DIGITAL_TWIN_CT_PATH = DIGITAL_TWIN_DATA_PATH / "CT.nii.gz"
+DIGITAL_TWIN_SEG_PATH = DIGITAL_TWIN_DATA_PATH / "segmentations.nii"
+
+# Load organ statistics
+try:
+    if DIGITAL_TWIN_STATS_PATH.exists():
+        with open(DIGITAL_TWIN_STATS_PATH, "r", encoding="utf-8") as f:
+            ORGAN_STATS = json.load(f)
+        print(f"Loaded organ statistics with {len(ORGAN_STATS)} organs")
+    else:
+        ORGAN_STATS = {}
+        print("Organ statistics file not found")
+except Exception as e:
+    ORGAN_STATS = {}
+    print(f"Could not load organ statistics: {e}")
+
+# Cache for medical imaging data
+_CT_DATA = None
+_SEG_DATA = None
 
 # Simple system prompt
 system_prompt = """You are a helpful AI assistant."""
@@ -729,6 +757,196 @@ def api_speech_poll():
         return jsonify(success=True, is_recording=True, text=latest_text)
     except Exception as e:
         return jsonify(success=False, message=f"Polling failed: {str(e)}"), 500
+
+# --------------------------------------------------------------------------------
+# Medical Imaging Viewer endpoints
+# --------------------------------------------------------------------------------
+
+def _load_ct_data():
+    """Load CT data from NIfTI file"""
+    global _CT_DATA
+    if _CT_DATA is None and DIGITAL_TWIN_CT_PATH.exists():
+        try:
+            ct_img = nib.load(str(DIGITAL_TWIN_CT_PATH))
+            _CT_DATA = {
+                'data': ct_img.get_fdata(),
+                'affine': ct_img.affine,
+                'header': ct_img.header,
+                'shape': ct_img.shape
+            }
+            print(f"Loaded CT data with shape {_CT_DATA['shape']}")
+        except Exception as e:
+            print(f"Failed to load CT data: {e}")
+            _CT_DATA = None
+    return _CT_DATA
+
+def _load_seg_data():
+    """Load segmentation data from NIfTI file"""
+    global _SEG_DATA
+    if _SEG_DATA is None and DIGITAL_TWIN_SEG_PATH.exists():
+        try:
+            seg_img = nib.load(str(DIGITAL_TWIN_SEG_PATH))
+            _SEG_DATA = {
+                'data': seg_img.get_fdata(),
+                'affine': seg_img.affine,
+                'header': seg_img.header,
+                'shape': seg_img.shape
+            }
+            print(f"Loaded segmentation data with shape {_SEG_DATA['shape']}")
+        except Exception as e:
+            print(f"Failed to load segmentation data: {e}")
+            _SEG_DATA = None
+    return _SEG_DATA
+
+def _normalize_slice(slice_data, window_center=0, window_width=400):
+    """Normalize slice data for display with window/level"""
+    if slice_data is None:
+        return None
+    
+    # Apply window/level
+    min_val = window_center - window_width // 2
+    max_val = window_center + window_width // 2
+    
+    # Clip values
+    slice_data = np.clip(slice_data, min_val, max_val)
+    
+    # Normalize to 0-255
+    if max_val > min_val:
+        slice_data = ((slice_data - min_val) / (max_val - min_val) * 255).astype(np.uint8)
+    else:
+        slice_data = np.zeros_like(slice_data, dtype=np.uint8)
+    
+    return slice_data
+
+def _apply_colormap_to_segmentation(seg_slice, organ_colors):
+    """Apply colormap to segmentation slice"""
+    if seg_slice is None:
+        return None
+    
+    # Create RGB image
+    rgb_slice = np.zeros((*seg_slice.shape, 3), dtype=np.uint8)
+    
+    # Apply colors for each organ
+    for organ_id, color in organ_colors.items():
+        mask = seg_slice == organ_id
+        rgb_slice[mask] = color
+    
+    return rgb_slice
+
+@app.route("/api/digital-twin/metadata")
+def api_digital_twin_metadata():
+    """Get digital twin metadata"""
+    if not _require_login():
+        return jsonify(success=False, message="Login required"), 401
+    
+    ct_data = _load_ct_data()
+    seg_data = _load_seg_data()
+    
+    if ct_data is None:
+        return jsonify(success=False, message="CT data not available"), 404
+    
+    metadata = {
+        'ct_shape': ct_data['shape'],
+        'seg_shape': seg_data['shape'] if seg_data else None,
+        'organ_stats': ORGAN_STATS,
+        'available_organs': list(ORGAN_STATS.keys()) if ORGAN_STATS else []
+    }
+    
+    return jsonify(success=True, metadata=metadata)
+
+@app.route("/api/digital-twin/slice")
+def api_digital_twin_slice():
+    """Get 2D slice data"""
+    if not _require_login():
+        return jsonify(success=False, message="Login required"), 401
+    
+    # Get parameters
+    axis = request.args.get('axis', 'z')  # x, y, or z
+    slice_idx = int(request.args.get('slice', 0))
+    window_center = int(request.args.get('window_center', 0))
+    window_width = int(request.args.get('window_width', 400))
+    show_segmentation = request.args.get('show_segmentation', 'true').lower() == 'true'
+    segmentation_opacity = float(request.args.get('segmentation_opacity', 0.5))
+    
+    ct_data = _load_ct_data()
+    seg_data = _load_seg_data()
+    
+    if ct_data is None:
+        return jsonify(success=False, message="CT data not available"), 404
+    
+    try:
+        # Extract slice based on axis
+        if axis == 'x':
+            ct_slice = ct_data['data'][slice_idx, :, :]
+            seg_slice = seg_data['data'][slice_idx, :, :] if seg_data else None
+        elif axis == 'y':
+            ct_slice = ct_data['data'][:, slice_idx, :]
+            seg_slice = seg_data['data'][:, slice_idx, :] if seg_data else None
+        else:  # z axis
+            ct_slice = ct_data['data'][:, :, slice_idx]
+            seg_slice = seg_data['data'][:, :, slice_idx] if seg_data else None
+        
+        # Normalize CT slice
+        ct_normalized = _normalize_slice(ct_slice, window_center, window_width)
+        
+        # Convert to PIL Image
+        ct_image = Image.fromarray(ct_normalized, mode='L')
+        
+        # Create base64 encoded image
+        img_buffer = io.BytesIO()
+        ct_image.save(img_buffer, format='PNG')
+        img_buffer.seek(0)
+        ct_base64 = base64.b64encode(img_buffer.getvalue()).decode()
+        
+        response_data = {
+            'ct_image': ct_base64,
+            'slice_shape': ct_slice.shape,
+            'max_slices': ct_data['shape'][{'x': 0, 'y': 1, 'z': 2}[axis]]
+        }
+        
+        # Add segmentation if requested and available
+        if show_segmentation and seg_slice is not None:
+            # Create organ colors (simplified - using hash of organ names)
+            organ_colors = {}
+            for i, organ in enumerate(ORGAN_STATS.keys()):
+                # Generate consistent colors
+                hue = (i * 137.5) % 360  # Golden angle for good distribution
+                rgb = _hsv_to_rgb(hue, 0.8, 0.9)
+                organ_colors[i + 1] = rgb  # Organ IDs start from 1
+            
+            seg_rgb = _apply_colormap_to_segmentation(seg_slice, organ_colors)
+            if seg_rgb is not None:
+                seg_image = Image.fromarray(seg_rgb, mode='RGB')
+                seg_buffer = io.BytesIO()
+                seg_image.save(seg_buffer, format='PNG')
+                seg_buffer.seek(0)
+                seg_base64 = base64.b64encode(seg_buffer.getvalue()).decode()
+                response_data['segmentation_image'] = seg_base64
+                response_data['segmentation_opacity'] = segmentation_opacity
+        
+        return jsonify(success=True, data=response_data)
+        
+    except Exception as e:
+        return jsonify(success=False, message=f"Failed to extract slice: {str(e)}"), 500
+
+@app.route("/api/digital-twin/organ-info")
+def api_digital_twin_organ_info():
+    """Get organ information for hover/tooltip"""
+    if not _require_login():
+        return jsonify(success=False, message="Login required"), 401
+    
+    organ_name = request.args.get('organ')
+    if not organ_name or organ_name not in ORGAN_STATS:
+        return jsonify(success=False, message="Organ not found"), 404
+    
+    organ_data = ORGAN_STATS[organ_name]
+    return jsonify(success=True, organ_data=organ_data)
+
+def _hsv_to_rgb(h, s, v):
+    """Convert HSV to RGB"""
+    import colorsys
+    r, g, b = colorsys.hsv_to_rgb(h/360, s, v)
+    return (int(r*255), int(g*255), int(b*255))
 
 
 if __name__ == "__main__":

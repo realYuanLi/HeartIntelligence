@@ -3,15 +3,76 @@
   <div class="digital-twin-page">
     <div class="digital-twin-header">
       <h1>Digital Twin</h1>
-      <p class="subtitle">Your personalized health digital twin interface</p>
+      <p class="subtitle">Medical Imaging Viewer</p>
     </div>
     
     <div class="digital-twin-content">
-      <div class="placeholder-content">
-        <div class="placeholder-icon">🔮</div>
-        <h2>Coming Soon</h2>
-        <p>This is where your digital twin interface will be implemented.</p>
-        <p>You can add your content here later.</p>
+      <div class="medical-viewer-container">
+        <!-- Control Panel -->
+        <div class="viewer-controls">
+          <div class="control-group">
+            <label>View:</label>
+            <select id="viewSelect">
+              <option value="axial">Axial (Z)</option>
+              <option value="coronal">Coronal (Y)</option>
+              <option value="sagittal">Sagittal (X)</option>
+            </select>
+          </div>
+          
+          <div class="control-group">
+            <label>Slice:</label>
+            <input type="range" id="sliceSlider" min="0" max="100" value="50" class="slider">
+            <span id="sliceValue">50</span>
+          </div>
+          
+          <div class="control-group">
+            <label>Window Center:</label>
+            <input type="range" id="windowCenterSlider" min="-1000" max="1000" value="0" class="slider">
+            <span id="windowCenterValue">0</span>
+          </div>
+          
+          <div class="control-group">
+            <label>Window Width:</label>
+            <input type="range" id="windowWidthSlider" min="50" max="2000" value="400" class="slider">
+            <span id="windowWidthValue">400</span>
+          </div>
+          
+          <div class="control-group">
+            <label>Segmentation Opacity:</label>
+            <input type="range" id="opacitySlider" min="0" max="100" value="50" class="slider">
+            <span id="opacityValue">50%</span>
+          </div>
+          
+          <div class="control-group">
+            <label>
+              <input type="checkbox" id="showSegmentation" checked>
+              Show Segmentation
+            </label>
+          </div>
+        </div>
+        
+        <!-- Image Viewer -->
+        <div class="image-viewer">
+          <div class="viewer-canvas-container">
+            <canvas id="viewerCanvas" width="512" height="512"></canvas>
+          </div>
+          
+          <!-- Organ Info Panel -->
+          <div class="organ-info-panel">
+            <h3>Organ Information</h3>
+            <div id="organInfo" class="organ-info-content">
+              <p>Hover over segmented regions to see organ details</p>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Organ List -->
+        <div class="organ-list-panel">
+          <h3>Available Organs</h3>
+          <div id="organList" class="organ-list">
+            <!-- Will be populated by JavaScript -->
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -47,5 +108,226 @@
 {% endblock %}
 
 {% block scripts %}
-  <!-- Digital Twin specific JavaScript can be added here later -->
+  <script>
+    class MedicalImageViewer {
+      constructor() {
+        this.canvas = document.getElementById('viewerCanvas');
+        this.ctx = this.canvas.getContext('2d');
+        this.metadata = null;
+        this.currentView = 'axial';
+        this.currentSlice = 0;
+        this.windowCenter = 0;
+        this.windowWidth = 400;
+        this.segmentationOpacity = 0.5;
+        this.showSegmentation = true;
+        this.organStats = {};
+        
+        this.initializeControls();
+        this.loadMetadata();
+      }
+      
+      initializeControls() {
+        // View selection
+        document.getElementById('viewSelect').addEventListener('change', (e) => {
+          this.currentView = e.target.value;
+          this.updateSliceRange();
+          this.loadSlice();
+        });
+        
+        // Slice slider
+        document.getElementById('sliceSlider').addEventListener('input', (e) => {
+          this.currentSlice = parseInt(e.target.value);
+          document.getElementById('sliceValue').textContent = this.currentSlice;
+          this.loadSlice();
+        });
+        
+        // Window/Level controls
+        document.getElementById('windowCenterSlider').addEventListener('input', (e) => {
+          this.windowCenter = parseInt(e.target.value);
+          document.getElementById('windowCenterValue').textContent = this.windowCenter;
+          this.loadSlice();
+        });
+        
+        document.getElementById('windowWidthSlider').addEventListener('input', (e) => {
+          this.windowWidth = parseInt(e.target.value);
+          document.getElementById('windowWidthValue').textContent = this.windowWidth;
+          this.loadSlice();
+        });
+        
+        // Segmentation opacity
+        document.getElementById('opacitySlider').addEventListener('input', (e) => {
+          this.segmentationOpacity = parseInt(e.target.value) / 100;
+          document.getElementById('opacityValue').textContent = Math.round(this.segmentationOpacity * 100) + '%';
+          this.loadSlice();
+        });
+        
+        // Show segmentation toggle
+        document.getElementById('showSegmentation').addEventListener('change', (e) => {
+          this.showSegmentation = e.target.checked;
+          this.loadSlice();
+        });
+        
+        // Canvas mouse events for organ hover
+        this.canvas.addEventListener('mousemove', (e) => {
+          this.handleMouseMove(e);
+        });
+        
+        this.canvas.addEventListener('mouseleave', () => {
+          this.clearOrganInfo();
+        });
+      }
+      
+      async loadMetadata() {
+        try {
+          const response = await fetch('/api/digital-twin/metadata');
+          const data = await response.json();
+          
+          if (data.success) {
+            this.metadata = data.metadata;
+            this.organStats = data.metadata.organ_stats;
+            this.updateSliceRange();
+            this.populateOrganList();
+            this.loadSlice();
+          } else {
+            console.error('Failed to load metadata:', data.message);
+            this.showError('Failed to load medical imaging data');
+          }
+        } catch (error) {
+          console.error('Error loading metadata:', error);
+          this.showError('Error loading medical imaging data');
+        }
+      }
+      
+      updateSliceRange() {
+        if (!this.metadata) return;
+        
+        const axisMap = { 'axial': 'z', 'coronal': 'y', 'sagittal': 'x' };
+        const axis = axisMap[this.currentView];
+        const maxSlices = this.metadata.ct_shape[{'x': 0, 'y': 1, 'z': 2}[axis]] - 1;
+        
+        const sliceSlider = document.getElementById('sliceSlider');
+        sliceSlider.max = maxSlices;
+        sliceSlider.value = Math.floor(maxSlices / 2);
+        this.currentSlice = Math.floor(maxSlices / 2);
+        document.getElementById('sliceValue').textContent = this.currentSlice;
+      }
+      
+      async loadSlice() {
+        if (!this.metadata) return;
+        
+        try {
+          const axisMap = { 'axial': 'z', 'coronal': 'y', 'sagittal': 'x' };
+          const axis = axisMap[this.currentView];
+          
+          const params = new URLSearchParams({
+            axis: axis,
+            slice: this.currentSlice,
+            window_center: this.windowCenter,
+            window_width: this.windowWidth,
+            show_segmentation: this.showSegmentation,
+            segmentation_opacity: this.segmentationOpacity
+          });
+          
+          const response = await fetch(`/api/digital-twin/slice?${params}`);
+          const data = await response.json();
+          
+          if (data.success) {
+            this.displaySlice(data.data);
+          } else {
+            console.error('Failed to load slice:', data.message);
+            this.showError('Failed to load slice data');
+          }
+        } catch (error) {
+          console.error('Error loading slice:', error);
+          this.showError('Error loading slice data');
+        }
+      }
+      
+      displaySlice(sliceData) {
+        // Clear canvas
+        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        
+        // Load CT image
+        const ctImg = new Image();
+        ctImg.onload = () => {
+          // Draw CT image
+          this.ctx.drawImage(ctImg, 0, 0, this.canvas.width, this.canvas.height);
+          
+          // Draw segmentation overlay if available
+          if (sliceData.segmentation_image && this.showSegmentation) {
+            const segImg = new Image();
+            segImg.onload = () => {
+              this.ctx.globalAlpha = this.segmentationOpacity;
+              this.ctx.drawImage(segImg, 0, 0, this.canvas.width, this.canvas.height);
+              this.ctx.globalAlpha = 1.0;
+            };
+            segImg.src = `data:image/png;base64,${sliceData.segmentation_image}`;
+          }
+        };
+        ctImg.src = `data:image/png;base64,${sliceData.ct_image}`;
+      }
+      
+      handleMouseMove(event) {
+        // This is a simplified hover detection
+        // In a full implementation, you'd need to map mouse coordinates to segmentation data
+        const rect = this.canvas.getBoundingClientRect();
+        const x = event.clientX - rect.left;
+        const y = event.clientY - rect.top;
+        
+        // For now, just show a generic message
+        this.showOrganInfo('Hover detected', 'Mouse position: ' + Math.round(x) + ', ' + Math.round(y));
+      }
+      
+      showOrganInfo(organName, details) {
+        const organInfo = document.getElementById('organInfo');
+        organInfo.innerHTML = `
+          <h4>${organName}</h4>
+          <p>${details}</p>
+        `;
+      }
+      
+      clearOrganInfo() {
+        const organInfo = document.getElementById('organInfo');
+        organInfo.innerHTML = '<p>Hover over segmented regions to see organ details</p>';
+      }
+      
+      populateOrganList() {
+        const organList = document.getElementById('organList');
+        organList.innerHTML = '';
+        
+        Object.entries(this.organStats).forEach(([organName, stats]) => {
+          if (stats.volume > 0) { // Only show organs with volume > 0
+            const organItem = document.createElement('div');
+            organItem.className = 'organ-item';
+            organItem.innerHTML = `
+              <div class="organ-name">${organName.replace(/_/g, ' ')}</div>
+              <div class="organ-stats">
+                <span>Volume: ${Math.round(stats.volume).toLocaleString()}</span>
+                <span>Intensity: ${stats.intensity.toFixed(1)}</span>
+              </div>
+            `;
+            organItem.addEventListener('click', () => {
+              this.showOrganInfo(organName.replace(/_/g, ' '), 
+                `Volume: ${Math.round(stats.volume).toLocaleString()}<br>Intensity: ${stats.intensity.toFixed(1)}`);
+            });
+            organList.appendChild(organItem);
+          }
+        });
+      }
+      
+      
+      showError(message) {
+        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        this.ctx.fillStyle = '#ff6b6b';
+        this.ctx.font = '16px Arial';
+        this.ctx.textAlign = 'center';
+        this.ctx.fillText(message, this.canvas.width / 2, this.canvas.height / 2);
+      }
+    }
+    
+    // Initialize the viewer when the page loads
+    document.addEventListener('DOMContentLoaded', () => {
+      new MedicalImageViewer();
+    });
+  </script>
 {% endblock %}

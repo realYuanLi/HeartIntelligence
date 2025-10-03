@@ -1923,6 +1923,267 @@ body.sources-sidebar-open .input-container.fixed {
   padding: 2rem;
 }
 
+/* Medical Imaging Viewer Styles */
+.medical-viewer-container {
+  display: grid;
+  grid-template-columns: 300px 1fr 300px;
+  gap: 2rem;
+  height: calc(100vh - 200px);
+  min-height: 600px;
+}
+
+.viewer-controls {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  padding: 1.5rem;
+  overflow-y: auto;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.control-group {
+  margin-bottom: 1.5rem;
+}
+
+.control-group:last-child {
+  margin-bottom: 0;
+}
+
+.control-group label {
+  display: block;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.control-group select,
+.control-group input[type="range"] {
+  width: 100%;
+  margin-bottom: 0.25rem;
+}
+
+.control-group select {
+  padding: 0.5rem;
+  border: 1px solid var(--input-border);
+  border-radius: 0.5rem;
+  background: var(--input-bg);
+  color: var(--text);
+  font-size: 0.9rem;
+}
+
+.slider {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--border);
+  outline: none;
+  cursor: pointer;
+}
+
+.slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.slider::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  border: none;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.control-group span {
+  font-size: 0.85rem;
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.control-group input[type="checkbox"] {
+  margin-right: 0.5rem;
+  accent-color: var(--accent);
+}
+
+.image-viewer {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.viewer-canvas-container {
+  position: relative;
+  background: #000;
+  border-radius: 1rem;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#viewerCanvas {
+  max-width: 100%;
+  max-height: 100%;
+  cursor: crosshair;
+}
+
+
+.organ-info-panel {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  padding: 1.5rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.organ-info-panel h3 {
+  margin: 0 0 1rem 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.organ-info-content {
+  font-size: 0.9rem;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+.organ-info-content h4 {
+  margin: 0 0 0.5rem 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.organ-info-content p {
+  margin: 0;
+}
+
+.organ-list-panel {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  padding: 1.5rem;
+  overflow-y: auto;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.organ-list-panel h3 {
+  margin: 0 0 1rem 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.organ-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.organ-item {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  padding: 1rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.organ-item:hover {
+  background: var(--dropdown-hover);
+  border-color: var(--accent);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.organ-name {
+  font-weight: 600;
+  color: var(--text);
+  font-size: 0.9rem;
+  margin-bottom: 0.5rem;
+  text-transform: capitalize;
+}
+
+.organ-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.organ-stats span {
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+/* Responsive design for medical viewer */
+@media (max-width: 1200px) {
+  .medical-viewer-container {
+    grid-template-columns: 250px 1fr 250px;
+    gap: 1.5rem;
+  }
+}
+
+@media (max-width: 1024px) {
+  .medical-viewer-container {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr auto;
+    height: auto;
+    min-height: 600px;
+  }
+  
+  .viewer-controls {
+    order: 1;
+  }
+  
+  .image-viewer {
+    order: 2;
+    min-height: 500px;
+  }
+  
+  .organ-list-panel {
+    order: 3;
+    max-height: 300px;
+  }
+}
+
+@media (max-width: 768px) {
+  .digital-twin-content {
+    padding: 1rem;
+  }
+  
+  .medical-viewer-container {
+    gap: 1rem;
+  }
+  
+  .viewer-controls,
+  .organ-info-panel,
+  .organ-list-panel {
+    padding: 1rem;
+  }
+  
+  .viewer-canvas-container {
+    min-height: 400px;
+  }
+  
+  #viewerCanvas {
+    width: 100%;
+    height: auto;
+  }
+}
+
 .placeholder-content {
   text-align: center;
   padding: 4rem 2rem;

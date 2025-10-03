@@ -239,6 +239,15 @@ def dashboard():
     # For logged in users, show dashboard page
     return render_template("dashboard.html", username=session.get("username"))
 
+@app.route("/digital-twin")
+def digital_twin():
+    # Show digital twin page
+    if not _require_login():
+        return redirect(url_for("index"))
+    
+    # For logged in users, show digital twin page
+    return render_template("digital_twin.html", username=session.get("username"))
+
 @app.route("/chat/<session_id>")
 def chat(session_id: str):
     return render_template("chat.html", username=session.get("username"))

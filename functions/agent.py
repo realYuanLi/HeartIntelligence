@@ -246,13 +246,11 @@ class Agent:
         return None
         
     def openai_reply(self, messages):
-        # Define Response class at the beginning
         class Response:
             def __init__(self, content):
                 self.content = content
         
         try:
-            # Convert messages to OpenAI format
             openai_messages = []
             for msg in messages:
                 if msg.get("role") in ["user", "assistant", "system"]:
@@ -261,14 +259,12 @@ class Agent:
                         "content": msg["content"]
                     })
             
-            # Get the latest user message for parallel analysis
             latest_user_message = None
             for msg in reversed(openai_messages):
                 if msg.get("role") == "user":
                     latest_user_message = msg.get("content", "")
                     break
             
-            # Run parallel analysis if we have a user message
             web_results = None
             health_results = None
             
@@ -347,7 +343,7 @@ For web sources, use citation format [domain.com](url). Examples: [example.com](
                 })
                 openai_messages.append({
                     "role": "user",
-                    "content": f"""Query: "{latest_user_message}"
+                    "content": f"""You are a personal health assistant. You should be friendly, precise, and confidence-building.\nQuery: "{latest_user_message}"
 
 CURRENT MEDICAL INFORMATION:
 {web_summary}
@@ -392,17 +388,13 @@ Provide the best possible answer to the user’s question.
 """
                 })
             
-            # Make API call without tools (since we've already done the search if needed)
-            # Use GPT-5 for final answers, GPT-4o for other operations
             final_model = "gpt-5"
             
-            # GPT-5 only supports default temperature (1), other models support custom temperature
             api_params = {
                 "model": final_model,
                 "messages": openai_messages
             }
             
-            # Only add temperature parameter for models that support it
             if final_model != "gpt-5":
                 api_params["temperature"] = self.temperature
             

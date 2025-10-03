@@ -1889,6 +1889,68 @@ body.sources-sidebar-open .input-container.fixed {
   padding-bottom: 6rem;
 }
 
+/* ===================== Digital Twin Styles ===================== */
+.digital-twin-page {
+  flex: 1;
+  overflow-y: auto;
+  padding-bottom: 6rem;
+}
+
+.digital-twin-header {
+  padding: 1rem 2rem 1rem;
+  background: var(--bg);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.digital-twin-header h1 {
+  margin: 0;
+  font-size: 1.75rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.digital-twin-header .subtitle {
+  margin: 0.5rem 0 0;
+  color: var(--muted);
+  font-size: 1rem;
+}
+
+.digital-twin-content {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+.placeholder-content {
+  text-align: center;
+  padding: 4rem 2rem;
+  background: var(--card);
+  border-radius: 1rem;
+  border: 2px dashed var(--border);
+}
+
+.placeholder-icon {
+  font-size: 4rem;
+  margin-bottom: 1.5rem;
+  opacity: 0.6;
+}
+
+.placeholder-content h2 {
+  margin: 0 0 1rem;
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.placeholder-content p {
+  margin: 0.5rem 0;
+  color: var(--muted);
+  font-size: 1rem;
+  line-height: 1.6;
+}
+
 .dashboard-header {
   padding: 1rem 2rem 1rem;
   background: var(--bg);

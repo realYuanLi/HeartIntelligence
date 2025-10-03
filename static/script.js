@@ -459,6 +459,14 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
+  const digitalTwinBtn = document.getElementById("digitalTwinBtn");
+  if (digitalTwinBtn) {
+    digitalTwinBtn.addEventListener("click", () => {
+      // Navigate to digital twin page
+      window.location.href = "/digital-twin";
+    });
+  }
+
   /* ==================================================== */
   /*  Welcome page functionality                           */
   /* ==================================================== */

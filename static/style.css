@@ -1921,28 +1921,33 @@ body.sources-sidebar-open .input-container.fixed {
   max-width: 1400px;
   margin: 0 auto;
   padding: 2rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 /* Medical Imaging Viewer Styles */
 .medical-viewer-container {
   display: grid;
-  grid-template-columns: 300px 1fr 300px;
-  gap: 2rem;
-  height: calc(100vh - 200px);
-  min-height: 600px;
+  grid-template-columns: 280px 1fr 280px;
+  gap: 1.5rem;
+  height: calc(100vh - 520px);
+  min-height: 400px;
+  width: 100%;
+  max-width: 1200px;
 }
 
 .viewer-controls {
   background: var(--card);
   border: 1px solid var(--border);
   border-radius: 1rem;
-  padding: 1.5rem;
+  padding: 1rem;
   overflow-y: auto;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 }
 
 .control-group {
-  margin-bottom: 1.5rem;
+  margin-bottom: 1rem;
 }
 
 .control-group:last-child {
@@ -2003,6 +2008,30 @@ body.sources-sidebar-open .input-container.fixed {
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
+/* Axis-specific slice controls */
+.slice-control {
+  margin-top: 0.5rem;
+  padding: 0.5rem;
+  background: var(--card);
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.axis-slider {
+  width: 60%;
+  margin: 0 auto 0.25rem auto;
+}
+
+.slice-control .slice-info {
+  font-size: 0.8rem;
+  color: var(--muted);
+  text-align: center;
+  margin-top: 0.25rem;
+}
+
 .control-group span {
   font-size: 0.85rem;
   color: var(--muted);
@@ -2020,22 +2049,74 @@ body.sources-sidebar-open .input-container.fixed {
   gap: 1rem;
 }
 
+.multi-view-container {
+  flex: 1;
+}
+
+.view-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-rows: 1fr;
+  gap: 1rem;
+  height: 100%;
+}
+
+.view-panel {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  padding: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.view-panel h4 {
+  margin: 0 0 0.25rem 0;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text);
+  text-align: center;
+}
+
 .viewer-canvas-container {
   position: relative;
   background: #000;
-  border-radius: 1rem;
+  border-radius: 0.5rem;
   overflow: hidden;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
   flex: 1;
   display: flex;
   align-items: center;
   justify-content: center;
+  min-height: 200px;
+  max-height: 200px;
+  aspect-ratio: 1;
+  /* Performance optimizations */
+  will-change: transform;
+  transform: translateZ(0);
+  backface-visibility: hidden;
 }
 
-#viewerCanvas {
+.slice-info {
+  margin-top: 0.25rem;
+  font-size: 0.75rem;
+  color: var(--muted);
+  text-align: center;
+}
+
+#viewerCanvas,
+#axialCanvas,
+#coronalCanvas,
+#sagittalCanvas {
   max-width: 100%;
   max-height: 100%;
   cursor: crosshair;
+  /* Performance optimizations for canvas rendering */
+  image-rendering: optimizeSpeed;
+  image-rendering: -moz-crisp-edges;
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: optimize-contrast;
 }
 
 
@@ -2043,13 +2124,13 @@ body.sources-sidebar-open .input-container.fixed {
   background: var(--card);
   border: 1px solid var(--border);
   border-radius: 1rem;
-  padding: 1.5rem;
+  padding: 1rem;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 }
 
 .organ-info-panel h3 {
-  margin: 0 0 1rem 0;
-  font-size: 1.1rem;
+  margin: 0 0 0.75rem 0;
+  font-size: 1rem;
   font-weight: 600;
   color: var(--text);
 }
@@ -2075,14 +2156,14 @@ body.sources-sidebar-open .input-container.fixed {
   background: var(--card);
   border: 1px solid var(--border);
   border-radius: 1rem;
-  padding: 1.5rem;
+  padding: 1rem;
   overflow-y: auto;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 }
 
 .organ-list-panel h3 {
-  margin: 0 0 1rem 0;
-  font-size: 1.1rem;
+  margin: 0 0 0.75rem 0;
+  font-size: 1rem;
   font-weight: 600;
   color: var(--text);
 }
@@ -2157,6 +2238,16 @@ body.sources-sidebar-open .input-container.fixed {
     order: 3;
     max-height: 300px;
   }
+  
+  .view-grid {
+    grid-template-columns: 1fr 1fr 1fr;
+    grid-template-rows: 1fr;
+    gap: 0.75rem;
+  }
+  
+  .view-panel {
+    padding: 0.75rem;
+  }
 }
 
 @media (max-width: 768px) {
@@ -2174,11 +2265,21 @@ body.sources-sidebar-open .input-container.fixed {
     padding: 1rem;
   }
   
-  .viewer-canvas-container {
-    min-height: 400px;
+  .view-grid {
+    grid-template-columns: 1fr;
+    grid-template-rows: repeat(3, 1fr);
+    gap: 0.5rem;
   }
   
-  #viewerCanvas {
+  .view-panel {
+    padding: 0.5rem;
+  }
+  
+  .viewer-canvas-container {
+    min-height: 150px;
+  }
+  
+  canvas {
     width: 100%;
     height: auto;
   }

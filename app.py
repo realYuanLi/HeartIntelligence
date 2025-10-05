@@ -88,6 +88,10 @@ except Exception as e:
 _CT_DATA = None
 _SEG_DATA = None
 
+# Cache for processed slices to avoid reprocessing
+_slice_cache = {}
+_cache_max_size = 100  # Maximum number of cached slices
+
 # Simple system prompt
 system_prompt = """You are a helpful AI assistant."""
 
@@ -799,7 +803,7 @@ def _load_seg_data():
     return _SEG_DATA
 
 def _normalize_slice(slice_data, window_center=0, window_width=400):
-    """Normalize slice data for display with window/level"""
+    """Normalize slice data for display with window/level and enhanced contrast"""
     if slice_data is None:
         return None
     
@@ -810,13 +814,30 @@ def _normalize_slice(slice_data, window_center=0, window_width=400):
     # Clip values
     slice_data = np.clip(slice_data, min_val, max_val)
     
-    # Normalize to 0-255
+    # Normalize to 0-255 with enhanced contrast
     if max_val > min_val:
-        slice_data = ((slice_data - min_val) / (max_val - min_val) * 255).astype(np.uint8)
+        # Apply gamma correction for better contrast
+        normalized = (slice_data - min_val) / (max_val - min_val)
+        # Gamma correction (gamma < 1 makes images brighter, gamma > 1 makes them darker)
+        gamma = 0.8  # Slightly brighter for better visibility
+        normalized = np.power(normalized, gamma)
+        slice_data = (normalized * 255).astype(np.uint8)
     else:
         slice_data = np.zeros_like(slice_data, dtype=np.uint8)
     
     return slice_data
+
+def _get_cache_key(axis, slice_idx, window_center, window_width, show_segmentation, segmentation_opacity):
+    """Generate cache key for slice parameters"""
+    return f"{axis}_{slice_idx}_{window_center}_{window_width}_{show_segmentation}_{segmentation_opacity}"
+
+def _manage_cache_size():
+    """Manage cache size by removing oldest entries if needed"""
+    if len(_slice_cache) > _cache_max_size:
+        # Remove oldest entries (simple FIFO)
+        keys_to_remove = list(_slice_cache.keys())[:len(_slice_cache) - _cache_max_size + 10]
+        for key in keys_to_remove:
+            del _slice_cache[key]
 
 def _apply_colormap_to_segmentation(seg_slice, organ_colors):
     """Apply colormap to segmentation slice"""
@@ -856,7 +877,7 @@ def api_digital_twin_metadata():
 
 @app.route("/api/digital-twin/slice")
 def api_digital_twin_slice():
-    """Get 2D slice data"""
+    """Get 2D slice data with caching for improved performance"""
     if not _require_login():
         return jsonify(success=False, message="Login required"), 401
     
@@ -867,6 +888,11 @@ def api_digital_twin_slice():
     window_width = int(request.args.get('window_width', 400))
     show_segmentation = request.args.get('show_segmentation', 'true').lower() == 'true'
     segmentation_opacity = float(request.args.get('segmentation_opacity', 0.5))
+    
+    # Check cache first
+    cache_key = _get_cache_key(axis, slice_idx, window_center, window_width, show_segmentation, segmentation_opacity)
+    if cache_key in _slice_cache:
+        return jsonify(success=True, data=_slice_cache[cache_key])
     
     ct_data = _load_ct_data()
     seg_data = _load_seg_data()
@@ -889,12 +915,18 @@ def api_digital_twin_slice():
         # Normalize CT slice
         ct_normalized = _normalize_slice(ct_slice, window_center, window_width)
         
-        # Convert to PIL Image
+        # Convert to PIL Image - optimized processing
         ct_image = Image.fromarray(ct_normalized, mode='L')
         
-        # Create base64 encoded image
+        # Skip the double resize for better performance - use single high-quality resize
+        # Only resize if the image is very small
+        if ct_image.size[0] < 256 or ct_image.size[1] < 256:
+            # Use BILINEAR instead of LANCZOS for better performance
+            ct_image = ct_image.resize((256, 256), Image.BILINEAR)
+        
+        # Create base64 encoded image with optimized settings
         img_buffer = io.BytesIO()
-        ct_image.save(img_buffer, format='PNG')
+        ct_image.save(img_buffer, format='PNG', optimize=True, compress_level=6)
         img_buffer.seek(0)
         ct_base64 = base64.b64encode(img_buffer.getvalue()).decode()
         
@@ -917,12 +949,20 @@ def api_digital_twin_slice():
             seg_rgb = _apply_colormap_to_segmentation(seg_slice, organ_colors)
             if seg_rgb is not None:
                 seg_image = Image.fromarray(seg_rgb, mode='RGB')
+                # Apply same optimization to segmentation
+                if seg_image.size[0] < 256 or seg_image.size[1] < 256:
+                    seg_image = seg_image.resize((256, 256), Image.BILINEAR)
+                
                 seg_buffer = io.BytesIO()
-                seg_image.save(seg_buffer, format='PNG')
+                seg_image.save(seg_buffer, format='PNG', optimize=True, compress_level=6)
                 seg_buffer.seek(0)
                 seg_base64 = base64.b64encode(seg_buffer.getvalue()).decode()
                 response_data['segmentation_image'] = seg_base64
                 response_data['segmentation_opacity'] = segmentation_opacity
+        
+        # Cache the result
+        _manage_cache_size()
+        _slice_cache[cache_key] = response_data
         
         return jsonify(success=True, data=response_data)
         

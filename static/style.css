@@ -1929,12 +1929,12 @@ body.sources-sidebar-open .input-container.fixed {
 /* Medical Imaging Viewer Styles */
 .medical-viewer-container {
   display: grid;
-  grid-template-columns: 280px 1fr 280px;
+  grid-template-columns: 200px 1fr 200px;
   gap: 1.5rem;
   height: calc(100vh - 520px);
   min-height: 400px;
   width: 100%;
-  max-width: 1200px;
+  max-width: 1400px;
 }
 
 .viewer-controls {
@@ -2090,6 +2090,13 @@ body.sources-sidebar-open .input-container.fixed {
   align-items: center;
   justify-content: center;
   min-height: 200px;
+}
+
+.viewer-canvas-container canvas {
+  transform: rotate(-90deg);
+  width: 200px;
+  height: 200px;
+}
   max-height: 200px;
   aspect-ratio: 1;
   /* Performance optimizations */

@@ -12,10 +12,6 @@ import numpy as np
 import nibabel as nib
 from PIL import Image
 
-# --------------------------------------------------------------------------------
-# Attempt to import the user's Agent class (from functions/agent.py)
-# If unavailable, fall back to a minimal dummy Agent so the app still runs.
-# --------------------------------------------------------------------------------
 try:
     import sys
     # sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -50,6 +46,7 @@ with open(CONFIG_PATH, "r", encoding="utf-8") as f:
 
 # Patient data is now handled through EHR data
 PATIENT_DATA = None
+EHR_DATA = None
 
 # Load EHR test data
 EHR_DATA_PATH = APP_DIR / "data" / "test_file" / "ehr_test_data.json"
@@ -70,6 +67,7 @@ MY_BODY_DATA_PATH = APP_DIR / "data" / "my_body"
 MY_BODY_STATS_PATH = MY_BODY_DATA_PATH / "statistics.json"
 MY_BODY_CT_PATH = MY_BODY_DATA_PATH / "CT.nii.gz"
 MY_BODY_SEG_PATH = MY_BODY_DATA_PATH / "segmentations.nii"
+ORGAN_STATS = {}
 
 # Load organ statistics
 try:
@@ -490,17 +488,23 @@ def api_dashboard_data():
     if not EHR_DATA:
         return jsonify(success=False, message="No health data available"), 404
     
-    # Calculate comprehensive analytics
-    analytics = {
-        "summary": _calculate_summary_stats(),
-        "cardiovascular": _analyze_cardiovascular(),
-        "activity": _analyze_activity(),
-        "mobility": _analyze_mobility(),
-        "clinical": _analyze_clinical(),
-        "demographics": _get_demographics()
-    }
-    
-    return jsonify(success=True, data=analytics)
+    try:
+        # Calculate comprehensive analytics
+        analytics = {
+            "summary": _calculate_summary_stats(),
+            "cardiovascular": _analyze_cardiovascular(),
+            "activity": _analyze_activity(),
+            "mobility": _analyze_mobility(),
+            "clinical": _analyze_clinical(),
+            "demographics": _get_demographics()
+        }
+        
+        return jsonify(success=True, data=analytics)
+    except Exception as e:
+        print(f"Error generating dashboard data: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify(success=False, message=f"Error processing data: {str(e)}"), 500
 
 # --------------------------------------------------------------------------------
 # Analytics Helper Functions
@@ -556,15 +560,15 @@ def _get_demographics():
     if "demographics" not in EHR_DATA:
         return {}
     
-        demographics_records = EHR_DATA["demographics"]
-        if "Demographics" in demographics_records and len(demographics_records["Demographics"]) > 0:
-            demo = demographics_records["Demographics"][0]
+    demographics_records = EHR_DATA["demographics"]
+    if "Demographics" in demographics_records and len(demographics_records["Demographics"]) > 0:
+        demo = demographics_records["Demographics"][0]
         return {
-                "name": demo.get("DisplayName", "N/A"),
-                "birth_date": demo.get("BirthDate", "N/A"),
-                "sex": demo.get("BiologicalSex", "N/A"),
-                "age": demo.get("Age", "N/A")
-            }
+            "name": demo.get("DisplayName", "N/A"),
+            "birth_date": demo.get("BirthDate", "N/A"),
+            "sex": demo.get("BiologicalSex", "N/A"),
+            "age": demo.get("Age", "N/A")
+        }
     return {}
 
 def _calculate_summary_stats():
@@ -657,9 +661,9 @@ def _analyze_activity():
     if "activity" not in EHR_DATA:
         return activity_data
     
-        activity_records = EHR_DATA["activity"]
-        
-        # Steps
+    activity_records = EHR_DATA["activity"]
+    
+    # Steps
     if "StepCount" in activity_records:
         steps_stats = _calculate_metric_stats(activity_records["StepCount"])
         if steps_stats:
@@ -670,8 +674,8 @@ def _analyze_activity():
                 "goal": 10000,
                 "latest_date": activity_records["StepCount"][0].get("Date", "N/A") if len(activity_records["StepCount"]) > 0 else "N/A"
             }
-        
-        # Active Energy
+    
+    # Active Energy
     if "ActiveEnergyBurned" in activity_records:
         energy_stats = _calculate_metric_stats(activity_records["ActiveEnergyBurned"])
         if energy_stats:
@@ -681,8 +685,8 @@ def _analyze_activity():
                 "name": "Active Energy",
                 "latest_date": activity_records["ActiveEnergyBurned"][0].get("Date", "N/A") if len(activity_records["ActiveEnergyBurned"]) > 0 else "N/A"
             }
-        
-        # Exercise Time
+    
+    # Exercise Time
     if "AppleExerciseTime" in activity_records:
         exercise_stats = _calculate_metric_stats(activity_records["AppleExerciseTime"])
         if exercise_stats:
@@ -754,14 +758,14 @@ def _analyze_clinical():
     # Lab Results
     if "lab_results" in EHR_DATA and "ClinicalLabResult" in EHR_DATA["lab_results"]:
         labs = EHR_DATA["lab_results"]["ClinicalLabResult"][:20]
-            for lab in labs:
+        for lab in labs:
             clinical_data["lab_results"].append({
                 "name": lab.get("DisplayName", "Unknown"),
-                    "value": lab.get("Value", "N/A"),
-                    "unit": lab.get("Unit", ""),
-                    "date": lab.get("Date", "N/A"),
-                    "status": lab.get("Status", "")
-                })
+                "value": lab.get("Value", "N/A"),
+                "unit": lab.get("Unit", ""),
+                "date": lab.get("Date", "N/A"),
+                "status": lab.get("Status", "")
+            })
     
     # Clinical Records
     if "clinical" in EHR_DATA:

@@ -284,18 +284,18 @@ function renderMedicationsSection(medications) {
 }
 
 function renderLabResultsSection(labs) {
-  // Filter out labs with N/A values
-  const validLabs = labs.filter(lab => lab.value && lab.value !== 'N/A');
+  // Filter out N/A values
+  const filteredLabs = labs.filter(lab => lab.value && lab.value !== 'N/A');
   
-  if (validLabs.length === 0) {
+  if (filteredLabs.length === 0) {
     return '';
   }
   
   let html = `<div class="clinical-section lab-results-section">`;
-  html += `<h3>🔬 Lab Results (${validLabs.length})</h3>`;
+  html += `<h3>🔬 Lab Results (${filteredLabs.length})</h3>`;
   html += `<div class="lab-results-list">`;
   
-  validLabs.forEach(lab => {
+  filteredLabs.forEach(lab => {
     html += `<div class="lab-item">`;
     html += `<div class="lab-header">`;
     html += `<span class="lab-name">${lab.name}</span>`;

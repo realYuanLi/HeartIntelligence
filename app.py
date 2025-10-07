@@ -65,16 +65,16 @@ except Exception as e:
     EHR_DATA = None
     print(f"Could not load EHR data: {e}")
 
-# Load digital twin data
-DIGITAL_TWIN_DATA_PATH = APP_DIR / "data" / "digital_twins"
-DIGITAL_TWIN_STATS_PATH = DIGITAL_TWIN_DATA_PATH / "statistics.json"
-DIGITAL_TWIN_CT_PATH = DIGITAL_TWIN_DATA_PATH / "CT.nii.gz"
-DIGITAL_TWIN_SEG_PATH = DIGITAL_TWIN_DATA_PATH / "segmentations.nii"
+# Load my body data
+MY_BODY_DATA_PATH = APP_DIR / "data" / "my_body"
+MY_BODY_STATS_PATH = MY_BODY_DATA_PATH / "statistics.json"
+MY_BODY_CT_PATH = MY_BODY_DATA_PATH / "CT.nii.gz"
+MY_BODY_SEG_PATH = MY_BODY_DATA_PATH / "segmentations.nii"
 
 # Load organ statistics
 try:
-    if DIGITAL_TWIN_STATS_PATH.exists():
-        with open(DIGITAL_TWIN_STATS_PATH, "r", encoding="utf-8") as f:
+    if MY_BODY_STATS_PATH.exists():
+        with open(MY_BODY_STATS_PATH, "r", encoding="utf-8") as f:
             ORGAN_STATS = json.load(f)
         print(f"Loaded organ statistics with {len(ORGAN_STATS)} organs")
     else:
@@ -271,14 +271,14 @@ def dashboard():
     # For logged in users, show dashboard page
     return render_template("dashboard.html", username=session.get("username"))
 
-@app.route("/digital-twin")
-def digital_twin():
-    # Show digital twin page
+@app.route("/my-body")
+def my_body():
+    # Show my body page
     if not _require_login():
         return redirect(url_for("index"))
     
-    # For logged in users, show digital twin page
-    return render_template("digital_twin.html", username=session.get("username"))
+    # For logged in users, show my body page
+    return render_template("my_body.html", username=session.get("username"))
 
 @app.route("/chat/<session_id>")
 def chat(session_id: str):
@@ -769,9 +769,9 @@ def api_speech_poll():
 def _load_ct_data():
     """Load CT data from NIfTI file"""
     global _CT_DATA
-    if _CT_DATA is None and DIGITAL_TWIN_CT_PATH.exists():
+    if _CT_DATA is None and MY_BODY_CT_PATH.exists():
         try:
-            ct_img = nib.load(str(DIGITAL_TWIN_CT_PATH))
+            ct_img = nib.load(str(MY_BODY_CT_PATH))
             _CT_DATA = {
                 'data': ct_img.get_fdata(),
                 'affine': ct_img.affine,
@@ -787,9 +787,9 @@ def _load_ct_data():
 def _load_seg_data():
     """Load segmentation data from NIfTI file"""
     global _SEG_DATA
-    if _SEG_DATA is None and DIGITAL_TWIN_SEG_PATH.exists():
+    if _SEG_DATA is None and MY_BODY_SEG_PATH.exists():
         try:
-            seg_img = nib.load(str(DIGITAL_TWIN_SEG_PATH))
+            seg_img = nib.load(str(MY_BODY_SEG_PATH))
             _SEG_DATA = {
                 'data': seg_img.get_fdata(),
                 'affine': seg_img.affine,
@@ -854,9 +854,9 @@ def _apply_colormap_to_segmentation(seg_slice, organ_colors):
     
     return rgb_slice
 
-@app.route("/api/digital-twin/metadata")
-def api_digital_twin_metadata():
-    """Get digital twin metadata"""
+@app.route("/api/my-body/metadata")
+def api_my_body_metadata():
+    """Get my body metadata"""
     if not _require_login():
         return jsonify(success=False, message="Login required"), 401
     
@@ -875,8 +875,8 @@ def api_digital_twin_metadata():
     
     return jsonify(success=True, metadata=metadata)
 
-@app.route("/api/digital-twin/slice")
-def api_digital_twin_slice():
+@app.route("/api/my-body/slice")
+def api_my_body_slice():
     """Get 2D slice data with caching for improved performance"""
     if not _require_login():
         return jsonify(success=False, message="Login required"), 401
@@ -969,8 +969,8 @@ def api_digital_twin_slice():
     except Exception as e:
         return jsonify(success=False, message=f"Failed to extract slice: {str(e)}"), 500
 
-@app.route("/api/digital-twin/organ-info")
-def api_digital_twin_organ_info():
+@app.route("/api/my-body/organ-info")
+def api_my_body_organ_info():
     """Get organ information for hover/tooltip"""
     if not _require_login():
         return jsonify(success=False, message="Login required"), 401

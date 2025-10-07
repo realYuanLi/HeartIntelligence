@@ -2,7 +2,7 @@
 {% block main %}
   <div class="digital-twin-page">
     <div class="digital-twin-header">
-      <h1>Digital Twin</h1>
+      <h1>My Body</h1>
       <p class="subtitle">Medical Imaging Viewer</p>
     </div>
     
@@ -41,19 +41,6 @@
           <!-- Multi-view Display -->
           <div class="multi-view-container">
             <div class="view-grid">
-              <!-- Axial View (Z) -->
-              <div class="view-panel">
-                <h4>Axial (Z)</h4>
-                <div class="viewer-canvas-container">
-                  <canvas id="axialCanvas" width="200" height="200"></canvas>
-                </div>
-                <div class="control-group">
-                  <label>Slice:</label>
-                  <input type="range" id="axialSliceSlider" min="0" max="100" value="50" class="slider">
-                  <span id="axialSliceValue">0</span>
-                </div>
-              </div>
-              
               <!-- Coronal View (Y) -->
               <div class="view-panel">
                 <h4>Coronal (Y)</h4>
@@ -124,15 +111,13 @@
     class MedicalImageViewer {
       constructor() {
         // Initialize multiple canvases
-        this.axialCanvas = document.getElementById('axialCanvas');
-        this.axialCtx = this.axialCanvas.getContext('2d');
         this.coronalCanvas = document.getElementById('coronalCanvas');
         this.coronalCtx = this.coronalCanvas.getContext('2d');
         this.sagittalCanvas = document.getElementById('sagittalCanvas');
         this.sagittalCtx = this.sagittalCanvas.getContext('2d');
         
         this.metadata = null;
-        this.currentView = 'axial';
+        this.currentView = 'coronal';
         this.currentSlice = { x: 0, y: 0, z: 0 };
         this.windowCenter = 0;
         this.windowWidth = 400;
@@ -160,13 +145,6 @@
         };
         
         // Individual axis slice sliders
-        document.getElementById('axialSliceSlider').addEventListener('input', (e) => {
-          const sliceValue = parseInt(e.target.value);
-          this.currentSlice.z = sliceValue;
-          document.getElementById('axialSliceValue').textContent = sliceValue;
-          this.loadView({ axis: 'z', slice: sliceValue, canvas: this.axialCanvas, ctx: this.axialCtx, label: 'axialSliceValue' });
-        });
-        
         document.getElementById('coronalSliceSlider').addEventListener('input', (e) => {
           const sliceValue = parseInt(e.target.value);
           this.currentSlice.y = sliceValue;
@@ -208,7 +186,7 @@
         });
         
         // Canvas mouse events for organ hover
-        [this.axialCanvas, this.coronalCanvas, this.sagittalCanvas].forEach(canvas => {
+        [this.coronalCanvas, this.sagittalCanvas].forEach(canvas => {
           canvas.addEventListener('mousemove', (e) => {
             this.handleMouseMove(e);
           });
@@ -220,7 +198,7 @@
       
       async loadMetadata() {
         try {
-          const response = await fetch('/api/digital-twin/metadata');
+          const response = await fetch('/api/my-body/metadata');
           const data = await response.json();
           
           if (data.success) {
@@ -247,13 +225,6 @@
         const maxSlicesY = this.metadata.ct_shape[1] - 1;
         const maxSlicesZ = this.metadata.ct_shape[2] - 1;
         
-        // Axial (Z) slider
-        const axialSlider = document.getElementById('axialSliceSlider');
-        axialSlider.max = maxSlicesZ;
-        axialSlider.value = this.currentSlice.z || Math.floor(maxSlicesZ / 2);
-        this.currentSlice.z = parseInt(axialSlider.value);
-        document.getElementById('axialSliceValue').textContent = this.currentSlice.z;
-        
         // Coronal (Y) slider
         const coronalSlider = document.getElementById('coronalSliceSlider');
         coronalSlider.max = maxSlicesY;
@@ -272,9 +243,8 @@
       async loadAllViews() {
         if (!this.metadata) return;
         
-        // Load all three orthogonal views simultaneously with optimized loading
+        // Load both orthogonal views simultaneously with optimized loading
         const views = [
-          { axis: 'z', slice: this.currentSlice.z || Math.floor(this.metadata.ct_shape[2] / 2), canvas: this.axialCanvas, ctx: this.axialCtx, label: 'axialSliceValue' },
           { axis: 'y', slice: this.currentSlice.y || Math.floor(this.metadata.ct_shape[1] / 2), canvas: this.coronalCanvas, ctx: this.coronalCtx, label: 'coronalSliceValue' },
           { axis: 'x', slice: this.currentSlice.x || Math.floor(this.metadata.ct_shape[0] / 2), canvas: this.sagittalCanvas, ctx: this.sagittalCtx, label: 'sagittalSliceValue' }
         ];
@@ -300,7 +270,7 @@
             segmentation_opacity: this.segmentationOpacity
           });
           
-          const response = await fetch(`/api/digital-twin/slice?${params}`);
+          const response = await fetch(`/api/my-body/slice?${params}`);
           const data = await response.json();
           
           if (data.success) {

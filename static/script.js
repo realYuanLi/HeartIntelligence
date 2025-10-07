@@ -462,8 +462,8 @@ document.addEventListener("DOMContentLoaded", () => {
   const digitalTwinBtn = document.getElementById("digitalTwinBtn");
   if (digitalTwinBtn) {
     digitalTwinBtn.addEventListener("click", () => {
-      // Navigate to digital twin page
-      window.location.href = "/digital-twin";
+      // Navigate to my body page
+      window.location.href = "/my-body";
     });
   }
 

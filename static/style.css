@@ -2097,13 +2097,6 @@ body.sources-sidebar-open .input-container.fixed {
   width: 200px;
   height: 200px;
 }
-  max-height: 200px;
-  aspect-ratio: 1;
-  /* Performance optimizations */
-  will-change: transform;
-  transform: translateZ(0);
-  backface-visibility: hidden;
-}
 
 .slice-info {
   margin-top: 0.25rem;
@@ -2113,7 +2106,6 @@ body.sources-sidebar-open .input-container.fixed {
 }
 
 #viewerCanvas,
-#axialCanvas,
 #coronalCanvas,
 #sagittalCanvas {
   max-width: 100%;

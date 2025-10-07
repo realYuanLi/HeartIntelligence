@@ -1,9 +1,9 @@
 /*********************************************************************
- *  dashboard.js  —  Dashboard-specific functionality
+ *  dashboard.js  —  Comprehensive Health Dashboard
  *
- *  • Load and display health data
- *  • Render vital signs with status indicators
- *  • Handle input box for starting new chats from dashboard
+ *  • Load and display health analytics
+ *  • Show trends, statistics, and comparisons
+ *  • Display medications, lab results, conditions
  *********************************************************************/
 
 /* ========================================================= */
@@ -32,380 +32,373 @@ function renderDashboard(data) {
   const container = document.getElementById("dashboardData");
   let html = '';
   
-  // Render demographics section
-  if (data.demographics && Object.keys(data.demographics).length > 0) {
-    html += renderDemographics(data.demographics);
+  // Cardiovascular section
+  if (data.cardiovascular) {
+    html += renderCategoryPanel('Cardiovascular Health', '🫀', data.cardiovascular, 'cardiovascular');
   }
   
-  // Render vital signs section
-  if (data.vital_signs && data.vital_signs.length > 0) {
-    html += renderVitalSigns(data.vital_signs);
+  // Activity section
+  if (data.activity) {
+    html += renderCategoryPanel('Physical Activity', '💪', data.activity, 'activity');
   }
   
-  // Render activity section
-  if (data.activity && Object.keys(data.activity).length > 0) {
-    html += renderActivity(data.activity);
+  // Mobility section
+  if (data.mobility) {
+    html += renderCategoryPanel('Mobility & Movement', '🚶', data.mobility, 'mobility');
   }
   
-  // Render cardiovascular section
-  if (data.cardiovascular && Object.keys(data.cardiovascular).length > 0) {
-    html += renderCardiovascular(data.cardiovascular);
-  }
-  
-  // Render mobility section
-  if (data.mobility && Object.keys(data.mobility).length > 0) {
-    html += renderMobility(data.mobility);
-  }
-  
-  // Render medications section
-  if (data.medications && data.medications.length > 0) {
-    html += renderMedications(data.medications);
-  }
-  
-  // Render lab results section
-  if (data.lab_results && data.lab_results.length > 0) {
-    html += renderLabResults(data.lab_results);
-  }
-  
-  // Render clinical section (allergies & conditions)
-  if (data.clinical && (data.clinical.allergies || data.clinical.conditions)) {
-    html += renderClinical(data.clinical);
+  // Clinical section (medications, labs, conditions, allergies)
+  if (data.clinical) {
+    html += renderClinicalPanel(data.clinical);
   }
   
   container.innerHTML = html;
 }
 
 /* ========================================================= */
-/*  Demographics Rendering                                    */
+/*  Summary Panel                                            */
 /* ========================================================= */
 
-function renderDemographics(demographics) {
-  let html = '<div class="dashboard-card demographics-card">';
-  html += '<div class="card-icon">👤</div>';
-  html += '<div class="card-content">';
-  html += '<h2>Patient Information</h2>';
-  html += '<div class="demographics-info">';
+function renderSummaryPanel(summary, demographics) {
+  let html = '<div class="summary-panel">';
+  html += '<h2>Health Summary</h2>';
   
-  html += `<div class="demo-item">
-    <span class="demo-label">Name:</span> 
-    <span class="demo-value">${demographics.name || 'N/A'}</span>
-  </div>`;
+  if (demographics && demographics.name) {
+    html += '<div class="summary-demographics">';
+    html += `<div class="demo-item"><strong>Name:</strong> ${demographics.name}</div>`;
+    html += `<div class="demo-item"><strong>Age:</strong> ${demographics.age || 'N/A'}</div>`;
+    html += `<div class="demo-item"><strong>Sex:</strong> ${demographics.sex || 'N/A'}</div>`;
+    html += '</div>';
+  }
   
-  html += `<div class="demo-item">
-    <span class="demo-label">Age:</span> 
-    <span class="demo-value">${demographics.age || 'N/A'}</span>
-  </div>`;
+  html += '<div class="summary-stats">';
+  html += `<div class="stat-item">`;
+  html += `<div class="stat-value">${summary.total_data_points?.toLocaleString() || '0'}</div>`;
+  html += `<div class="stat-label">Total Records</div>`;
+  html += `</div>`;
   
-  html += `<div class="demo-item">
-    <span class="demo-label">Sex:</span> 
-    <span class="demo-value">${demographics.sex || 'N/A'}</span>
-  </div>`;
+  html += `<div class="stat-item">`;
+  html += `<div class="stat-value">${summary.categories_tracked?.length || '0'}</div>`;
+  html += `<div class="stat-label">Categories Tracked</div>`;
+  html += `</div>`;
   
-  html += `<div class="demo-item">
-    <span class="demo-label">Birth Date:</span> 
-    <span class="demo-value">${demographics.birth_date || 'N/A'}</span>
-  </div>`;
-  
-  html += '</div></div></div>';
-  return html;
-}
-
-/* ========================================================= */
-/*  Vital Signs Rendering                                     */
-/* ========================================================= */
-
-// Icon mapping for vital signs
-const VITAL_ICONS = {
-  'Heart Rate': '❤️',
-  'Blood Pressure': '🩺',
-  'Body Temperature': '🌡️',
-  'Respiratory Rate': '🫁',
-  'Oxygen Saturation': '💨'
-};
-
-function renderVitalSigns(vitalSigns) {
-  let html = '<h2 class="section-title">Vital Signs</h2>';
-  html += '<div class="vitals-grid">';
-  
-  vitalSigns.forEach(vital => {
-    html += renderVitalCard(vital);
-  });
+  if (summary.date_range && summary.date_range.earliest) {
+    const earliest = new Date(summary.date_range.earliest);
+    const latest = new Date(summary.date_range.latest);
+    const days = Math.floor((latest - earliest) / (1000 * 60 * 60 * 24));
+    html += `<div class="stat-item">`;
+    html += `<div class="stat-value">${days}</div>`;
+    html += `<div class="stat-label">Days of Data</div>`;
+    html += `</div>`;
+  }
   
   html += '</div>';
+  html += '</div>';
+  
   return html;
 }
 
-function renderVitalCard(vital) {
-  const icon = VITAL_ICONS[vital.name] || '📊';
-  const value = vital.value || 'N/A';
-  const unit = vital.unit || '';
-  
-  // Determine status (normal/abnormal)
-  const status = getVitalStatus(vital);
-  
-  let html = `<div class="vital-card ${status.className}">`;
-  html += `<div class="vital-icon">${icon}</div>`;
-  html += `<div class="vital-info">`;
-  html += `<div class="vital-name">${vital.name}</div>`;
-  html += `<div class="vital-value">${value} <span class="vital-unit">${unit}</span></div>`;
-  
-  // Display normal range
-  if (vital.normal_range) {
-    html += renderNormalRange(vital.normal_range);
-  }
-  
-  // Display status indicator
-  if (status.text) {
-    html += `<div class="vital-status">${status.text}</div>`;
-  }
-  
-  html += '</div></div>';
-  return html;
-}
+/* ========================================================= */
+/*  Category Panel (Cardiovascular, Activity, Mobility)      */
+/* ========================================================= */
 
-function getVitalStatus(vital) {
-  let statusClass = '';
-  let statusText = '';
+function renderCategoryPanel(title, icon, data, categoryId) {
+  let html = `<div class="category-panel" id="${categoryId}-panel">`;
+  html += `<div class="category-header">`;
+  html += `<h2>${icon} ${title}</h2>`;
+  html += `</div>`;
   
-  if (!vital.value || !vital.normal_range) {
-    return { className: statusClass, text: statusText };
-  }
+  html += `<div class="category-content">`;
+  html += `<div class="metrics-grid">`;
   
-  // Handle blood pressure specially (has systolic/diastolic)
-  if (vital.normal_range.systolic && vital.normal_range.diastolic) {
-    const [systolic, diastolic] = String(vital.value).split('/').map(Number);
-    if (systolic && diastolic) {
-      const systolicNormal = systolic >= vital.normal_range.systolic.min && 
-                            systolic <= vital.normal_range.systolic.max;
-      const diastolicNormal = diastolic >= vital.normal_range.diastolic.min && 
-                             diastolic <= vital.normal_range.diastolic.max;
-      
-      if (systolicNormal && diastolicNormal) {
-        statusClass = 'status-normal';
-        statusText = '✓ Normal';
-      } else {
-        statusClass = 'status-abnormal';
-        statusText = '⚠ Check';
-      }
-    }
-  } 
-  // Handle regular numeric values
-  else if (vital.normal_range.min !== undefined && vital.normal_range.max !== undefined) {
-    const numValue = parseFloat(vital.value);
-    if (!isNaN(numValue)) {
-      if (numValue >= vital.normal_range.min && numValue <= vital.normal_range.max) {
-        statusClass = 'status-normal';
-        statusText = '✓ Normal';
-      } else {
-        statusClass = 'status-abnormal';
-        statusText = '⚠ Check';
-      }
+  // Render each metric
+  for (const [key, metric] of Object.entries(data)) {
+    if (metric && metric.name) {
+      html += renderMetricCard(metric);
     }
   }
   
-  return { className: statusClass, text: statusText };
-}
-
-function renderNormalRange(normalRange) {
-  if (normalRange.systolic && normalRange.diastolic) {
-    return `<div class="vital-range">Normal: ${normalRange.systolic.min}-${normalRange.systolic.max}/${normalRange.diastolic.min}-${normalRange.diastolic.max} ${normalRange.unit}</div>`;
-  } else if (normalRange.min !== undefined && normalRange.max !== undefined) {
-    const unit = normalRange.unit || '';
-    return `<div class="vital-range">Normal: ${normalRange.min}-${normalRange.max} ${unit}</div>`;
-  }
-  return '';
-}
-
-/* ========================================================= */
-/*  Activity Rendering                                        */
-/* ========================================================= */
-
-function renderActivity(activity) {
-  let html = '<h2 class="section-title">Activity</h2>';
-  html += '<div class="activity-grid">';
+  html += `</div>`;
+  html += `</div>`;
+  html += `</div>`;
   
-  if (activity.steps) {
-    html += renderActivityCard('Steps', '🚶', activity.steps.value, activity.steps.unit);
-  }
-  
-  if (activity.active_energy) {
-    html += renderActivityCard('Active Energy', '🔥', activity.active_energy.value, activity.active_energy.unit);
-  }
-  
-  if (activity.exercise_time) {
-    html += renderActivityCard('Exercise Time', '💪', activity.exercise_time.value, activity.exercise_time.unit);
-  }
-  
-  html += '</div>';
   return html;
 }
 
-function renderActivityCard(name, icon, value, unit) {
-  return `
-    <div class="activity-card">
-      <div class="activity-icon">${icon}</div>
-      <div class="activity-info">
-        <div class="activity-name">${name}</div>
-        <div class="activity-value">${value} <span class="activity-unit">${unit}</span></div>
-      </div>
-    </div>
-  `;
-}
-
-/* ========================================================= */
-/*  Cardiovascular Rendering                                 */
-/* ========================================================= */
-
-function renderCardiovascular(cardio) {
-  let html = '<h2 class="section-title">Cardiovascular Health</h2>';
-  html += '<div class="cardio-grid">';
-  
-  if (cardio.resting_hr) {
-    html += renderCardioCard('Resting Heart Rate', '💓', cardio.resting_hr.value, cardio.resting_hr.unit);
+function renderMetricCard(metric) {
+  // Special handling for blood pressure
+  if (metric.name === "Blood Pressure") {
+    return renderBloodPressureCard(metric);
   }
   
-  if (cardio.hrv) {
-    html += renderCardioCard('Heart Rate Variability', '📈', cardio.hrv.value, cardio.hrv.unit);
+  const statusClass = getMetricStatus(metric);
+  const trendArrow = getTrendArrow(metric.trend, metric.change_pct);
+  
+  let html = `<div class="metric-card ${statusClass}">`;
+  html += `<h3>${metric.name}</h3>`;
+  
+  // Current value with trend
+  html += `<div class="metric-value">`;
+  html += `${metric.current || 'N/A'} <span class="metric-unit">${metric.unit || ''}</span>`;
+  if (metric.change_pct !== undefined && metric.change_pct !== 0) {
+    html += `<span class="metric-trend ${metric.trend}">${trendArrow} ${Math.abs(metric.change_pct)}%</span>`;
+  }
+  html += `</div>`;
+  
+  // Statistics
+  html += `<div class="metric-stats">`;
+  if (metric.avg_7d) {
+    html += `<div class="stat-row"><span class="stat-label">7-day avg:</span> <span class="stat-value">${metric.avg_7d} ${metric.unit}</span></div>`;
+  }
+  if (metric.avg_30d) {
+    html += `<div class="stat-row"><span class="stat-label">30-day avg:</span> <span class="stat-value">${metric.avg_30d} ${metric.unit}</span></div>`;
+  }
+  if (metric.min_30d && metric.max_30d) {
+    html += `<div class="stat-row"><span class="stat-label">Range (30d):</span> <span class="stat-value">${metric.min_30d}-${metric.max_30d}</span></div>`;
+  }
+  html += `</div>`;
+  
+  // Normal range / Goal
+  if (metric.normal_range) {
+    html += `<div class="metric-reference">`;
+    html += `<span class="ref-label">Normal:</span> `;
+    html += `${metric.normal_range.min}-${metric.normal_range.max} ${metric.unit}`;
+    html += ` ${getStatusBadge(metric)}`;
+    html += `</div>`;
+  } else if (metric.goal) {
+    html += `<div class="metric-reference">`;
+    html += `<span class="ref-label">Goal:</span> ${metric.goal} ${metric.unit}`;
+    html += `</div>`;
   }
   
-  html += '</div>';
+  // Data points
+  if (metric.data_points) {
+    html += `<div class="metric-footer">${metric.data_points} measurements in last 30 days</div>`;
+  }
+  
+  html += `</div>`;
+  
   return html;
 }
 
-function renderCardioCard(name, icon, value, unit) {
-  return `
-    <div class="cardio-card">
-      <div class="cardio-icon">${icon}</div>
-      <div class="cardio-info">
-        <div class="cardio-name">${name}</div>
-        <div class="cardio-value">${value} <span class="cardio-unit">${unit}</span></div>
-      </div>
-    </div>
-  `;
-}
-
-/* ========================================================= */
-/*  Mobility Rendering                                       */
-/* ========================================================= */
-
-function renderMobility(mobility) {
-  let html = '<h2 class="section-title">Mobility</h2>';
-  html += '<div class="mobility-grid">';
+function renderBloodPressureCard(metric) {
+  let html = `<div class="metric-card blood-pressure-card">`;
+  html += `<h3>${metric.name}</h3>`;
   
-  if (mobility.walking_speed) {
-    html += renderMobilityCard('Walking Speed', '🏃', mobility.walking_speed.value, mobility.walking_speed.unit);
+  // Current reading
+  html += `<div class="metric-value">`;
+  html += `${metric.current || 'N/A'} <span class="metric-unit">${metric.unit || ''}</span>`;
+  html += `</div>`;
+  
+  html += `<div class="bp-date">Latest: ${formatDate(metric.date)}</div>`;
+  
+  // Recent readings
+  if (metric.recent_readings && metric.recent_readings.length > 0) {
+    html += `<div class="bp-history">`;
+    html += `<h4>Recent Readings</h4>`;
+    metric.recent_readings.forEach(reading => {
+      html += `<div class="bp-reading">`;
+      html += `<span class="bp-value">${reading.value}</span>`;
+      html += `<span class="bp-date">${formatDate(reading.date)}</span>`;
+      html += `</div>`;
+    });
+    html += `</div>`;
   }
   
-  if (mobility.step_length) {
-    html += renderMobilityCard('Step Length', '👣', mobility.step_length.value, mobility.step_length.unit);
+  // Normal range
+  if (metric.normal_range) {
+    html += `<div class="metric-reference">`;
+    html += `<span class="ref-label">Normal:</span> `;
+    html += `${metric.normal_range.systolic.min}-${metric.normal_range.systolic.max}/`;
+    html += `${metric.normal_range.diastolic.min}-${metric.normal_range.diastolic.max} ${metric.unit}`;
+    html += `</div>`;
   }
   
-  html += '</div>';
+  html += `</div>`;
+  
   return html;
 }
 
-function renderMobilityCard(name, icon, value, unit) {
-  return `
-    <div class="mobility-card">
-      <div class="mobility-icon">${icon}</div>
-      <div class="mobility-info">
-        <div class="mobility-name">${name}</div>
-        <div class="mobility-value">${value} <span class="mobility-unit">${unit}</span></div>
-      </div>
-    </div>
-  `;
+/* ========================================================= */
+/*  Clinical Panel (Medications, Labs, Conditions, Allergies)*/
+/* ========================================================= */
+
+function renderClinicalPanel(clinical) {
+  let html = `<div class="category-panel clinical-panel">`;
+  html += `<div class="category-header">`;
+  html += `<h2>🏥 Clinical Records</h2>`;
+  html += `</div>`;
+  
+  html += `<div class="category-content">`;
+  
+  // Medications
+  if (clinical.medications && clinical.medications.length > 0) {
+    html += renderMedicationsSection(clinical.medications);
+  }
+  
+  // Lab Results
+  if (clinical.lab_results && clinical.lab_results.length > 0) {
+    html += renderLabResultsSection(clinical.lab_results);
+  }
+  
+  // Conditions and Allergies in two columns
+  html += `<div class="clinical-grid">`;
+  
+  if (clinical.conditions && clinical.conditions.length > 0) {
+    html += renderConditionsSection(clinical.conditions);
+  }
+  
+  if (clinical.allergies && clinical.allergies.length > 0) {
+    html += renderAllergiesSection(clinical.allergies);
+  }
+  
+  html += `</div>`;
+  
+  html += `</div>`;
+  html += `</div>`;
+  
+  return html;
 }
 
-/* ========================================================= */
-/*  Medications Rendering                                    */
-/* ========================================================= */
-
-function renderMedications(medications) {
-  let html = '<div class="dashboard-card medications-card">';
-  html += '<div class="card-icon">💊</div>';
-  html += '<div class="card-content">';
-  html += '<h2>Current Medications</h2>';
-  html += '<div class="medications-list">';
+function renderMedicationsSection(medications) {
+  let html = `<div class="clinical-section medications-section">`;
+  html += `<h3>💊 Medications (${medications.length})</h3>`;
+  html += `<div class="medications-list">`;
   
   medications.forEach(med => {
-    html += `<div class="med-item">
-      <span class="med-name">${med.name}</span>
-      <span class="med-date">${formatDate(med.date)}</span>
-    </div>`;
+    html += `<div class="medication-item">`;
+    html += `<div class="med-header">`;
+    html += `<span class="med-name">${med.name}</span>`;
+    if (med.category && med.category !== 'N/A') {
+      html += `<span class="med-category">${med.category}</span>`;
+    }
+    html += `</div>`;
+    html += `<div class="med-date">Prescribed: ${formatDate(med.date)}</div>`;
+    html += `</div>`;
   });
   
-  html += '</div></div></div>';
+  html += `</div>`;
+  html += `</div>`;
+  
   return html;
 }
 
-/* ========================================================= */
-/*  Lab Results Rendering                                    */
-/* ========================================================= */
-
-function renderLabResults(labResults) {
-  let html = '<div class="dashboard-card lab-results-card">';
-  html += '<div class="card-icon">🔬</div>';
-  html += '<div class="card-content">';
-  html += '<h2>Recent Lab Results</h2>';
-  html += '<div class="lab-results-list">';
+function renderLabResultsSection(labs) {
+  // Filter out labs with N/A values
+  const validLabs = labs.filter(lab => lab.value && lab.value !== 'N/A');
   
-  labResults.forEach(lab => {
-    html += `<div class="lab-item">
-      <div class="lab-name">${lab.name}</div>
-      <div class="lab-value">${lab.value} ${lab.unit}</div>
-      <div class="lab-date">${formatDate(lab.date)}</div>
-    </div>`;
+  if (validLabs.length === 0) {
+    return '';
+  }
+  
+  let html = `<div class="clinical-section lab-results-section">`;
+  html += `<h3>🔬 Lab Results (${validLabs.length})</h3>`;
+  html += `<div class="lab-results-list">`;
+  
+  validLabs.forEach(lab => {
+    html += `<div class="lab-item">`;
+    html += `<div class="lab-header">`;
+    html += `<span class="lab-name">${lab.name}</span>`;
+    if (lab.status) {
+      html += `<span class="lab-status ${lab.status.toLowerCase()}">${lab.status}</span>`;
+    }
+    html += `</div>`;
+    html += `<div class="lab-value">${lab.value} ${lab.unit || ''}</div>`;
+    html += `<div class="lab-date">${formatDate(lab.date)}</div>`;
+    html += `</div>`;
   });
   
-  html += '</div></div></div>';
+  html += `</div>`;
+  html += `</div>`;
+  
+  return html;
+}
+
+function renderConditionsSection(conditions) {
+  let html = `<div class="clinical-subsection conditions-section">`;
+  html += `<h3>🩺 Conditions (${conditions.length})</h3>`;
+  html += `<div class="conditions-list">`;
+  
+  conditions.forEach(cond => {
+    html += `<div class="condition-item">`;
+    html += `<div class="condition-name">${cond.name}</div>`;
+    html += `<div class="condition-date">${formatDate(cond.date)}</div>`;
+    html += `</div>`;
+  });
+  
+  html += `</div>`;
+  html += `</div>`;
+  
+  return html;
+}
+
+function renderAllergiesSection(allergies) {
+  let html = `<div class="clinical-subsection allergies-section">`;
+  html += `<h3>⚠️ Allergies (${allergies.length})</h3>`;
+  html += `<div class="allergies-list">`;
+  
+  allergies.forEach(allergy => {
+    html += `<div class="allergy-item">`;
+    html += `<div class="allergy-name">${allergy.name}</div>`;
+    html += `<div class="allergy-date">${formatDate(allergy.date)}</div>`;
+    html += `</div>`;
+  });
+  
+  html += `</div>`;
+  html += `</div>`;
+  
   return html;
 }
 
 /* ========================================================= */
-/*  Clinical Rendering (Allergies & Conditions)             */
+/*  Helper Functions                                         */
 /* ========================================================= */
 
-function renderClinical(clinical) {
-  let html = '<div class="dashboard-card clinical-card">';
-  html += '<div class="card-icon">⚕️</div>';
-  html += '<div class="card-content">';
-  html += '<h2>Clinical Information</h2>';
-  
-  // Render allergies
-  if (clinical.allergies && clinical.allergies.length > 0) {
-    html += '<div class="clinical-section">';
-    html += '<h3>Allergies</h3>';
-    html += '<div class="clinical-list">';
-    clinical.allergies.forEach(allergy => {
-      html += `<div class="clinical-item">
-        <span class="clinical-name">${allergy.name}</span>
-        <span class="clinical-date">${formatDate(allergy.date)}</span>
-      </div>`;
-    });
-    html += '</div></div>';
+function getMetricStatus(metric) {
+  if (!metric.normal_range || metric.current === null) {
+    return '';
   }
   
-  // Render conditions
-  if (clinical.conditions && clinical.conditions.length > 0) {
-    html += '<div class="clinical-section">';
-    html += '<h3>Conditions</h3>';
-    html += '<div class="clinical-list">';
-    clinical.conditions.forEach(condition => {
-      html += `<div class="clinical-item">
-        <span class="clinical-name">${condition.name}</span>
-        <span class="clinical-date">${formatDate(condition.date)}</span>
-      </div>`;
-    });
-    html += '</div></div>';
-  }
+  const val = metric.current;
+  const range = metric.normal_range;
   
-  html += '</div></div>';
-  return html;
+  if (val >= range.min && val <= range.max) {
+    return 'status-normal';
+  } else if (val < range.min * 0.9 || val > range.max * 1.1) {
+    return 'status-alert';
+  } else {
+    return 'status-borderline';
+  }
 }
 
-/* ========================================================= */
-/*  Utility Functions                                        */
-/* ========================================================= */
+function getStatusBadge(metric) {
+  if (!metric.normal_range || metric.current === null) {
+    return '';
+  }
+  
+  const val = metric.current;
+  const range = metric.normal_range;
+  
+  if (val >= range.min && val <= range.max) {
+    return '<span class="status-badge normal">✓ Normal</span>';
+  } else if (val < range.min * 0.9 || val > range.max * 1.1) {
+    return '<span class="status-badge alert">⚡ Alert</span>';
+  } else {
+    return '<span class="status-badge borderline">⚠️ Borderline</span>';
+  }
+}
+
+function getTrendArrow(trend, change_pct) {
+  if (!trend || change_pct === 0) return '';
+  
+  if (trend === 'up') {
+    return '↑';
+  } else if (trend === 'down') {
+    return '↓';
+  } else {
+    return '→';
+  }
+}
 
 function formatDate(dateString) {
   if (!dateString || dateString === 'N/A') return 'N/A';
@@ -532,4 +525,3 @@ document.addEventListener("DOMContentLoaded", () => {
     initializeDashboardInput();
   }
 });
-

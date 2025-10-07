@@ -1889,6 +1889,464 @@ body.sources-sidebar-open .input-container.fixed {
   padding-bottom: 6rem;
 }
 
+.dashboard-header {
+  padding: 1rem 2rem 1rem;
+  background: var(--bg);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.dashboard-header h1 {
+  margin: 0;
+  font-size: 1.75rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.dashboard-content {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 1.5rem;
+}
+
+/* Category Panels */
+.category-panel {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  margin-bottom: 1rem;
+  overflow: hidden;
+}
+
+.category-header {
+  padding: 1rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.category-header h2 {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.category-content {
+  padding: 1rem;
+}
+
+/* Metrics Grid */
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1rem;
+}
+
+/* Metric Cards */
+.metric-card {
+  background: var(--bg);
+  border: 2px solid var(--border);
+  border-radius: 0.5rem;
+  padding: 1rem;
+  transition: all 0.2s ease;
+}
+
+.metric-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  transform: translateY(-2px);
+}
+
+.metric-card.status-normal {
+  border-color: #10b981;
+  background: linear-gradient(to bottom, #ffffff, #f0fdf4);
+}
+
+.metric-card.status-borderline {
+  border-color: #f59e0b;
+  background: linear-gradient(to bottom, #ffffff, #fffbeb);
+}
+
+.metric-card.status-alert {
+  border-color: #ef4444;
+  background: linear-gradient(to bottom, #ffffff, #fef2f2);
+}
+
+.metric-card h3 {
+  margin: 0 0 0.75rem 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.metric-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 0.75rem;
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.metric-unit {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.metric-trend {
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 0.2rem 0.4rem;
+  border-radius: 0.3rem;
+  margin-left: auto;
+}
+
+.metric-trend.up {
+  color: #10b981;
+  background: #d1fae5;
+}
+
+.metric-trend.down {
+  color: #ef4444;
+  background: #fee2e2;
+}
+
+.metric-trend.stable {
+  color: #6b7280;
+  background: #f3f4f6;
+}
+
+.metric-stats {
+  margin-bottom: 0.75rem;
+  padding: 0.5rem;
+  background: var(--card);
+  border-radius: 0.4rem;
+}
+
+.stat-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.2rem 0;
+  font-size: 0.8rem;
+}
+
+.stat-label {
+  color: var(--muted);
+}
+
+.stat-value {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.metric-reference {
+  padding: 0.4rem;
+  background: var(--card);
+  border-radius: 0.3rem;
+  font-size: 0.75rem;
+  color: var(--muted);
+  margin-bottom: 0.4rem;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.ref-label {
+  font-weight: 600;
+}
+
+.metric-footer {
+  font-size: 0.7rem;
+  color: var(--muted);
+  margin-top: 0.4rem;
+}
+
+/* Status Badges */
+.status-badge {
+  display: inline-block;
+  padding: 0.2rem 0.4rem;
+  border-radius: 0.3rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+
+.status-badge.normal {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.status-badge.borderline {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.status-badge.alert {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+/* Blood Pressure Card */
+.blood-pressure-card {
+  grid-column: span 2;
+}
+
+.bp-date {
+  font-size: 0.75rem;
+  color: var(--muted);
+  margin-bottom: 0.75rem;
+}
+
+.bp-history {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border);
+}
+
+.bp-history h4 {
+  margin: 0 0 0.5rem 0;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.bp-reading {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.4rem;
+  background: var(--card);
+  border-radius: 0.3rem;
+  margin-bottom: 0.4rem;
+  font-size: 0.85rem;
+}
+
+.bp-value {
+  font-weight: 600;
+  color: var(--text);
+}
+
+/* Clinical Panel */
+.clinical-panel .category-content {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.clinical-section {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  padding: 1rem;
+}
+
+.clinical-section h3 {
+  margin: 0 0 0.75rem 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+/* Medications */
+.medications-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.medication-item {
+  padding: 0.75rem;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 0.4rem;
+  transition: all 0.2s ease;
+}
+
+.medication-item:hover {
+  border-color: var(--accent);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.med-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.4rem;
+}
+
+.med-name {
+  font-weight: 600;
+  color: var(--text);
+  font-size: 0.9rem;
+}
+
+.med-category {
+  font-size: 0.7rem;
+  padding: 0.2rem 0.4rem;
+  background: #e0e7ff;
+  color: #4338ca;
+  border-radius: 0.3rem;
+  font-weight: 500;
+}
+
+.med-date {
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+/* Lab Results */
+.lab-results-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 0.75rem;
+}
+
+.lab-item {
+  padding: 0.75rem;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 0.4rem;
+}
+
+.lab-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.4rem;
+}
+
+.lab-name {
+  font-weight: 600;
+  color: var(--text);
+  font-size: 0.8rem;
+}
+
+.lab-status {
+  font-size: 0.65rem;
+  padding: 0.15rem 0.35rem;
+  border-radius: 0.25rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.lab-status.normal {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.lab-status.abnormal {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.lab-value {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 0.2rem;
+}
+
+.lab-date {
+  font-size: 0.7rem;
+  color: var(--muted);
+}
+
+/* Conditions and Allergies Grid */
+.clinical-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1rem;
+}
+
+.clinical-subsection {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  padding: 1rem;
+}
+
+.clinical-subsection h3 {
+  margin: 0 0 0.75rem 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.conditions-list,
+.allergies-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.condition-item,
+.allergy-item {
+  padding: 0.6rem;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 0.4rem;
+}
+
+.allergy-item {
+  border-left: 3px solid #f59e0b;
+  background: linear-gradient(to right, #fffbeb, var(--card));
+}
+
+.condition-name,
+.allergy-name {
+  font-weight: 600;
+  color: var(--text);
+  font-size: 0.85rem;
+  margin-bottom: 0.2rem;
+}
+
+.condition-date,
+.allergy-date {
+  font-size: 0.7rem;
+  color: var(--muted);
+}
+
+/* Loading and Error States */
+.loading,
+.no-data,
+.error {
+  text-align: center;
+  padding: 3rem;
+  color: var(--muted);
+  font-size: 1.1rem;
+}
+
+.error {
+  color: #ef4444;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .dashboard-content {
+    padding: 1rem;
+  }
+  
+  .metrics-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .blood-pressure-card {
+    grid-column: span 1;
+  }
+  
+  .lab-results-list {
+    grid-template-columns: 1fr;
+  }
+  
+  .clinical-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .summary-stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
 /* ===================== Digital Twin Styles ===================== */
 .digital-twin-page {
   flex: 1;

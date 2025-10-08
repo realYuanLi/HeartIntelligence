@@ -41,7 +41,13 @@ def needs_health_data(query: str) -> bool:
         bool: True if health data is needed, False otherwise
     """
     try:
-        client = openai.OpenAI()
+        # Check if API key is configured
+        api_key = os.getenv("OPENAI_API_KEY")
+        if not api_key:
+            print("Warning: OPENAI_API_KEY not configured")
+            return False
+        
+        client = openai.OpenAI(api_key=api_key)
         
         response = client.chat.completions.create(
             model="gpt-4o",
@@ -240,36 +246,40 @@ def extract_categories_from_ehr(ehr_data: Dict) -> Dict[str, List[str]]:
     
     return categories
 
-def extract_raw_data_from_categories(ehr_data: Dict, categories: Dict[str, List[str]], max_items_per_subcategory: int = 20) -> Dict[str, Dict[str, List[Dict]]]:
+def extract_raw_data_from_categories(ehr_data: Dict, categories: Dict[str, List[str]], max_items_per_subcategory: int = 10) -> Dict[str, Dict[str, List[Dict]]]:
     """
     Extract raw data from EHR for specified categories and subcategories.
     
     Args:
         ehr_data (Dict): The EHR data dictionary
         categories (Dict[str, List[str]]): Categories and subcategories to extract
-        max_items_per_subcategory (int): Maximum number of items to analyze per subcategory (default: 20)
+        max_items_per_subcategory (int): Maximum number of items to analyze per subcategory (default: 10)
         
     Returns:
         Dict[str, Dict[str, List[Dict]]]: Raw data organized by category and subcategory
     """
     raw_data = {}
+    total_items = 0
+    max_total_items = 100  # Global limit to prevent timeout
     
     for category, subcategories in categories.items():
         if category in ehr_data:
             raw_data[category] = {}
             for subcategory in subcategories:
+                if total_items >= max_total_items:
+                    print(f"Reached max total items limit ({max_total_items}), stopping data extraction")
+                    break
+                    
                 if subcategory in ehr_data[category]:
                     # Get data for this subcategory
                     subcategory_data = ehr_data[category][subcategory]
                     
                     # Limit to max_items_per_subcategory for analysis if it's a list
                     if isinstance(subcategory_data, list):
-                        if len(subcategory_data) > max_items_per_subcategory:
-                            # Take first 100 items for analysis
-                            raw_data[category][subcategory] = subcategory_data[:max_items_per_subcategory]
-                        else:
-                            # Take all items if less than 100
-                            raw_data[category][subcategory] = subcategory_data
+                        items_to_take = min(len(subcategory_data), max_items_per_subcategory, max_total_items - total_items)
+                        if items_to_take > 0:
+                            raw_data[category][subcategory] = subcategory_data[:items_to_take]
+                            total_items += items_to_take
                     else:
                         raw_data[category][subcategory] = [subcategory_data]
                 else:

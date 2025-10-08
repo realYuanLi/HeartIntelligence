@@ -52,15 +52,16 @@ EHR_DATA = None
 EHR_DATA_PATH = APP_DIR / "data" / "test_file" / "ehr_test_data.json"
 try:
     if EHR_DATA_PATH.exists() and EHR_DATA_PATH.is_file():
+        print(f"Loading EHR data from {EHR_DATA_PATH}...")
         with open(EHR_DATA_PATH, "r", encoding="utf-8") as f:
             EHR_DATA = json.load(f)
-        print(f"Loaded EHR data with {EHR_DATA.get('metadata', {}).get('summary', {}).get('total_records', 0)} records")
+        print(f"✓ Loaded EHR data with {EHR_DATA.get('metadata', {}).get('summary', {}).get('total_records', 0)} records")
     else:
         EHR_DATA = None
-        print("EHR data file not found")
+        print("⚠ EHR data file not found - health data features will be limited")
 except Exception as e:
     EHR_DATA = None
-    print(f"Could not load EHR data: {e}")
+    print(f"⚠ Could not load EHR data: {e}")
 
 # Load my body data
 MY_BODY_DATA_PATH = APP_DIR / "data" / "my_body"
@@ -93,13 +94,33 @@ _cache_max_size = 100  # Maximum number of cached slices
 # Simple system prompt
 system_prompt = """You are a helpful AI assistant."""
 
-Chatbot = Agent(
-    role="AI Assistant",
-    llm=CONFIG["chatbot"]["llm_model"],
-    temperature=0.7,
-    sys_message=system_prompt,
-    ehr_data=EHR_DATA
-)
+# Verify OpenAI API key is configured
+if not os.getenv("OPENAI_API_KEY"):
+    print("⚠ WARNING: OPENAI_API_KEY environment variable is not set!")
+    print("   The chatbot will not function without an OpenAI API key.")
+    print("   Please set OPENAI_API_KEY in your environment variables.")
+else:
+    print("✓ OpenAI API key is configured")
+
+try:
+    Chatbot = Agent(
+        role="AI Assistant",
+        llm=CONFIG["chatbot"]["llm_model"],
+        temperature=0.7,
+        sys_message=system_prompt,
+        ehr_data=EHR_DATA
+    )
+    print(f"✓ Chatbot initialized with model: {CONFIG['chatbot']['llm_model']}")
+except Exception as e:
+    print(f"⚠ Error initializing Chatbot: {e}")
+    # Create a fallback dummy chatbot
+    class DummyAgent:
+        def llm_reply(self, messages):
+            class Response:
+                content = "The AI service is currently unavailable. Please check the server configuration."
+            return Response()
+    Chatbot = DummyAgent()
+    print("⚠ Using fallback dummy chatbot")
 
 SummaryBot = Agent(
     role="Summary assistant",

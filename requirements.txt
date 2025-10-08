@@ -2,6 +2,7 @@
 # Core Flask dependencies
 Flask==3.0.3
 gunicorn==23.0.0
+gevent==24.2.1
 python-dotenv==1.1.1
 
 # OpenAI for AI functionality

@@ -239,7 +239,14 @@ class Agent:
     def _health_analysis_task(self, query: str):
         """Task for health data analysis."""
         try:
+            import time
+            start_time = time.time()
+            
             needs_health, categories, formatted_output, raw_data_output = analyze_health_query_with_raw_data(query, self.ehr_data, show_raw_data=True)
+            
+            elapsed = time.time() - start_time
+            print(f"Health analysis completed in {elapsed:.2f} seconds")
+            
             if needs_health:
                 return {
                     'health_analysis': {
@@ -251,6 +258,8 @@ class Agent:
                 }
         except Exception as e:
             print(f"Health analysis error: {e}")
+            import traceback
+            traceback.print_exc()
         return None
         
     def openai_reply(self, messages):
@@ -297,7 +306,21 @@ class Agent:
                 if health_analysis.get('raw_data_output'):
                     # Update status before starting summarization
                     update_status("summarizing_health_data")
-                    health_summary = asyncio.run(self._summarize_health_data_async(health_analysis['raw_data_output']))
+                    try:
+                        # Add timeout protection for summarization
+                        import asyncio
+                        health_summary = asyncio.run(
+                            asyncio.wait_for(
+                                self._summarize_health_data_async(health_analysis['raw_data_output']),
+                                timeout=180  # 3 minute timeout for summarization
+                            )
+                        )
+                    except asyncio.TimeoutError:
+                        print("Health data summarization timed out, using raw data categories instead")
+                        health_summary = f"Available Health Data Categories:\n{health_analysis['formatted_output']}\n\n(Note: Full data analysis timed out - using category summary instead)"
+                    except Exception as e:
+                        print(f"Error in health data summarization: {e}")
+                        health_summary = f"Available Health Data Categories:\n{health_analysis['formatted_output']}"
                 elif health_analysis.get('formatted_output'):
                     health_summary = f"Available Health Data Categories:\n{health_analysis['formatted_output']}"
             
@@ -419,9 +442,17 @@ Provide the best possible answer to the user’s question.
             return Response(message.content)
         
         except Exception as e:
+            error_msg = str(e)
             print(f"OpenAI API call failed: {e}")
             update_status("idle")
-            return None
+            
+            # Check if it's an API key issue
+            if "api_key" in error_msg.lower() or "authentication" in error_msg.lower():
+                return Response("I'm having trouble connecting to the AI service. Please check that the OpenAI API key is configured correctly in the environment variables.")
+            elif "rate_limit" in error_msg.lower():
+                return Response("The AI service is currently experiencing high demand. Please try again in a moment.")
+            else:
+                return Response(f"I encountered an error while processing your request: {error_msg}. Please try again or contact support if the issue persists.")
     
     def llama_api_reply(self, messages):  
         return self.openai_reply(messages)

@@ -464,7 +464,7 @@ body.sources-sidebar-open .message {
   display: flex;
   align-items: center;
   padding: 0.5rem 0;
-  color: var(--muted);
+  color: var(--muted-2);
   font-style: normal;
   font-size: 1rem;
 }
@@ -476,7 +476,7 @@ body.sources-sidebar-open .message {
 
 .status-container.processing::before {
   content: '●';
-  color: #000;
+  color: var(--text);
   margin-right: 0.5rem;
   animation: breathing-dot 3s ease-in-out infinite;
   display: inline-block;

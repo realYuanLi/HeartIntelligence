@@ -240,14 +240,14 @@ def extract_categories_from_ehr(ehr_data: Dict) -> Dict[str, List[str]]:
     
     return categories
 
-def extract_raw_data_from_categories(ehr_data: Dict, categories: Dict[str, List[str]], max_items_per_subcategory: int = 100) -> Dict[str, Dict[str, List[Dict]]]:
+def extract_raw_data_from_categories(ehr_data: Dict, categories: Dict[str, List[str]], max_items_per_subcategory: int = 20) -> Dict[str, Dict[str, List[Dict]]]:
     """
     Extract raw data from EHR for specified categories and subcategories.
     
     Args:
         ehr_data (Dict): The EHR data dictionary
         categories (Dict[str, List[str]]): Categories and subcategories to extract
-        max_items_per_subcategory (int): Maximum number of items to analyze per subcategory (default: 100)
+        max_items_per_subcategory (int): Maximum number of items to analyze per subcategory (default: 20)
         
     Returns:
         Dict[str, Dict[str, List[Dict]]]: Raw data organized by category and subcategory
@@ -299,9 +299,9 @@ def print_raw_health_data(raw_data: Dict[str, Dict[str, List[Dict]]]) -> str:
             count = len(records) if records else 0
             output.append(f"  {subcategory}: {count} records")
             
-            # Show sample data from records (up to 50 per subcategory)
+            # Show sample data from records (up to 20 per subcategory)
             if records and len(records) > 0:
-                sample_records = records[:50]  # Show up to 50 records per subcategory
+                sample_records = records[:20]  # Show up to 50 records per subcategory
                 
                 for i, record in enumerate(sample_records, 1):
                     if isinstance(record, dict):

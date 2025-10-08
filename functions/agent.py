@@ -1,5 +1,6 @@
 import os
 import openai
+import asyncio
 import threading
 import tiktoken
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -106,12 +107,13 @@ class Agent:
             chunk_size = max_tokens * 4  # rough estimation
             return [text[i:i + chunk_size] for i in range(0, len(text), chunk_size)]
     
-    def _summarize_chunk(self, chunk: str, category: str) -> str:
-        """Summarize a single chunk of health data."""
+    async def _summarize_chunk_async(self, chunk: str, category: str) -> str:
+        """Summarize a single chunk of health data asynchronously."""
         try:
-            response = openai.chat.completions.create(
-                model="gpt-4o",
-                messages=[
+            client = openai.AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+            api_params = {
+                "model": "gpt-4o",
+                "messages": [
                     {
                         "role": "system",
                         "content": f"Create a concise, clinically relevant summary of this {category} data. Include key metrics, dates, trends, medications, conditions, and important findings. Focus on clinically significant information and exclude administrative data like ID numbers."
@@ -121,16 +123,17 @@ class Agent:
                         "content": f"Summarize this {category} data, focusing on clinically relevant information and patterns:\n\n{chunk}"
                     }
                 ],
-                temperature=self.temperature,
-                max_tokens=10000
-            )
+                "temperature": self.temperature,
+                "max_tokens": 10000
+            }
+            response = await client.chat.completions.create(**api_params)
             return response.choices[0].message.content.strip()
         except Exception as e:
             print(f"Error summarizing chunk: {e}")
             return f"[Summary unavailable for {category} chunk]"
     
-    def _summarize_health_data(self, raw_data_output: str, max_tokens_per_chunk: int = 10000) -> str:
-        """Summarize health data, splitting into chunks if necessary."""
+    async def _summarize_health_data_async(self, raw_data_output: str, max_tokens_per_chunk: int = 10000) -> str:
+        """Summarize health data asynchronously, splitting into chunks if necessary."""
         if not raw_data_output or raw_data_output == "No raw data available.":
             return "No health data available for summarization."
         
@@ -140,9 +143,10 @@ class Agent:
         # If data is small enough, summarize directly
         if total_tokens <= max_tokens_per_chunk:
             try:
-                response = openai.chat.completions.create(
-                    model="gpt-4o",
-                    messages=[
+                client = openai.AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+                api_params = {
+                    "model": "gpt-4o",
+                    "messages": [
                         {
                             "role": "system",
                             "content": "Create a concise, clinically relevant summary of this health data. Include key metrics, dates, trends, medications, conditions, and important findings. Focus on clinically significant information and exclude administrative data like ID numbers."
@@ -152,9 +156,10 @@ class Agent:
                             "content": f"Summarize this health data, focusing on clinically relevant information and patterns:\n\n{raw_data_output}"
                         }
                     ],
-                    temperature=self.temperature,
-                    max_tokens=16000
-                )
+                    "temperature": self.temperature,
+                    "max_tokens": 8000
+                }
+                response = await client.chat.completions.create(**api_params)
                 return response.choices[0].message.content.strip()
             except Exception as e:
                 print(f"Error summarizing health data: {e}")
@@ -172,18 +177,19 @@ class Agent:
                     category = line.replace("CATEGORY:", "").strip()
                     break
         
-        # Summarize chunks in parallel
-        summaries = []
-        with ThreadPoolExecutor(max_workers=min(len(chunks), 4)) as executor:
-            future_to_chunk = {executor.submit(self._summarize_chunk, chunk, category): chunk for chunk in chunks}
+        # Summarize all chunks in parallel using asyncio.gather
+        try:
+            tasks = [self._summarize_chunk_async(chunk, category) for chunk in chunks]
+            summaries = await asyncio.gather(*tasks, return_exceptions=True)
             
-            for future in as_completed(future_to_chunk):
-                try:
-                    summary = future.result()
-                    summaries.append(summary)
-                except Exception as e:
-                    print(f"Error in parallel summarization: {e}")
-                    summaries.append("[Summary chunk failed]")
+            # Handle any exceptions in the results
+            summaries = [
+                s if not isinstance(s, Exception) else "[Summary chunk failed]"
+                for s in summaries
+            ]
+        except Exception as e:
+            print(f"Error in parallel summarization: {e}")
+            summaries = ["[Summary chunk failed]"] * len(chunks)
         
         # Combine summaries
         combined_summary = "\n\n".join(summaries)
@@ -191,9 +197,10 @@ class Agent:
         # Final summary of summaries if still too long
         if self._count_tokens(combined_summary) > 15000:
             try:
-                response = openai.chat.completions.create(
-                    model="gpt-4o",
-                    messages=[
+                client = openai.AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+                api_params = {
+                    "model": "gpt-4o",
+                    "messages": [
                         {
                             "role": "system",
                             "content": "Create a final, concise summary by combining these health data summaries. Focus on the most clinically significant findings, key trends, current status, and areas needing attention. Maintain clinical accuracy while providing a complete health overview."
@@ -203,9 +210,10 @@ class Agent:
                             "content": f"Create a final, comprehensive summary from these health data summaries, focusing on the most clinically relevant information:\n\n{combined_summary}"
                         }
                     ],
-                    temperature=self.temperature,
-                    max_tokens=10000
-                )
+                    "temperature": self.temperature,
+                    "max_tokens": 10000
+                }
+                response = await client.chat.completions.create(**api_params)
                 return response.choices[0].message.content.strip()
             except Exception as e:
                 print(f"Error in final summarization: {e}")
@@ -289,7 +297,7 @@ class Agent:
                 if health_analysis.get('raw_data_output'):
                     # Update status before starting summarization
                     update_status("summarizing_health_data")
-                    health_summary = self._summarize_health_data(health_analysis['raw_data_output'])
+                    health_summary = asyncio.run(self._summarize_health_data_async(health_analysis['raw_data_output']))
                 elif health_analysis.get('formatted_output'):
                     health_summary = f"Available Health Data Categories:\n{health_analysis['formatted_output']}"
             
@@ -364,19 +372,19 @@ PERSONAL HEALTH DATA:
 {health_summary}"
 
 Provide the best possible answer to the user’s question. 
-- If the question involves medications:
+- If the question relates to medications:
   - Include: indications, key ingredients/formulations (if available), manufacturer (if available).
   - Personalize when useful: link to the user’s conditions, allergies, current meds, renal/hepatic status, pregnancy, prior adverse events.
   - Add practical use: timing with meals, missed-dose handling, duration.
 
-- If the question involves lab results:
+- If the question relates to lab results:
   - Lead with abnormal values and classify severity versus reference ranges.
   - Provide multi-marker reasoning (patterns across related labs), not isolated one-by-one commentary.
   - Compare to baseline/trend when available; quantify changes.
   - Tie interpretations to relevant conditions/meds when helpful.
   - End with a short, prioritized action list (monitoring cadence, lifestyle focus, medication checks).
 
-- If the question involves exercise:
+- If the question relates to exercise:
   - Report dynamics when data exist: day-to-day and week-over-week trends (e.g., steps, minutes, HR zones, effort, pain/fatigue).
   - Set next-week targets with progression and recovery rules.
   - Personalize to conditions/meds when useful (e.g., asthma, hypertension, diabetes, joint pain; beta-blockers).
@@ -388,13 +396,15 @@ Provide the best possible answer to the user’s question.
 """
                 })
             
-            final_model = "gpt-5"
+            # Use the configured model instead of hardcoded gpt-5
+            final_model = self.llm
             
             api_params = {
                 "model": final_model,
                 "messages": openai_messages
             }
             
+            # GPT-5 only supports temperature=1, other models support custom temperature
             if final_model != "gpt-5":
                 api_params["temperature"] = self.temperature
             

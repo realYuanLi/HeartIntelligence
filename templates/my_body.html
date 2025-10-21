@@ -199,15 +199,17 @@
           debouncedLoad();
         });
         
-        // Canvas mouse events for organ hover
-        [this.coronalCanvas, this.sagittalCanvas].forEach(canvas => {
-          canvas.addEventListener('mousemove', (e) => {
-            this.handleMouseMove(e);
-          });
-          canvas.addEventListener('mouseleave', () => {
-            this.clearOrganInfo();
-          });
+        // Canvas click events for organ selection
+        this.coronalCanvas.addEventListener('click', (e) => {
+          this.handleCanvasClick(e, 'y', this.currentSlice.y);
         });
+        this.sagittalCanvas.addEventListener('click', (e) => {
+          this.handleCanvasClick(e, 'x', this.currentSlice.x);
+        });
+        
+        // Add cursor pointer style to canvases
+        this.coronalCanvas.style.cursor = 'pointer';
+        this.sagittalCanvas.style.cursor = 'pointer';
       }
       
       async loadMetadata() {
@@ -368,28 +370,122 @@
       }
       
       
-      handleMouseMove(event) {
-        // This is a simplified hover detection
-        // In a full implementation, you'd need to map mouse coordinates to segmentation data
-        const rect = this.canvas.getBoundingClientRect();
-        const x = event.clientX - rect.left;
-        const y = event.clientY - rect.top;
+      async handleCanvasClick(event, axis, slice) {
+        const canvas = event.target;
+        const rect = canvas.getBoundingClientRect();
         
-        // For now, just show a generic message
-        this.showOrganInfo('Hover detected', 'Mouse position: ' + Math.round(x) + ', ' + Math.round(y));
+        // Get click coordinates relative to canvas
+        const clickX = event.clientX - rect.left;
+        const clickY = event.clientY - rect.top;
+        
+        // Convert to image coordinates (account for canvas scaling)
+        const scaleX = canvas.width / rect.width;
+        const scaleY = canvas.height / rect.height;
+        const imageX = Math.floor(clickX * scaleX);
+        const imageY = Math.floor(clickY * scaleY);
+        
+        try {
+          const params = new URLSearchParams({
+            axis: axis,
+            slice: slice,
+            x: imageX,
+            y: imageY
+          });
+          
+          const response = await fetch(`/api/my-body/click-organ?${params}`);
+          const data = await response.json();
+          
+          if (data.success && data.organ_name) {
+            this.showOrganInfo(data);
+          } else if (data.success && !data.organ_name) {
+            this.showNoOrganInfo();
+          } else {
+            console.error('Failed to get organ info:', data.message);
+          }
+        } catch (error) {
+          console.error('Error fetching organ info:', error);
+        }
       }
       
-      showOrganInfo(organName, details) {
-        const organInfo = document.getElementById('organInfo');
-        organInfo.innerHTML = `
-          <h4>${organName}</h4>
-          <p>${details}</p>
+      showOrganInfo(organData) {
+        const organNameFormatted = organData.organ_name.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+        const volumeFormatted = Math.round(organData.volume).toLocaleString();
+        const intensityFormatted = organData.intensity.toFixed(1);
+        
+        // Create or update info overlay
+        let overlay = document.getElementById('organInfoOverlay');
+        if (!overlay) {
+          overlay = document.createElement('div');
+          overlay.id = 'organInfoOverlay';
+          overlay.style.cssText = `
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.9);
+            color: white;
+            padding: 20px 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+            z-index: 10000;
+            min-width: 300px;
+            font-family: Arial, sans-serif;
+          `;
+          document.body.appendChild(overlay);
+          
+          // Close on click
+          overlay.addEventListener('click', () => {
+            overlay.remove();
+          });
+        }
+        
+        overlay.innerHTML = `
+          <h3 style="margin: 0 0 15px 0; color: #4CAF50; font-size: 20px;">${organNameFormatted}</h3>
+          <div style="margin-bottom: 10px;">
+            <strong>Volume:</strong> ${volumeFormatted} mm³
+          </div>
+          <div style="margin-bottom: 10px;">
+            <strong>Intensity:</strong> ${intensityFormatted} HU
+          </div>
+          <div style="text-align: center; margin-top: 15px; font-size: 12px; color: #888;">
+            Click anywhere to close
+          </div>
         `;
       }
       
-      clearOrganInfo() {
-        const organInfo = document.getElementById('organInfo');
-        organInfo.innerHTML = '<p>Hover over segmented regions to see organ details</p>';
+      showNoOrganInfo() {
+        let overlay = document.getElementById('organInfoOverlay');
+        if (!overlay) {
+          overlay = document.createElement('div');
+          overlay.id = 'organInfoOverlay';
+          overlay.style.cssText = `
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.9);
+            color: white;
+            padding: 20px 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+            z-index: 10000;
+            min-width: 250px;
+            font-family: Arial, sans-serif;
+            text-align: center;
+          `;
+          document.body.appendChild(overlay);
+          
+          overlay.addEventListener('click', () => {
+            overlay.remove();
+          });
+        }
+        
+        overlay.innerHTML = `
+          <p style="margin: 0; color: #ccc;">No organ at this location</p>
+          <div style="margin-top: 10px; font-size: 12px; color: #888;">
+            Click anywhere to close
+          </div>
+        `;
       }
       
       populateOrganList() {

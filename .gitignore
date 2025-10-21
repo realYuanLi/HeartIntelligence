@@ -26,6 +26,6 @@ node_modules/
 data/test_file/*
 !data/test_file/ehr_test_data.json
 
-# Keep only s0000_seg.nii.gz in seg_map_clean
+# Keep only s1038_seg.nii.gz in seg_map_clean
 data/my_body/seg_map_clean/*
-!data/my_body/seg_map_clean/s0000_seg.nii.gz
+!data/my_body/seg_map_clean/s1038_seg.nii.gz

@@ -1145,6 +1145,60 @@ def api_my_body_organ_info():
     organ_data = ORGAN_STATS[organ_name]
     return jsonify(success=True, organ_data=organ_data)
 
+@app.route("/api/my-body/click-organ")
+def api_my_body_click_organ():
+    """Get organ information at a specific pixel coordinate"""
+    if not _require_login():
+        return jsonify(success=False, message="Login required"), 401
+    
+    try:
+        # Get parameters
+        axis = request.args.get('axis', 'z')
+        slice_idx = int(request.args.get('slice', 0))
+        x = int(request.args.get('x', 0))
+        y = int(request.args.get('y', 0))
+        
+        seg_data = _load_seg_data()
+        if seg_data is None:
+            return jsonify(success=False, message="Segmentation data not available"), 404
+        
+        # Extract the segmentation slice
+        if axis == 'x':
+            seg_slice = seg_data['data'][slice_idx, :, :]
+        elif axis == 'y':
+            seg_slice = seg_data['data'][:, slice_idx, :]
+        else:  # z axis
+            seg_slice = seg_data['data'][:, :, slice_idx]
+        
+        # Get the organ label at the clicked position
+        # Note: y coordinate maps to rows (first dimension), x to columns (second dimension)
+        if 0 <= y < seg_slice.shape[0] and 0 <= x < seg_slice.shape[1]:
+            organ_label = int(seg_slice[y, x])
+            
+            if organ_label == 0:
+                return jsonify(success=True, organ_name=None, message="No organ at this location")
+            
+            # Map organ label to organ name
+            organ_names = list(ORGAN_STATS.keys())
+            if 1 <= organ_label <= len(organ_names):
+                organ_name = organ_names[organ_label - 1]
+                organ_data = ORGAN_STATS[organ_name]
+                
+                return jsonify(
+                    success=True,
+                    organ_name=organ_name,
+                    organ_label=organ_label,
+                    volume=organ_data.get('volume', 0),
+                    intensity=organ_data.get('intensity', 0)
+                )
+            else:
+                return jsonify(success=False, message=f"Unknown organ label: {organ_label}")
+        else:
+            return jsonify(success=False, message="Coordinates out of bounds")
+            
+    except Exception as e:
+        return jsonify(success=False, message=f"Error: {str(e)}"), 500
+
 def _hsv_to_rgb(h, s, v):
     """Convert HSV to RGB"""
     import colorsys

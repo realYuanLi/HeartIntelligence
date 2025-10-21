@@ -63,18 +63,16 @@ def _determine_field_positions(fields, full_text, text_positions):
         page_width = page_info.get('width', 612)
         page_height = page_info.get('height', 792)
         
-        # Prepare field information for AI (using field_key for consistent matching)
+        # Prepare field information for AI
         field_info = []
         for field in fields:
             field_name = field.get('field_name', '')
-            field_key = field.get('field_key', '')
             field_value = field.get('field_value', '')
             position_hint = field.get('position_hint', 'right')
             
             if field_value and field_value.strip():
                 field_info.append({
-                    'key': field_key,
-                    'label': field_name,
+                    'name': field_name,
                     'value': field_value,
                     'hint': position_hint
                 })
@@ -104,14 +102,12 @@ Consider:
 - Typical line height is 12-15 points
 - Multiple fields are usually vertically spaced by 20-40 points
 
-Return ONLY a JSON array with EXACT field keys:
+Return ONLY a JSON array:
 [
-  {{"key": "full_name", "page": 0, "x": 250, "y": 700}},
-  {{"key": "date_of_birth", "page": 0, "x": 250, "y": 660}},
+  {{"name": "Full Name", "page": 0, "x": 250, "y": 700}},
+  {{"name": "Date of Birth", "page": 0, "x": 250, "y": 660}},
   ...
-]
-
-IMPORTANT: Use the EXACT 'key' values from the fields list above. Do not modify them."""
+]"""
 
         messages = [{"role": "user", "content": position_prompt}]
         resp = _chatbot.llm_reply(messages)
@@ -123,24 +119,23 @@ IMPORTANT: Use the EXACT 'key' values from the fields list above. Do not modify 
             if json_match:
                 positions = json.loads(json_match.group())
                 
-                # Create position map using field_key for consistent matching
-                position_map = {pos['key']: pos for pos in positions}
+                # Create position map
+                position_map = {pos['name']: pos for pos in positions}
                 
-                # Map positions to field values using field_key
+                # Map positions to field values
                 for field in fields:
-                    field_key = field.get('field_key', '')
                     field_name = field.get('field_name', '')
                     field_value = field.get('field_value', '')
                     
-                    if field_value and field_value.strip() and field_key in position_map:
-                        pos = position_map[field_key]
+                    if field_value and field_value.strip() and field_name in position_map:
+                        pos = position_map[field_name]
                         field_positions.append({
                             'page': pos.get('page', 0),
                             'x': pos.get('x', 250),
                             'y': pos.get('y', page_height - 100),
                             'value': field_value
                         })
-                        print(f"✓ Positioned '{field_name}' ({field_key}) at ({pos.get('x')}, {pos.get('y')})")
+                        print(f"✓ Positioned '{field_name}' at ({pos.get('x')}, {pos.get('y')})")
                 
                 print(f"✓ Successfully positioned {len(field_positions)} fields using AI")
         except Exception as e:
@@ -185,16 +180,9 @@ def _generate_field_values_with_llm(fields_data, user):
     Use LLM to generate appropriate values for form fields based on EHR data
     """
     try:
-        # Prepare field information for the LLM (using field_key as canonical identifier)
-        field_info = []
-        for field in fields_data:
-            field_key = field.get('field_key', '')
-            field_name = field.get('field_name', '')
-            field_info.append({
-                'key': field_key,
-                'label': field_name
-            })
-        field_descriptions = "\n".join([f"- {f['key']}: {f['label']}" for f in field_info])
+        # Prepare field names for the LLM
+        field_names = [field.get('field_name', '') for field in fields_data]
+        field_descriptions = "\n".join([f"- {name}" for name in field_names])
         
         # Prepare patient context
         patient_context = ""
@@ -247,13 +235,13 @@ Address: 123 Main Street, Boston, MA 02101
 
 {patient_context}
 
-Form Fields to Fill (key: label):
+Form Fields to Fill:
 {field_descriptions}
 
-Please provide appropriate values for each field in JSON format using the EXACT field keys:
+Please provide appropriate values for each field in JSON format:
 {{
-  "field_key_1": "value_1",
-  "field_key_2": "value_2",
+  "field_name_1": "value_1",
+  "field_name_2": "value_2",
   ...
 }}
 
@@ -264,8 +252,6 @@ Guidelines:
 - For medical information, be accurate and professional
 - If information is not available, use "N/A" or leave appropriate fields empty
 - Keep responses concise and relevant
-
-IMPORTANT: Use the EXACT field keys (e.g., "full_name", "date_of_birth") from the list above, not the labels.
 
 Return ONLY the JSON object, no other text."""
 
@@ -282,13 +268,12 @@ Return ONLY the JSON object, no other text."""
             if json_match:
                 generated_values = json.loads(json_match.group())
                 
-                # Update fields with generated values using field_key
+                # Update fields with generated values
                 for field in fields_data:
-                    field_key = field.get('field_key', '')
                     field_name = field.get('field_name', '')
-                    if field_key in generated_values:
-                        field['field_value'] = generated_values[field_key]
-                        print(f"✓ Generated value for '{field_name}' ({field_key}): {generated_values[field_key][:50]}...")
+                    if field_name in generated_values:
+                        field['field_value'] = generated_values[field_name]
+                        print(f"✓ Generated value for '{field_name}': {generated_values[field_name][:50]}...")
                 
                 print(f"✓ Successfully generated {len(generated_values)} field values using LLM")
         except Exception as e:

@@ -25,3 +25,7 @@ node_modules/
 # Keep data/test_file/ directory structure but ignore other files in it
 data/test_file/*
 !data/test_file/ehr_test_data.json
+
+# Keep only s0000_seg.nii.gz in seg_map_clean
+data/my_body/seg_map_clean/*
+!data/my_body/seg_map_clean/s0000_seg.nii.gz

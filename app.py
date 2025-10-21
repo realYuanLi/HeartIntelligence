@@ -71,7 +71,7 @@ except Exception as e:
 MY_BODY_DATA_PATH = APP_DIR / "data" / "my_body"
 MY_BODY_STATS_PATH = MY_BODY_DATA_PATH / "statistics.json"
 MY_BODY_CT_PATH = MY_BODY_DATA_PATH / "CT.nii.gz"
-MY_BODY_SEG_PATH = MY_BODY_DATA_PATH / "segmentations.nii"
+MY_BODY_SEG_PATH = MY_BODY_DATA_PATH / "seg_map_clean" / "s1038_seg.nii.gz"
 ORGAN_STATS = {}
 
 # Load organ statistics
@@ -989,9 +989,9 @@ def _normalize_slice(slice_data, window_center=0, window_width=400):
     
     return slice_data
 
-def _get_cache_key(axis, slice_idx, window_center, window_width, show_segmentation, segmentation_opacity):
+def _get_cache_key(axis, slice_idx, window_center, window_width, show_segmentation, segmentation_opacity, show_ct=True):
     """Generate cache key for slice parameters"""
-    return f"{axis}_{slice_idx}_{window_center}_{window_width}_{show_segmentation}_{segmentation_opacity}"
+    return f"{axis}_{slice_idx}_{window_center}_{window_width}_{show_segmentation}_{segmentation_opacity}_{show_ct}"
 
 def _manage_cache_size():
     """Manage cache size by removing oldest entries if needed"""
@@ -1050,53 +1050,57 @@ def api_my_body_slice():
     window_width = int(request.args.get('window_width', 400))
     show_segmentation = request.args.get('show_segmentation', 'true').lower() == 'true'
     segmentation_opacity = float(request.args.get('segmentation_opacity', 0.5))
+    show_ct = request.args.get('show_ct', 'true').lower() == 'true'
     
     # Check cache first
-    cache_key = _get_cache_key(axis, slice_idx, window_center, window_width, show_segmentation, segmentation_opacity)
+    cache_key = _get_cache_key(axis, slice_idx, window_center, window_width, show_segmentation, segmentation_opacity, show_ct)
     if cache_key in _slice_cache:
         return jsonify(success=True, data=_slice_cache[cache_key])
     
-    ct_data = _load_ct_data()
+    ct_data = _load_ct_data() if show_ct else None
     seg_data = _load_seg_data()
     
-    if ct_data is None:
-        return jsonify(success=False, message="CT data not available"), 404
+    # Need at least one data source
+    if ct_data is None and seg_data is None:
+        return jsonify(success=False, message="No data available"), 404
+    
+    # Use whichever data is available for shape information
+    data_source = ct_data if ct_data else seg_data
     
     try:
         # Extract slice based on axis
         if axis == 'x':
-            ct_slice = ct_data['data'][slice_idx, :, :]
+            ct_slice = ct_data['data'][slice_idx, :, :] if ct_data else None
             seg_slice = seg_data['data'][slice_idx, :, :] if seg_data else None
         elif axis == 'y':
-            ct_slice = ct_data['data'][:, slice_idx, :]
+            ct_slice = ct_data['data'][:, slice_idx, :] if ct_data else None
             seg_slice = seg_data['data'][:, slice_idx, :] if seg_data else None
         else:  # z axis
-            ct_slice = ct_data['data'][:, :, slice_idx]
+            ct_slice = ct_data['data'][:, :, slice_idx] if ct_data else None
             seg_slice = seg_data['data'][:, :, slice_idx] if seg_data else None
         
-        # Normalize CT slice
-        ct_normalized = _normalize_slice(ct_slice, window_center, window_width)
+        response_data = {}
         
-        # Convert to PIL Image - optimized processing
-        ct_image = Image.fromarray(ct_normalized, mode='L')
+        # Add CT image if requested and available
+        if show_ct and ct_slice is not None:
+            # Normalize CT slice
+            ct_normalized = _normalize_slice(ct_slice, window_center, window_width)
+            
+            # Convert to PIL Image - use original dimensions
+            ct_image = Image.fromarray(ct_normalized, mode='L')
+            
+            # Create base64 encoded image with optimized settings
+            img_buffer = io.BytesIO()
+            ct_image.save(img_buffer, format='PNG', optimize=True, compress_level=6)
+            img_buffer.seek(0)
+            ct_base64 = base64.b64encode(img_buffer.getvalue()).decode()
+            
+            response_data['ct_image'] = ct_base64
+            response_data['slice_shape'] = ct_slice.shape
+        elif seg_slice is not None:
+            response_data['slice_shape'] = seg_slice.shape
         
-        # Skip the double resize for better performance - use single high-quality resize
-        # Only resize if the image is very small
-        if ct_image.size[0] < 256 or ct_image.size[1] < 256:
-            # Use BILINEAR instead of LANCZOS for better performance
-            ct_image = ct_image.resize((256, 256), Image.BILINEAR)
-        
-        # Create base64 encoded image with optimized settings
-        img_buffer = io.BytesIO()
-        ct_image.save(img_buffer, format='PNG', optimize=True, compress_level=6)
-        img_buffer.seek(0)
-        ct_base64 = base64.b64encode(img_buffer.getvalue()).decode()
-        
-        response_data = {
-            'ct_image': ct_base64,
-            'slice_shape': ct_slice.shape,
-            'max_slices': ct_data['shape'][{'x': 0, 'y': 1, 'z': 2}[axis]]
-        }
+        response_data['max_slices'] = data_source['shape'][{'x': 0, 'y': 1, 'z': 2}[axis]]
         
         # Add segmentation if requested and available
         if show_segmentation and seg_slice is not None:
@@ -1111,9 +1115,6 @@ def api_my_body_slice():
             seg_rgb = _apply_colormap_to_segmentation(seg_slice, organ_colors)
             if seg_rgb is not None:
                 seg_image = Image.fromarray(seg_rgb, mode='RGB')
-                # Apply same optimization to segmentation
-                if seg_image.size[0] < 256 or seg_image.size[1] < 256:
-                    seg_image = seg_image.resize((256, 256), Image.BILINEAR)
                 
                 seg_buffer = io.BytesIO()
                 seg_image.save(seg_buffer, format='PNG', optimize=True, compress_level=6)

@@ -30,6 +30,13 @@
           
           <div class="control-group">
             <label>
+              <input type="checkbox" id="showCT" checked>
+              Show CT
+            </label>
+          </div>
+          
+          <div class="control-group">
+            <label>
               <input type="checkbox" id="showSegmentation" checked>
               Show Segmentation
             </label>
@@ -45,7 +52,7 @@
               <div class="view-panel">
                 <h4>Coronal (Y)</h4>
                 <div class="viewer-canvas-container">
-                  <canvas id="coronalCanvas" width="200" height="200"></canvas>
+                  <canvas id="coronalCanvas"></canvas>
                 </div>
                 <div class="control-group">
                   <label>Slice:</label>
@@ -58,7 +65,7 @@
               <div class="view-panel">
                 <h4>Sagittal (X)</h4>
                 <div class="viewer-canvas-container">
-                  <canvas id="sagittalCanvas" width="200" height="200"></canvas>
+                  <canvas id="sagittalCanvas"></canvas>
                 </div>
                 <div class="control-group">
                   <label>Slice:</label>
@@ -122,6 +129,7 @@
         this.windowCenter = 0;
         this.windowWidth = 400;
         this.segmentationOpacity = 0.5;
+        this.showCT = true;
         this.showSegmentation = true;
         this.organStats = {};
         
@@ -176,6 +184,12 @@
         document.getElementById('opacitySlider').addEventListener('input', (e) => {
           this.segmentationOpacity = parseInt(e.target.value) / 100;
           document.getElementById('opacityValue').textContent = Math.round(this.segmentationOpacity * 100) + '%';
+          debouncedLoad();
+        });
+        
+        // Show CT toggle
+        document.getElementById('showCT').addEventListener('change', (e) => {
+          this.showCT = e.target.checked;
           debouncedLoad();
         });
         
@@ -266,6 +280,7 @@
             slice: view.slice,
             window_center: this.windowCenter,
             window_width: this.windowWidth,
+            show_ct: this.showCT,
             show_segmentation: this.showSegmentation,
             segmentation_opacity: this.segmentationOpacity
           });
@@ -298,35 +313,54 @@
       }
       
       displaySlice(sliceData, ctx, canvas) {
-        // Clear canvas
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        
-        // Optimize canvas rendering settings for better performance
-        ctx.imageSmoothingEnabled = true;
-        ctx.imageSmoothingQuality = 'medium'; // Changed from 'high' to 'medium' for better performance
-        
         // Use requestAnimationFrame for smoother rendering
         const renderFrame = () => {
-          // Load CT image
-          const ctImg = new Image();
-          ctImg.onload = () => {
-            // Draw CT image
-            ctx.drawImage(ctImg, 0, 0, canvas.width, canvas.height);
-            
-            // Draw segmentation overlay if available
+          // Function to draw segmentation at original size
+          const drawSegmentation = (imgWidth, imgHeight) => {
             if (sliceData.segmentation_image && this.showSegmentation) {
               const segImg = new Image();
               segImg.onload = () => {
-                // Use save/restore for better performance
                 ctx.save();
                 ctx.globalAlpha = this.segmentationOpacity;
-                ctx.drawImage(segImg, 0, 0, canvas.width, canvas.height);
+                ctx.drawImage(segImg, 0, 0);
                 ctx.restore();
               };
               segImg.src = `data:image/png;base64,${sliceData.segmentation_image}`;
             }
           };
-          ctImg.src = `data:image/png;base64,${sliceData.ct_image}`;
+          
+          // Draw CT image if available, otherwise just draw segmentation
+          if (sliceData.ct_image) {
+            const ctImg = new Image();
+            ctImg.onload = () => {
+              // Resize canvas to match image dimensions
+              canvas.width = ctImg.width;
+              canvas.height = ctImg.height;
+              
+              // Draw CT image at original size
+              ctx.drawImage(ctImg, 0, 0);
+              
+              // Draw segmentation overlay at original size
+              drawSegmentation(ctImg.width, ctImg.height);
+            };
+            ctImg.src = `data:image/png;base64,${sliceData.ct_image}`;
+          } else if (sliceData.segmentation_image) {
+            // No CT, just draw segmentation
+            const segImg = new Image();
+            segImg.onload = () => {
+              // Resize canvas to match image dimensions
+              canvas.width = segImg.width;
+              canvas.height = segImg.height;
+              
+              // Fill with black background
+              ctx.fillStyle = '#000000';
+              ctx.fillRect(0, 0, canvas.width, canvas.height);
+              
+              // Draw segmentation at original size
+              ctx.drawImage(segImg, 0, 0);
+            };
+            segImg.src = `data:image/png;base64,${sliceData.segmentation_image}`;
+          }
         };
         
         // Use requestAnimationFrame for better performance

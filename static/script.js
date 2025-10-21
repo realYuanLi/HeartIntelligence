@@ -467,6 +467,14 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
+  const pdfFormsBtn = document.getElementById("pdfFormsBtn");
+  if (pdfFormsBtn) {
+    pdfFormsBtn.addEventListener("click", () => {
+      // Navigate to PDF forms page
+      window.location.href = "/pdf-forms";
+    });
+  }
+
   /* ==================================================== */
   /*  Welcome page functionality                           */
   /* ==================================================== */

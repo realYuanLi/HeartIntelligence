@@ -1,0 +1,271 @@
+{% extends "base.html" %}
+
+{% block main %}
+<div class="pdf-forms-container">
+  <div class="pdf-forms-header">
+    <h1>PDF Form Filler</h1>
+    <p class="subtitle">Upload a PDF form, and AI will automatically interpret and fill it</p>
+  </div>
+
+  <div class="pdf-forms-content">
+    <!-- Upload Section -->
+    <div class="upload-section" id="uploadSection">
+      <div class="upload-box">
+        <div class="upload-icon">📄</div>
+        <h3>Upload PDF Form</h3>
+        <p>Click to browse or drag and drop your PDF file here</p>
+        <input type="file" id="pdfFileInput" accept=".pdf" style="display: none;">
+        <button class="btn-primary" id="uploadBtn">Choose File</button>
+        <div class="file-name" id="fileName" style="display: none;"></div>
+      </div>
+    </div>
+
+    <!-- Processing Section -->
+    <div class="processing-section" id="processingSection" style="display: none;">
+      <div class="processing-box">
+        <div class="spinner"></div>
+        <h3>Processing PDF...</h3>
+        <p id="processingStatus">Analyzing form fields...</p>
+      </div>
+    </div>
+
+    <!-- Form Fields Section -->
+    <div class="form-fields-section" id="formFieldsSection" style="display: none;">
+      <div class="form-fields-box">
+        <h3>AI-Generated Form Values</h3>
+        <p class="info-text">AI has analyzed the form and generated values based on your health data. Review and edit as needed:</p>
+        <div class="ai-summary" id="aiSummary" style="display: none;"></div>
+        <div id="formFieldsList"></div>
+        <div class="button-group">
+          <button class="btn-secondary" id="cancelBtn">Cancel</button>
+          <button class="btn-primary" id="generatePdfBtn">Generate Filled PDF</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Download Section -->
+    <div class="download-section" id="downloadSection" style="display: none;">
+      <div class="download-box">
+        <div class="success-icon">✓</div>
+        <h3>PDF Generated Successfully!</h3>
+        <p>Your filled PDF is ready for download</p>
+        <div class="button-group">
+          <button class="btn-primary" id="downloadBtn">Download PDF</button>
+          <button class="btn-secondary" id="newFormBtn">Fill Another Form</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+.pdf-forms-container {
+  padding: 2rem;
+  max-width: 1200px;
+  margin: 0 auto;
+  height: 100%;
+  overflow-y: auto;
+}
+
+.pdf-forms-header {
+  margin-bottom: 2rem;
+  text-align: center;
+}
+
+.pdf-forms-header h1 {
+  font-size: 2rem;
+  margin-bottom: 0.5rem;
+  color: #1a1a1a;
+}
+
+.subtitle {
+  color: #666;
+  font-size: 1rem;
+}
+
+.upload-box, .processing-box, .form-fields-box, .download-box {
+  background: white;
+  border-radius: 12px;
+  padding: 3rem;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  text-align: center;
+}
+
+.upload-icon {
+  font-size: 4rem;
+  margin-bottom: 1rem;
+}
+
+.upload-box h3 {
+  font-size: 1.5rem;
+  margin-bottom: 0.5rem;
+  color: #1a1a1a;
+}
+
+.upload-box p {
+  color: #666;
+  margin-bottom: 1.5rem;
+}
+
+.btn-primary, .btn-secondary {
+  padding: 0.75rem 2rem;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.3s;
+  margin: 0.5rem;
+}
+
+.btn-primary {
+  background: #ff6850;
+  color: white;
+}
+
+.btn-primary:hover {
+  background: #e55a00;
+}
+
+.btn-secondary {
+  background: #e5e7eb;
+  color: #374151;
+}
+
+.btn-secondary:hover {
+  background: #d1d5db;
+}
+
+.file-name {
+  margin-top: 1rem;
+  padding: 0.5rem 1rem;
+  background: #f3f4f6;
+  border-radius: 6px;
+  color: #374151;
+  font-size: 0.9rem;
+}
+
+.spinner {
+  margin: 0 auto 1.5rem;
+  width: 50px;
+  height: 50px;
+  border: 4px solid #f3f4f6;
+  border-top: 4px solid #ff6850;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.processing-box h3 {
+  font-size: 1.5rem;
+  margin-bottom: 0.5rem;
+  color: #1a1a1a;
+}
+
+.processing-box p {
+  color: #666;
+}
+
+.form-fields-box {
+  text-align: left;
+}
+
+.form-fields-box h3 {
+  font-size: 1.5rem;
+  margin-bottom: 0.5rem;
+  color: #1a1a1a;
+  text-align: center;
+}
+
+.info-text {
+  text-align: center;
+  color: #666;
+  margin-bottom: 2rem;
+}
+
+#formFieldsList {
+  max-height: 400px;
+  overflow-y: auto;
+  margin-bottom: 2rem;
+}
+
+.form-field {
+  margin-bottom: 1.5rem;
+}
+
+.form-field label {
+  display: block;
+  font-weight: 500;
+  margin-bottom: 0.5rem;
+  color: #374151;
+}
+
+.form-field input, .form-field textarea {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 1rem;
+  font-family: inherit;
+}
+
+.form-field textarea {
+  min-height: 80px;
+  resize: vertical;
+}
+
+.button-group {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+  margin-top: 2rem;
+}
+
+.success-icon {
+  font-size: 4rem;
+  color: #10b981;
+  margin-bottom: 1rem;
+}
+
+.download-box h3 {
+  font-size: 1.5rem;
+  margin-bottom: 0.5rem;
+  color: #1a1a1a;
+}
+
+.download-box p {
+  color: #666;
+  margin-bottom: 2rem;
+}
+
+.ai-badge {
+  display: inline-block;
+  margin-left: 0.5rem;
+  padding: 0.2rem 0.5rem;
+  background: linear-gradient(135deg, #ff6850 0%, #e55a00 100%);
+  color: white;
+  font-size: 0.7rem;
+  border-radius: 4px;
+  font-weight: 600;
+  vertical-align: middle;
+}
+
+.ai-summary {
+  background: #fff5f0;
+  border-left: 4px solid #ff6850;
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  color: #c44a2c;
+}
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='pdf_forms.js') }}"></script>
+{% endblock %}
+

@@ -16,6 +16,7 @@ try:
     import sys
     # sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
     from functions.agent import Agent, get_status
+    from functions.auto_form_fill import init_pdf_forms
 except Exception as e:
     class _Resp:
         def __init__(self, content: str):
@@ -32,6 +33,9 @@ except Exception as e:
     
     def get_status():
         return "idle"
+    
+    def init_pdf_forms(*args, **kwargs):
+        pass
 
 # --------------------------------------------------------------------------------
 # Paths & config
@@ -298,6 +302,15 @@ def my_body():
     
     # For logged in users, show my body page
     return render_template("my_body.html", username=session.get("username"))
+
+@app.route("/pdf-forms")
+def pdf_forms():
+    # Show PDF forms page
+    if not _require_login():
+        return redirect(url_for("index"))
+    
+    # For logged in users, show PDF forms page
+    return render_template("pdf_forms.html", username=session.get("username"))
 
 @app.route("/chat/<session_id>")
 def chat(session_id: str):
@@ -812,6 +825,16 @@ def _analyze_clinical():
     
     return clinical_data
 
+def _get_user_ehr_data(user):
+    """Get EHR data for a user (currently global EHR_DATA)"""
+    return EHR_DATA
+
+# --------------------------------------------------------------------------------
+# Initialize PDF Form Filling Blueprint
+# --------------------------------------------------------------------------------
+init_pdf_forms(app, _require_login, _username, Chatbot, _get_user_ehr_data, 
+               _analyze_cardiovascular, _analyze_clinical, _get_demographics)
+
 # --------------------------------------------------------------------------------
 # Speech-to-Text endpoints
 # --------------------------------------------------------------------------------
@@ -1126,6 +1149,10 @@ def _hsv_to_rgb(h, s, v):
     import colorsys
     r, g, b = colorsys.hsv_to_rgb(h/360, s, v)
     return (int(r*255), int(g*255), int(b*255))
+
+# --------------------------------------------------------------------------------
+# PDF Form Filling endpoints - now in functions/auto_form_fill.py
+# --------------------------------------------------------------------------------
 
 
 if __name__ == "__main__":

@@ -87,6 +87,21 @@ except Exception as e:
     ORGAN_STATS = {}
     print(f"Could not load organ statistics: {e}")
 
+# Load health information
+HEALTH_INFO_PATH = APP_DIR / "data" / "health_info.json"
+HEALTH_INFO = {}
+try:
+    if HEALTH_INFO_PATH.exists():
+        with open(HEALTH_INFO_PATH, "r", encoding="utf-8") as f:
+            HEALTH_INFO = json.load(f)
+        print(f"Loaded health information for {len(HEALTH_INFO)} organs")
+    else:
+        HEALTH_INFO = {}
+        print("Health information file not found")
+except Exception as e:
+    HEALTH_INFO = {}
+    print(f"Could not load health information: {e}")
+
 # Cache for medical imaging data
 _CT_DATA = None
 _SEG_DATA = None
@@ -1184,12 +1199,16 @@ def api_my_body_click_organ():
                 organ_name = organ_names[organ_label - 1]
                 organ_data = ORGAN_STATS[organ_name]
                 
+                # Get health information if available
+                health_info = HEALTH_INFO.get(organ_name, {})
+                
                 return jsonify(
                     success=True,
                     organ_name=organ_name,
                     organ_label=organ_label,
                     volume=organ_data.get('volume', 0),
-                    intensity=organ_data.get('intensity', 0)
+                    intensity=organ_data.get('intensity', 0),
+                    health_info=health_info
                 )
             else:
                 return jsonify(success=False, message=f"Unknown organ label: {organ_label}")
@@ -1198,6 +1217,21 @@ def api_my_body_click_organ():
             
     except Exception as e:
         return jsonify(success=False, message=f"Error: {str(e)}"), 500
+
+@app.route("/api/my-body/health-info")
+def api_my_body_health_info():
+    """Get health information for a specific organ"""
+    if not _require_login():
+        return jsonify(success=False, message="Login required"), 401
+    
+    organ_name = request.args.get('organ')
+    if not organ_name:
+        return jsonify(success=False, message="Organ name required"), 400
+    
+    if organ_name not in HEALTH_INFO:
+        return jsonify(success=False, message="Health information not available for this organ"), 404
+    
+    return jsonify(success=True, health_info=HEALTH_INFO[organ_name])
 
 def _hsv_to_rgb(h, s, v):
     """Convert HSV to RGB"""

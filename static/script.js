@@ -1,5 +1,5 @@
 /*********************************************************************
- *  script.js  —  Front-end logic for MyDataHelps Integration
+ *  script.js  —  Front-end logic for Personal Health Pal
  *
  *  • Login / logout / load history
  *  • Create new session or continue a chat

@@ -79,6 +79,17 @@
           
         </div>
         
+        <!-- Health Information Sidebar -->
+        <div class="health-info-sidebar" id="healthInfoSidebar">
+          <div class="sidebar-header">
+            <h3 id="sidebarTitle">Organ Information</h3>
+            <button id="closeSidebar" class="close-btn">×</button>
+          </div>
+          <div class="sidebar-content" id="sidebarContent">
+            <p class="sidebar-placeholder">Click on an organ in the medical images to view health information.</p>
+          </div>
+        </div>
+        
       </div>
     </div>
   </div>
@@ -138,6 +149,7 @@
         this.debounceDelay = 150; // ms
         
         this.initializeControls();
+        this.initializeSidebar();
         this.loadMetadata();
       }
       
@@ -210,6 +222,20 @@
         // Add cursor pointer style to canvases
         this.coronalCanvas.style.cursor = 'pointer';
         this.sagittalCanvas.style.cursor = 'pointer';
+      }
+      
+      initializeSidebar() {
+        // Close sidebar button
+        document.getElementById('closeSidebar').addEventListener('click', () => {
+          document.getElementById('healthInfoSidebar').classList.remove('active');
+        });
+        
+        // Close sidebar on escape key
+        document.addEventListener('keydown', (e) => {
+          if (e.key === 'Escape') {
+            document.getElementById('healthInfoSidebar').classList.remove('active');
+          }
+        });
       }
       
       async loadMetadata() {
@@ -412,80 +438,104 @@
         const volumeFormatted = Math.round(organData.volume).toLocaleString();
         const intensityFormatted = organData.intensity.toFixed(1);
         
-        // Create or update info overlay
-        let overlay = document.getElementById('organInfoOverlay');
-        if (!overlay) {
-          overlay = document.createElement('div');
-          overlay.id = 'organInfoOverlay';
-          overlay.style.cssText = `
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background: rgba(0, 0, 0, 0.9);
-            color: white;
-            padding: 20px 30px;
-            border-radius: 10px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
-            z-index: 10000;
-            min-width: 300px;
-            font-family: Arial, sans-serif;
-          `;
-          document.body.appendChild(overlay);
+        // Update sidebar title
+        document.getElementById('sidebarTitle').textContent = organNameFormatted;
+        
+        // Build health information HTML if available
+        let healthInfoHTML = '';
+        if (organData.health_info && Object.keys(organData.health_info).length > 0) {
+          const healthInfo = organData.health_info;
           
-          // Close on click
-          overlay.addEventListener('click', () => {
-            overlay.remove();
-          });
+          healthInfoHTML = `
+            <div class="health-info-section">
+              <h4>Health Information</h4>
+              
+              ${healthInfo.description ? `
+                <div class="organ-description">
+                  ${healthInfo.description}
+                </div>
+              ` : ''}
+              
+              ${healthInfo.health_info ? `
+                ${healthInfo.health_info.common_conditions ? `
+                  <div class="info-category">
+                    <strong class="health-conditions">Common Conditions:</strong>
+                    <ul>
+                      ${healthInfo.health_info.common_conditions.map(condition => `<li>${condition}</li>`).join('')}
+                    </ul>
+                  </div>
+                ` : ''}
+                
+                ${healthInfo.health_info.symptoms_to_watch ? `
+                  <div class="info-category">
+                    <strong class="health-symptoms">Symptoms to Watch:</strong>
+                    <ul>
+                      ${healthInfo.health_info.symptoms_to_watch.map(symptom => `<li>${symptom}</li>`).join('')}
+                    </ul>
+                  </div>
+                ` : ''}
+                
+                ${healthInfo.health_info.preventive_measures ? `
+                  <div class="info-category">
+                    <strong class="health-prevention">Preventive Measures:</strong>
+                    <ul>
+                      ${healthInfo.health_info.preventive_measures.map(measure => `<li>${measure}</li>`).join('')}
+                    </ul>
+                  </div>
+                ` : ''}
+                
+                ${healthInfo.health_info.screening_recommendations ? `
+                  <div class="info-category">
+                    <strong class="health-screening">Screening Recommendations:</strong>
+                    <ul>
+                      ${healthInfo.health_info.screening_recommendations.map(screening => `<li>${screening}</li>`).join('')}
+                    </ul>
+                  </div>
+                ` : ''}
+                
+                ${healthInfo.normal_values ? `
+                  <div class="info-category">
+                    <strong class="health-normal">Normal Values:</strong>
+                    <div class="normal-values">
+                      ${Object.entries(healthInfo.normal_values).map(([key, value]) => 
+                        `<div><strong>${key.replace(/_/g, ' ')}:</strong> ${value}</div>`
+                      ).join('')}
+                    </div>
+                  </div>
+                ` : ''}
+              ` : ''}
+            </div>
+          `;
         }
         
-        overlay.innerHTML = `
-          <h3 style="margin: 0 0 15px 0; color: #4CAF50; font-size: 20px;">${organNameFormatted}</h3>
-          <div style="margin-bottom: 10px;">
-            <strong>Volume:</strong> ${volumeFormatted} mm³
+        // Update sidebar content
+        document.getElementById('sidebarContent').innerHTML = `
+          <div class="organ-stats">
+            <div class="stat-item">
+              <strong>Volume:</strong> ${volumeFormatted} mm³
+            </div>
+            <div class="stat-item">
+              <strong>Intensity:</strong> ${intensityFormatted} HU
+            </div>
           </div>
-          <div style="margin-bottom: 10px;">
-            <strong>Intensity:</strong> ${intensityFormatted} HU
-          </div>
-          <div style="text-align: center; margin-top: 15px; font-size: 12px; color: #888;">
-            Click anywhere to close
-          </div>
+          
+          ${healthInfoHTML}
         `;
+        
+        // Show sidebar
+        document.getElementById('healthInfoSidebar').classList.add('active');
       }
       
       showNoOrganInfo() {
-        let overlay = document.getElementById('organInfoOverlay');
-        if (!overlay) {
-          overlay = document.createElement('div');
-          overlay.id = 'organInfoOverlay';
-          overlay.style.cssText = `
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background: rgba(0, 0, 0, 0.9);
-            color: white;
-            padding: 20px 30px;
-            border-radius: 10px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
-            z-index: 10000;
-            min-width: 250px;
-            font-family: Arial, sans-serif;
-            text-align: center;
-          `;
-          document.body.appendChild(overlay);
-          
-          overlay.addEventListener('click', () => {
-            overlay.remove();
-          });
-        }
-        
-        overlay.innerHTML = `
-          <p style="margin: 0; color: #ccc;">No organ at this location</p>
-          <div style="margin-top: 10px; font-size: 12px; color: #888;">
-            Click anywhere to close
-          </div>
+        // Update sidebar to show no organ message
+        document.getElementById('sidebarTitle').textContent = 'No Organ Selected';
+        document.getElementById('sidebarContent').innerHTML = `
+          <p class="no-organ-message">No organ at this location</p>
+          <p class="sidebar-placeholder">Click on an organ in the medical images to view health information.</p>
         `;
+        
+        // Keep sidebar visible but with no organ info
+        document.getElementById('healthInfoSidebar').classList.add('active');
       }
       
       populateOrganList() {

@@ -52,20 +52,24 @@ with open(CONFIG_PATH, "r", encoding="utf-8") as f:
 PATIENT_DATA = None
 EHR_DATA = None
 
-# Load EHR test data
-EHR_DATA_PATH = APP_DIR / "data" / "test_file" / "ehr_test_data.json"
+# Load EHR test data (prefer transformed raw_ehr.json if available)
+EHR_DATA_PATH_TRANSFORMED = APP_DIR / "data" / "test_file" / "raw_ehr_transformed.json"
+
+# Prefer transformed data if available, otherwise fall back to original
+ehr_path = EHR_DATA_PATH_TRANSFORMED
+
 try:
-    if EHR_DATA_PATH.exists() and EHR_DATA_PATH.is_file():
-        print(f"Loading EHR data from {EHR_DATA_PATH}...")
-        with open(EHR_DATA_PATH, "r", encoding="utf-8") as f:
+    if ehr_path.exists() and ehr_path.is_file():
+        print(f"Loading EHR data from {ehr_path}...")
+        with open(ehr_path, "r", encoding="utf-8") as f:
             EHR_DATA = json.load(f)
-        print(f"✓ Loaded EHR data with {EHR_DATA.get('metadata', {}).get('summary', {}).get('total_records', 0)} records")
+        print(f"Loaded EHR data with {EHR_DATA.get('metadata', {}).get('summary', {}).get('total_records', 0)} records")
     else:
         EHR_DATA = None
-        print("⚠ EHR data file not found - health data features will be limited")
+        print("EHR data file not found - health data features will be limited")
 except Exception as e:
     EHR_DATA = None
-    print(f"⚠ Could not load EHR data: {e}")
+    print(f"Could not load EHR data: {e}")
 
 # Load my body data
 MY_BODY_DATA_PATH = APP_DIR / "data" / "my_body"
@@ -610,6 +614,8 @@ def _get_demographics():
         return {}
     
     demographics_records = EHR_DATA["demographics"]
+    
+    # First try the old format with "Demographics" subcategory
     if "Demographics" in demographics_records and len(demographics_records["Demographics"]) > 0:
         demo = demographics_records["Demographics"][0]
         return {
@@ -618,7 +624,25 @@ def _get_demographics():
             "sex": demo.get("BiologicalSex", "N/A"),
             "age": demo.get("Age", "N/A")
         }
-    return {}
+    
+    # Fallback: Extract from individual characteristic records (new format)
+    result = {}
+    
+    if "BiologicalSex" in demographics_records and len(demographics_records["BiologicalSex"]) > 0:
+        result["sex"] = demographics_records["BiologicalSex"][0].get("Value", "N/A")
+    
+    if "DateOfBirth" in demographics_records and len(demographics_records["DateOfBirth"]) > 0:
+        dob_str = demographics_records["DateOfBirth"][0].get("Value", "")
+        # Parse date string to extract just the date part
+        if dob_str:
+            result["birth_date"] = dob_str.split("T")[0] if "T" in dob_str else dob_str
+        else:
+            result["birth_date"] = "N/A"
+    
+    if "WheelchairUse" in demographics_records and len(demographics_records["WheelchairUse"]) > 0:
+        result["wheelchair_use"] = demographics_records["WheelchairUse"][0].get("Value", "N/A")
+    
+    return result
 
 def _calculate_summary_stats():
     """Calculate overall summary statistics"""

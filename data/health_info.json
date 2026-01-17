@@ -1,0 +1,443 @@
+{
+  "stomach": {
+    "name": "Stomach",
+    "description": "Digestive organ that breaks down food.",
+    "health_info": {
+      "common_conditions": [
+        "Gastritis",
+        "Ulcers", 
+        "GERD",
+        "Stomach cancer"
+      ],
+      "symptoms_to_watch": [
+        "Abdominal pain",
+        "Nausea/vomiting",
+        "Heartburn",
+        "Bloating"
+      ],
+      "preventive_measures": [
+        "Healthy diet",
+        "Limit alcohol",
+        "Don't smoke",
+        "Manage stress"
+      ],
+      "screening_recommendations": [
+        "Endoscopy if symptoms persist",
+        "H. pylori testing"
+      ]
+    },
+    "normal_values": {
+      "capacity": "1-2 liters when full"
+    }
+  },
+  "liver": {
+    "name": "Liver",
+    "description": "Filters toxins and produces bile.",
+    "health_info": {
+      "common_conditions": [
+        "Hepatitis",
+        "Cirrhosis",
+        "Fatty liver",
+        "Liver cancer"
+      ],
+      "symptoms_to_watch": [
+        "Jaundice",
+        "Abdominal pain",
+        "Dark urine",
+        "Fatigue"
+      ],
+      "preventive_measures": [
+        "Limit alcohol",
+        "Healthy weight",
+        "Hepatitis vaccination",
+        "Balanced diet"
+      ],
+      "screening_recommendations": [
+        "Liver function tests",
+        "Hepatitis screening"
+      ]
+    },
+    "normal_values": {
+      "size": "~1.5 kg in adults"
+    }
+  },
+  "heart": {
+    "name": "Heart",
+    "description": "Pumps blood throughout the body.",
+    "health_info": {
+      "common_conditions": [
+        "Coronary artery disease",
+        "Heart attack",
+        "Heart failure",
+        "High blood pressure"
+      ],
+      "symptoms_to_watch": [
+        "Chest pain",
+        "Shortness of breath",
+        "Irregular heartbeat",
+        "Dizziness"
+      ],
+      "preventive_measures": [
+        "Control blood pressure",
+        "Manage cholesterol",
+        "Exercise regularly",
+        "Don't smoke"
+      ],
+      "screening_recommendations": [
+        "Blood pressure monitoring",
+        "Cholesterol screening",
+        "ECG if symptoms"
+      ]
+    },
+    "normal_values": {
+      "heart_rate": "60-100 bpm",
+      "blood_pressure": "<120/80 mmHg"
+    }
+  },
+  "kidney_left": {
+    "name": "Left Kidney",
+    "description": "Filters waste from blood.",
+    "health_info": {
+      "common_conditions": [
+        "Chronic kidney disease",
+        "Kidney stones",
+        "UTI",
+        "Kidney cancer"
+      ],
+      "symptoms_to_watch": [
+        "Changes in urination",
+        "Swelling in legs",
+        "Fatigue",
+        "Back pain"
+      ],
+      "preventive_measures": [
+        "Stay hydrated",
+        "Control blood pressure",
+        "Limit salt",
+        "Don't smoke"
+      ],
+      "screening_recommendations": [
+        "Urine protein test",
+        "Creatinine/eGFR test"
+      ]
+    },
+    "normal_values": {
+      "size": "10-12 cm long",
+      "function": "eGFR > 60"
+    }
+  },
+  "kidney_right": {
+    "name": "Right Kidney",
+    "description": "Filters waste from blood.",
+    "health_info": {
+      "common_conditions": [
+        "Chronic kidney disease",
+        "Kidney stones",
+        "UTI",
+        "Kidney cancer"
+      ],
+      "symptoms_to_watch": [
+        "Changes in urination",
+        "Swelling in legs",
+        "Fatigue",
+        "Back pain"
+      ],
+      "preventive_measures": [
+        "Stay hydrated",
+        "Control blood pressure",
+        "Limit salt",
+        "Don't smoke"
+      ],
+      "screening_recommendations": [
+        "Urine protein test",
+        "Creatinine/eGFR test"
+      ]
+    },
+    "normal_values": {
+      "size": "10-12 cm long",
+      "function": "eGFR > 60"
+    }
+  },
+  "lung_upper_lobe_left": {
+    "name": "Left Upper Lung Lobe",
+    "description": "Part of respiratory system for oxygen exchange.",
+    "health_info": {
+      "common_conditions": [
+        "Pneumonia",
+        "COPD",
+        "Lung cancer",
+        "Asthma"
+      ],
+      "symptoms_to_watch": [
+        "Persistent cough",
+        "Shortness of breath",
+        "Chest pain",
+        "Wheezing"
+      ],
+      "preventive_measures": [
+        "Don't smoke",
+        "Annual flu vaccine",
+        "Exercise regularly",
+        "Avoid air pollution"
+      ],
+      "screening_recommendations": [
+        "Annual flu vaccination",
+        "Lung cancer screening (high-risk)"
+      ]
+    },
+    "normal_values": {
+      "oxygen_saturation": "95-100%"
+    }
+  },
+  "lung_upper_lobe_right": {
+    "name": "Right Upper Lung Lobe",
+    "description": "Part of respiratory system for oxygen exchange.",
+    "health_info": {
+      "common_conditions": [
+        "Pneumonia",
+        "COPD",
+        "Lung cancer",
+        "Asthma"
+      ],
+      "symptoms_to_watch": [
+        "Persistent cough",
+        "Shortness of breath",
+        "Chest pain",
+        "Wheezing"
+      ],
+      "preventive_measures": [
+        "Don't smoke",
+        "Annual flu vaccine",
+        "Exercise regularly",
+        "Avoid air pollution"
+      ],
+      "screening_recommendations": [
+        "Annual flu vaccination",
+        "Lung cancer screening (high-risk)"
+      ]
+    },
+    "normal_values": {
+      "oxygen_saturation": "95-100%"
+    }
+  },
+  "pancreas": {
+    "name": "Pancreas",
+    "description": "Produces digestive enzymes and insulin.",
+    "health_info": {
+      "common_conditions": [
+        "Diabetes",
+        "Pancreatitis",
+        "Pancreatic cancer",
+        "Pancreatic cysts"
+      ],
+      "symptoms_to_watch": [
+        "Abdominal pain",
+        "Nausea/vomiting",
+        "Weight loss",
+        "Diabetes symptoms"
+      ],
+      "preventive_measures": [
+        "Healthy weight",
+        "Limit alcohol",
+        "Don't smoke",
+        "Balanced diet"
+      ],
+      "screening_recommendations": [
+        "Blood glucose testing",
+        "HbA1c screening"
+      ]
+    },
+    "normal_values": {
+      "blood_glucose": "70-100 mg/dL (fasting)"
+    }
+  },
+  "spleen": {
+    "name": "Spleen",
+    "description": "Filters blood and fights infections.",
+    "health_info": {
+      "common_conditions": [
+        "Enlarged spleen",
+        "Splenic rupture",
+        "Infections",
+        "Splenic cysts"
+      ],
+      "symptoms_to_watch": [
+        "Left upper abdominal pain",
+        "Feeling full quickly",
+        "Fatigue",
+        "Frequent infections"
+      ],
+      "preventive_measures": [
+        "Get vaccinated",
+        "Avoid contact sports if enlarged",
+        "Good hygiene",
+        "Don't smoke"
+      ],
+      "screening_recommendations": [
+        "Physical examination",
+        "Blood tests"
+      ]
+    },
+    "normal_values": {
+      "size": "7-14 cm long"
+    }
+  },
+  "lung_lower_lobe_left": {
+    "name": "Left Lower Lung Lobe",
+    "description": "Part of respiratory system for oxygen exchange.",
+    "health_info": {
+      "common_conditions": [
+        "Pneumonia",
+        "COPD",
+        "Lung cancer",
+        "Asthma"
+      ],
+      "symptoms_to_watch": [
+        "Persistent cough",
+        "Shortness of breath",
+        "Chest pain",
+        "Wheezing"
+      ],
+      "preventive_measures": [
+        "Don't smoke",
+        "Annual flu vaccine",
+        "Exercise regularly",
+        "Avoid air pollution"
+      ],
+      "screening_recommendations": [
+        "Annual flu vaccination",
+        "Lung cancer screening (high-risk)"
+      ]
+    },
+    "normal_values": {
+      "oxygen_saturation": "95-100%"
+    }
+  },
+  "lung_lower_lobe_right": {
+    "name": "Right Lower Lung Lobe",
+    "description": "Part of respiratory system for oxygen exchange.",
+    "health_info": {
+      "common_conditions": [
+        "Pneumonia",
+        "COPD",
+        "Lung cancer",
+        "Asthma"
+      ],
+      "symptoms_to_watch": [
+        "Persistent cough",
+        "Shortness of breath",
+        "Chest pain",
+        "Wheezing"
+      ],
+      "preventive_measures": [
+        "Don't smoke",
+        "Annual flu vaccine",
+        "Exercise regularly",
+        "Avoid air pollution"
+      ],
+      "screening_recommendations": [
+        "Annual flu vaccination",
+        "Lung cancer screening (high-risk)"
+      ]
+    },
+    "normal_values": {
+      "oxygen_saturation": "95-100%"
+    }
+  },
+  "lung_middle_lobe_right": {
+    "name": "Right Middle Lung Lobe",
+    "description": "Part of respiratory system for oxygen exchange.",
+    "health_info": {
+      "common_conditions": [
+        "Pneumonia",
+        "COPD",
+        "Lung cancer",
+        "Asthma"
+      ],
+      "symptoms_to_watch": [
+        "Persistent cough",
+        "Shortness of breath",
+        "Chest pain",
+        "Wheezing"
+      ],
+      "preventive_measures": [
+        "Don't smoke",
+        "Annual flu vaccine",
+        "Exercise regularly",
+        "Avoid air pollution"
+      ],
+      "screening_recommendations": [
+        "Annual flu vaccination",
+        "Lung cancer screening (high-risk)"
+      ]
+    },
+    "normal_values": {
+      "oxygen_saturation": "95-100%"
+    }
+  },
+  "gallbladder": {
+    "name": "Gallbladder",
+    "description": "Stores bile for fat digestion.",
+    "health_info": {
+      "common_conditions": [
+        "Gallstones",
+        "Cholecystitis",
+        "Gallbladder cancer",
+        "Biliary colic"
+      ],
+      "symptoms_to_watch": [
+        "Right upper abdominal pain",
+        "Pain after fatty foods",
+        "Nausea/vomiting",
+        "Jaundice"
+      ],
+      "preventive_measures": [
+        "Healthy weight",
+        "Balanced diet",
+        "Limit high-fat foods",
+        "Don't skip meals"
+      ],
+      "screening_recommendations": [
+        "Ultrasound if symptoms",
+        "Liver function tests"
+      ]
+    },
+    "normal_values": {
+      "size": "7-10 cm long",
+      "capacity": "30-50 ml"
+    }
+  },
+  "aorta": {
+    "name": "Aorta",
+    "description": "Largest artery carrying blood from heart.",
+    "health_info": {
+      "common_conditions": [
+        "Aortic aneurysm",
+        "Aortic dissection",
+        "Aortic stenosis",
+        "Atherosclerosis"
+      ],
+      "symptoms_to_watch": [
+        "Chest pain",
+        "Back pain",
+        "Shortness of breath",
+        "Dizziness"
+      ],
+      "preventive_measures": [
+        "Control blood pressure",
+        "Manage cholesterol",
+        "Don't smoke",
+        "Exercise regularly"
+      ],
+      "screening_recommendations": [
+        "Blood pressure monitoring",
+        "Cholesterol screening",
+        "CT scan (high-risk)"
+      ]
+    },
+    "normal_values": {
+      "diameter": "2-3 cm in adults",
+      "blood_pressure": "<120/80 mmHg"
+    }
+  }
+}

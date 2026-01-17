@@ -7,7 +7,10 @@ __pycache__/
 *.json
 !patient_info/*.json
 !data/test_file/ehr_test_data.json
+!data/test_file/raw_ehr_transformed.json
 !data/my_body/statistics.json
+!data/health_info.json
+!config/configs.json
 
 # Ignore chat history and other data directories
 chat_history/
@@ -25,6 +28,7 @@ node_modules/
 # Keep data/test_file/ directory structure but ignore other files in it
 data/test_file/*
 !data/test_file/ehr_test_data.json
+!data/test_file/raw_ehr_transformed.json
 
 # Keep only s1038_seg.nii.gz in seg_map_clean
 data/my_body/seg_map_clean/*

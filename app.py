@@ -879,6 +879,8 @@ init_pdf_forms(app, _require_login, _username, Chatbot, _get_user_ehr_data,
 # --------------------------------------------------------------------------------
 # Global transcriber instance (per user session)
 transcriber_instances = {}
+# Track the last polled index for each user to avoid duplicate text
+transcriber_last_index = {}
 
 @app.route("/api/speech/start", methods=["POST"])
 def api_speech_start():
@@ -902,6 +904,8 @@ def api_speech_start():
         transcriber = SpeechToText(model='base.en')
         transcriber.start()
         transcriber_instances[user] = transcriber
+        # Reset the last polled index for this user
+        transcriber_last_index[user] = 0
         
         return jsonify(success=True, message="Recording started")
     except ImportError:
@@ -935,6 +939,9 @@ def api_speech_stop():
         # Stop and cleanup
         transcriber.stop()
         del transcriber_instances[user]
+        # Clean up the last polled index
+        if user in transcriber_last_index:
+            del transcriber_last_index[user]
         
         return jsonify(success=True, transcribed_text=all_text)
     except Exception as e:
@@ -957,9 +964,18 @@ def api_speech_poll():
         
         # Get latest text from history
         history = transcriber.get_transcription_history()
-        latest_text = " ".join([entry["text"] for entry in history])
         
-        return jsonify(success=True, is_recording=True, text=latest_text)
+        # Get the last index we sent to the client
+        last_index = transcriber_last_index.get(user, 0)
+        
+        # Only return new text since the last poll
+        new_entries = history[last_index:]
+        new_text = " ".join([entry["text"] for entry in new_entries])
+        
+        # Update the last index for this user
+        transcriber_last_index[user] = len(history)
+        
+        return jsonify(success=True, is_recording=True, text=new_text)
     except Exception as e:
         return jsonify(success=False, message=f"Polling failed: {str(e)}"), 500
 

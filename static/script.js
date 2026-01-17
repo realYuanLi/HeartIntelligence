@@ -1178,23 +1178,13 @@ document.addEventListener("DOMContentLoaded", () => {
       
       if (messageInput) {
         messageInput.placeholder = "Ask anything";
+        // Focus the input and trigger resize
+        // Note: We don't append text here because polling already handled it
+        messageInput.dispatchEvent(new Event('input'));
+        messageInput.focus();
       }
       
-      if (data.success && data.transcribed_text) {
-        // Insert transcribed text into input box
-        if (messageInput) {
-          const currentText = messageInput.value.trim();
-          if (currentText) {
-            messageInput.value = currentText + " " + data.transcribed_text;
-          } else {
-            messageInput.value = data.transcribed_text;
-          }
-          
-          // Trigger input event to update send button state and auto-resize
-          messageInput.dispatchEvent(new Event('input'));
-          messageInput.focus();
-        }
-      } else if (!data.success) {
+      if (!data.success) {
         console.error("Failed to stop recording:", data.message);
       }
     })

@@ -102,6 +102,22 @@ except Exception as e:
     HEALTH_INFO = {}
     print(f"Could not load health information: {e}")
 
+# Load mobile health data
+MOBILE_HEALTH_DATA_PATH = APP_DIR / "data" / "processed_mobile_data.json"
+MOBILE_HEALTH_DATA = {}
+try:
+    if MOBILE_HEALTH_DATA_PATH.exists():
+        with open(MOBILE_HEALTH_DATA_PATH, "r", encoding="utf-8") as f:
+            MOBILE_HEALTH_DATA = json.load(f)
+        date_range = MOBILE_HEALTH_DATA.get('date_range', {})
+        print(f"Loaded mobile health data: {date_range.get('start', 'N/A')} to {date_range.get('end', 'N/A')}")
+    else:
+        MOBILE_HEALTH_DATA = {}
+        print("Mobile health data file not found - run process_mobile_data.py to generate it")
+except Exception as e:
+    MOBILE_HEALTH_DATA = {}
+    print(f"Could not load mobile health data: {e}")
+
 # Cache for medical imaging data
 _CT_DATA = None
 _SEG_DATA = None
@@ -127,7 +143,8 @@ try:
         llm=CONFIG["chatbot"]["llm_model"],
         temperature=0.7,
         sys_message=system_prompt,
-        ehr_data=PATIENT_DATA
+        ehr_data=PATIENT_DATA,
+        mobile_data=MOBILE_HEALTH_DATA
     )
     print(f"✓ Chatbot initialized with model: {CONFIG['chatbot']['llm_model']}")
 except Exception as e:
@@ -553,6 +570,68 @@ def api_dashboard_data():
         return jsonify(success=True, data=analytics)
     except Exception as e:
         print(f"Error generating dashboard data: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify(success=False, message=f"Error processing data: {str(e)}"), 500
+
+@app.route("/api/mobile_health_data")
+def api_mobile_health_data():
+    """Get mobile health data for dashboard visualization"""
+    if not _require_login():
+        return jsonify(success=False, message="Login required"), 401
+    
+    if not MOBILE_HEALTH_DATA:
+        return jsonify(success=False, message="No mobile health data available"), 404
+    
+    try:
+        # Extract key metrics for dashboard
+        heart_data = MOBILE_HEALTH_DATA.get('heart_data', {})
+        
+        # Heart rate summary
+        heart_rate_info = heart_data.get('heart_rate', {})
+        hr_stats = heart_rate_info.get('daily_stats', [])
+        hr_trends = heart_rate_info.get('trends', {})
+        
+        # Blood pressure summary
+        bp_info = heart_data.get('blood_pressure', {})
+        bp_readings = bp_info.get('readings', [])
+        bp_trends = bp_info.get('trends', {})
+        
+        # HRV summary
+        hrv_info = heart_data.get('hrv', {})
+        hrv_averages = hrv_info.get('daily_averages', [])
+        hrv_trends = hrv_info.get('trends', {})
+        
+        # Activity summary
+        activity_data = MOBILE_HEALTH_DATA.get('activity_data', {})
+        steps_data = activity_data.get('daily_steps', [])
+        
+        dashboard_summary = {
+            'date_range': MOBILE_HEALTH_DATA.get('date_range', {}),
+            'heart_rate': {
+                'daily_stats': hr_stats[-14:] if len(hr_stats) > 14 else hr_stats,  # Last 2 weeks
+                'trends': hr_trends,
+                'has_data': len(hr_stats) > 0
+            },
+            'blood_pressure': {
+                'readings': bp_readings[:14],  # Most recent 14 readings
+                'trends': bp_trends,
+                'has_data': len(bp_readings) > 0
+            },
+            'hrv': {
+                'daily_averages': hrv_averages[-14:] if len(hrv_averages) > 14 else hrv_averages,  # Last 2 weeks
+                'trends': hrv_trends,
+                'has_data': len(hrv_averages) > 0
+            },
+            'activity': {
+                'daily_steps': steps_data[-14:] if len(steps_data) > 14 else steps_data,  # Last 2 weeks
+                'has_data': len(steps_data) > 0
+            }
+        }
+        
+        return jsonify(success=True, data=dashboard_summary)
+    except Exception as e:
+        print(f"Error generating mobile health data: {e}")
         import traceback
         traceback.print_exc()
         return jsonify(success=False, message=f"Error processing data: {str(e)}"), 500

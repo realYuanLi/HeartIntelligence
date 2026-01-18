@@ -175,54 +175,77 @@ def format_patient_profile(patient_data: Dict) -> str:
     
     return '\n'.join(output)
 
-def analyze_health_query_with_raw_data(query: str, patient_data: Optional[Dict] = None, show_raw_data: bool = False) -> Tuple[bool, Dict, str, str]:
+def analyze_health_query_with_raw_data(query: str, patient_data: Optional[Dict] = None, show_raw_data: bool = False, mobile_data: Optional[Dict] = None) -> Tuple[bool, Dict, str, str]:
     """
-    Simplified analysis of a health query with patient profile data.
+    Simplified analysis of a health query with patient profile data and mobile health data.
     
     Args:
         query (str): The user's query
         patient_data (Optional[Dict]): Patient data to include
         show_raw_data (bool): Whether to include formatted patient data in the response
+        mobile_data (Optional[Dict]): Mobile health data to check for relevance
         
     Returns:
         Tuple[bool, Dict, str, str]: 
         - needs_health: Whether health data is needed
         - patient_profile: Patient profile dict (empty if not available)
         - formatted_output: Brief description
-        - raw_data_output: Formatted patient profile (empty if show_raw_data=False or no data)
+        - raw_data_output: Formatted patient profile and/or mobile data (empty if show_raw_data=False or no data)
     """
     # Import here to avoid circular imports
     from .agent import update_status
+    from .mobile_data_retriever import retrieve_relevant_mobile_data
     
     # Check if health data is needed first
     needs_health = needs_health_data(query)
     
-    if not needs_health:
-        return False, {}, "", ""
+    # Also check if mobile data is needed
+    needs_mobile, mobile_retrieved, mobile_formatted = retrieve_relevant_mobile_data(query, mobile_data or {})
     
-    if not patient_data:
-        return True, {}, "Patient data requested but not available", ""
+    # If neither patient nor mobile data is needed, return early
+    if not needs_health and not needs_mobile:
+        return False, {}, "", ""
     
     # Update status
     update_status("retrieving_health_data")
     
-    # Get patient profile
-    patient_profile = patient_data.get('patient_profile', {})
+    formatted_output_parts = []
+    raw_data_output_parts = []
     
-    if not patient_profile:
-        return True, {}, "Patient profile not found in data", ""
+    # Process patient data if needed
+    patient_profile = {}
+    if needs_health:
+        if not patient_data:
+            formatted_output_parts.append("Patient data requested but not available")
+        else:
+            patient_profile = patient_data.get('patient_profile', {})
+            
+            if not patient_profile:
+                formatted_output_parts.append("Patient profile not found in data")
+            else:
+                # Simple formatted output
+                name = patient_profile.get('demographics', {}).get('name', 'Patient')
+                formatted_output_parts.append(f"Patient profile available for {name}")
+                
+                # Format full patient data if requested
+                if show_raw_data:
+                    update_status("analyzing_health_data")
+                    raw_data_output_parts.append(format_patient_profile(patient_data))
     
-    # Simple formatted output
-    name = patient_profile.get('demographics', {}).get('name', 'Patient')
-    formatted_output = f"Patient profile available for {name}"
+    # Process mobile data if needed
+    if needs_mobile:
+        if mobile_retrieved:
+            formatted_output_parts.append("Mobile health data retrieved")
+            if show_raw_data and mobile_formatted:
+                raw_data_output_parts.append("\n=== MOBILE HEALTH DATA ===\n" + mobile_formatted)
+        else:
+            formatted_output_parts.append("Mobile health data requested but not available")
     
-    # Format full patient data if requested
-    raw_data_output = ""
-    if show_raw_data:
-        update_status("analyzing_health_data")
-        raw_data_output = format_patient_profile(patient_data)
+    # Combine outputs
+    formatted_output = " | ".join(formatted_output_parts) if formatted_output_parts else ""
+    raw_data_output = "\n\n".join(raw_data_output_parts) if raw_data_output_parts else ""
     
-    return True, patient_profile, formatted_output, raw_data_output
+    return (needs_health or needs_mobile), patient_profile, formatted_output, raw_data_output
 
 def analyze_health_query(query: str, patient_data: Optional[Dict] = None) -> Tuple[bool, Dict, str]:
     """

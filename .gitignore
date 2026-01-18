@@ -10,6 +10,7 @@ __pycache__/
 !data/test_file/raw_ehr_transformed.json
 !data/my_body/statistics.json
 !data/health_info.json
+!data/processed_mobile_data.json
 !config/configs.json
 
 # Ignore chat history and other data directories

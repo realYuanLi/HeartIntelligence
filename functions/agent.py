@@ -27,13 +27,14 @@ def get_status():
 
 class Agent:
     
-    def __init__(self, role, llm="",sys_message="",tool="",temperature=0.5,response_schema=None,ehr_data=None):
+    def __init__(self, role, llm="",sys_message="",tool="",temperature=0.5,response_schema=None,ehr_data=None,mobile_data=None):
         self.role = role
         self.llm = llm
         self.temperature = temperature
         self.sys_message = sys_message
         self.response_schema = response_schema
         self.ehr_data = ehr_data
+        self.mobile_data = mobile_data
         
         # Define available LLM functions
         self.llm_name_list = {
@@ -99,12 +100,17 @@ class Agent:
         return None
     
     def _health_analysis_task(self, query: str):
-        """Task for health data analysis - simplified for patient profile."""
+        """Task for health data analysis - includes patient profile and mobile health data."""
         try:
             import time
             start_time = time.time()
             
-            needs_health, patient_profile, formatted_output, patient_data_formatted = analyze_health_query_with_raw_data(query, self.ehr_data, show_raw_data=True)
+            needs_health, patient_profile, formatted_output, patient_data_formatted = analyze_health_query_with_raw_data(
+                query, 
+                self.ehr_data, 
+                show_raw_data=True,
+                mobile_data=self.mobile_data
+            )
             
             elapsed = time.time() - start_time
             print(f"Health analysis completed in {elapsed:.2f} seconds")

@@ -26,6 +26,31 @@ function loadDashboardData() {
       const container = document.getElementById("dashboardData");
       container.innerHTML = '<div class="error">Failed to load health data</div>';
     });
+  
+  // Also load mobile health data
+  loadMobileHealthData();
+}
+
+function loadMobileHealthData() {
+  fetch("/api/mobile_health_data")
+    .then(r => r.json())
+    .then(response => {
+      const container = document.getElementById("mobileHealthData");
+      if (response.success && response.data) {
+        renderMobileHealthDashboard(response.data);
+      } else {
+        if (container) {
+          container.innerHTML = '<div class="no-data">No mobile health data available. Run process_mobile_data.py to generate data.</div>';
+        }
+      }
+    })
+    .catch(err => {
+      console.error("Failed to load mobile health data:", err);
+      const container = document.getElementById("mobileHealthData");
+      if (container) {
+        container.innerHTML = '<div class="info">Mobile health data not available</div>';
+      }
+    });
 }
 
 function renderDashboard(data) {
@@ -844,6 +869,122 @@ function handleDashboardMessage() {
     messageInput.disabled = false;
     sendButton.disabled = false;
   });
+}
+
+/* ========================================================= */
+/*  Mobile Health Data Rendering                             */
+/* ========================================================= */
+
+function renderMobileHealthDashboard(data) {
+  const container = document.getElementById("mobileHealthData");
+  if (!container) return;
+  
+  let html = '<div class="category-panel mobile-health-panel">';
+  html += '<div class="category-header">';
+  html += '<h2>📱 Mobile Health Data</h2>';
+  html += '</div>';
+  
+  html += '<div class="category-content">';
+  
+  // Date range
+  if (data.date_range && data.date_range.start) {
+    html += `<div class="data-period"><em>Data period: ${data.date_range.start} to ${data.date_range.end}</em></div>`;
+  }
+  
+  html += '<div class="metrics-grid">';
+  
+  // Heart Rate Card
+  if (data.heart_rate && data.heart_rate.has_data) {
+    const hrStats = data.heart_rate.daily_stats;
+    const trends = data.heart_rate.trends;
+    
+    if (hrStats.length > 0) {
+      // Get most recent day
+      const latest = hrStats[hrStats.length - 1];
+      
+      html += '<div class="metric-card">';
+      html += '<h4>❤️ Heart Rate</h4>';
+      html += `<div class="metric-value">${latest.avg}<span class="metric-unit">bpm</span></div>`;
+      html += `<div class="metric-label">Average on ${latest.date}</div>`;
+      html += `<div class="metric-details">Range: ${latest.min}-${latest.max} bpm</div>`;
+      if (trends.trend) {
+        html += `<div class="metric-details">Trend: ${trends.trend}</div>`;
+      }
+      html += '</div>';
+    }
+  }
+  
+  // HRV Card
+  if (data.hrv && data.hrv.has_data) {
+    const hrvAvgs = data.hrv.daily_averages;
+    const trends = data.hrv.trends;
+    
+    if (hrvAvgs.length > 0) {
+      const latest = hrvAvgs[hrvAvgs.length - 1];
+      
+      html += '<div class="metric-card">';
+      html += '<h4>💓 HRV</h4>';
+      html += `<div class="metric-value">${latest.avg}<span class="metric-unit">ms</span></div>`;
+      html += `<div class="metric-label">On ${latest.date}</div>`;
+      if (trends.trend) {
+        html += `<div class="metric-details">Trend: ${trends.trend}</div>`;
+      }
+      html += '</div>';
+    }
+  }
+  
+  // Activity Card
+  if (data.activity && data.activity.has_data) {
+    const steps = data.activity.daily_steps;
+    
+    if (steps.length > 0) {
+      // Get recent average (last 7 days)
+      const recentSteps = steps.slice(-7);
+      const avgSteps = Math.round(recentSteps.reduce((sum, d) => sum + d.sum, 0) / recentSteps.length);
+      const latest = steps[steps.length - 1];
+      
+      html += '<div class="metric-card">';
+      html += '<h4>👟 Daily Steps</h4>';
+      html += `<div class="metric-value">${latest.sum.toLocaleString()}<span class="metric-unit">steps</span></div>`;
+      html += `<div class="metric-label">On ${latest.date}</div>`;
+      html += `<div class="metric-details">7-day avg: ${avgSteps.toLocaleString()} steps</div>`;
+      html += '</div>';
+    }
+  }
+  
+  // Blood Pressure Card (if available)
+  if (data.blood_pressure && data.blood_pressure.has_data) {
+    const readings = data.blood_pressure.readings;
+    const trends = data.blood_pressure.trends;
+    
+    if (readings.length > 0) {
+      const latest = readings[0]; // Most recent
+      
+      html += '<div class="metric-card">';
+      html += '<h4>🩺 Blood Pressure</h4>';
+      
+      if (latest.systolic && latest.diastolic) {
+        html += `<div class="metric-value">${latest.systolic}/${latest.diastolic}<span class="metric-unit">mmHg</span></div>`;
+      } else if (latest.systolic) {
+        html += `<div class="metric-value">${latest.systolic}<span class="metric-unit">mmHg</span></div>`;
+        html += `<div class="metric-label">Systolic</div>`;
+      }
+      
+      const readingDate = latest.date.split('T')[0];
+      html += `<div class="metric-label">On ${readingDate}</div>`;
+      
+      if (trends.systolic_trend) {
+        html += `<div class="metric-details">Trend: ${trends.systolic_trend}</div>`;
+      }
+      html += '</div>';
+    }
+  }
+  
+  html += '</div>'; // Close metrics-grid
+  html += '</div>'; // Close category-content
+  html += '</div>'; // Close category-panel
+  
+  container.innerHTML = html;
 }
 
 /* ========================================================= */

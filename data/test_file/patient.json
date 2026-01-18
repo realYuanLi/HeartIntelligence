@@ -119,7 +119,6 @@
         "Intermittent atrial fibrillation episodes",
         "Occasional elevated resting heart rate"
       ],
-      "activity": "Gradual decline in daily step count over 3–4 weeks",
       "sleep": "Fragmented sleep with inconsistent CPAP usage"
     },
     "recent_healthcare_utilization": {
@@ -136,6 +135,12 @@
         "time_ago": "6 weeks ago",
         "status_at_visit": "Symptoms stable"
       }
+    },
+     "echocardiogram": {
+    "lvef_percent": 60,
+    "lvedv_ml": 135,
+    "lvesv_ml": 54,
+    "lv_wall_thickness_cm": 1.3
     },
     "ui_summary_sentence": "67-year-old man with HFpEF, hypertension, diabetes, and atrial fibrillation, experiencing exertional shortness of breath and intermittent fluid retention, managed with guideline-directed medical therapy and home monitoring."
   }

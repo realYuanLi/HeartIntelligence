@@ -1,0 +1,142 @@
+{
+  "patient_profile": {
+    "demographics": {
+      "age": 67,
+      "sex": "male",
+      "name": "Shaun",
+      "living_situation": "Lives alone, retired",
+      "baseline_functional_status": "Independent in activities of daily living"
+    },
+    "primary_cardiac_diagnosis": {
+      "condition": "Heart Failure with Preserved Ejection Fraction (HFpEF)",
+      "echocardiogram": {
+        "lvef_percent": 60,
+        "diastolic_function": "Grade II diastolic dysfunction",
+        "left_atrial_size": "Mild enlargement",
+        "pulmonary_artery_systolic_pressure": "Mildly elevated"
+      }
+    },
+    "comorbidities": {
+      "cardiovascular": [
+        "Hypertension (long-standing, >15 years)",
+        "Atrial fibrillation (paroxysmal)",
+        "Coronary artery disease, non-obstructive",
+        "Hyperlipidemia"
+      ],
+      "metabolic_systemic": [
+        "Type 2 diabetes mellitus",
+        "Obesity (BMI ~32)",
+        "Chronic kidney disease stage 2–3a (eGFR ~55–65)"
+      ],
+      "respiratory_sleep": [
+        "Obstructive sleep apnea (on CPAP, intermittent adherence)"
+      ],
+      "other": [
+        "Osteoarthritis (knees)",
+        "Benign prostatic hyperplasia (BPH)"
+      ]
+    },
+    "medications": {
+      "cardiovascular_hf": [
+        {
+          "name": "Empagliflozin",
+          "dose": "10 mg daily",
+          "indication": "HFpEF and diabetes"
+        },
+        {
+          "name": "Furosemide",
+          "dose": "20 mg daily, PRN up-titration",
+          "indication": "Volume control"
+        },
+        {
+          "name": "Losartan",
+          "dose": "100 mg daily",
+          "indication": "Hypertension, renal protection"
+        },
+        {
+          "name": "Metoprolol succinate",
+          "dose": "50 mg daily",
+          "indication": "Atrial fibrillation rate control, hypertension"
+        },
+        {
+          "name": "Apixaban",
+          "dose": "5 mg twice daily",
+          "indication": "Stroke prevention for atrial fibrillation"
+        },
+        {
+          "name": "Atorvastatin",
+          "dose": "40 mg nightly",
+          "indication": "Hyperlipidemia"
+        }
+      ],
+      "metabolic": [
+        {
+          "name": "Metformin",
+          "dose": "1000 mg twice daily",
+          "indication": "Type 2 diabetes mellitus"
+        }
+      ],
+      "other": [
+        {
+          "name": "Tamsulosin",
+          "dose": "0.4 mg nightly",
+          "indication": "Benign prostatic hyperplasia"
+        },
+        {
+          "name": "Acetaminophen",
+          "dose": "PRN",
+          "indication": "Osteoarthritis pain"
+        }
+      ],
+      "supplements": [
+        "Magnesium",
+        "Fish oil",
+        "Vitamin D"
+      ]
+    },
+    "symptoms": {
+      "chronic_baseline": [
+        "Exertional dyspnea (NYHA class II–III)",
+        "Reduced exercise tolerance",
+        "Mild intermittent lower-extremity edema",
+        "Afternoon fatigue"
+      ],
+      "intermittent_recent": [
+        "Occasional palpitations",
+        "Orthopnea (uses two pillows)",
+        "Weight fluctuation (+2–3 lbs over several days)",
+        "Exertional chest tightness relieved by rest"
+      ],
+      "negative_findings": [
+        "No syncope",
+        "No sustained resting chest pain",
+        "No hemoptysis",
+        "No fever"
+      ]
+    },
+    "wearable_data_summary": {
+      "ecg": [
+        "Intermittent atrial fibrillation episodes",
+        "Occasional elevated resting heart rate"
+      ],
+      "activity": "Gradual decline in daily step count over 3–4 weeks",
+      "sleep": "Fragmented sleep with inconsistent CPAP usage"
+    },
+    "recent_healthcare_utilization": {
+      "last_hospitalization": {
+        "time_ago": "4 months ago",
+        "reason": "Acute decompensated HFpEF due to volume overload after high sodium intake",
+        "length_of_stay_days": 3,
+        "treatments": [
+          "Intravenous diuretics",
+          "Medication optimization"
+        ]
+      },
+      "last_cardiology_clinic_visit": {
+        "time_ago": "6 weeks ago",
+        "status_at_visit": "Symptoms stable"
+      }
+    },
+    "ui_summary_sentence": "67-year-old man with HFpEF, hypertension, diabetes, and atrial fibrillation, experiencing exertional shortness of breath and intermittent fluid retention, managed with guideline-directed medical therapy and home monitoring."
+  }
+}

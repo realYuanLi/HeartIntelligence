@@ -1,5 +1,5 @@
 /*********************************************************************
- *  script.js  —  Front-end logic for Personal Health Pal
+ *  script.js  —  Front-end
  *
  *  • Login / logout / load history
  *  • Create new session or continue a chat

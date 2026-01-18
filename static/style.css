@@ -39,10 +39,30 @@ aside {
   box-sizing: border-box;
   border-right: 1px solid var(--border);
 }
+.logo-container {
+  margin-bottom: 2rem;
+}
+
+.institution-logos {
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+  gap: 1.25rem;
+  margin-bottom: 0.75rem;
+  padding-left: 0.75rem;
+}
+
+.institution-logo {
+  height: 35px;
+  width: auto;
+  object-fit: contain;
+}
+
 .logo {
   font-size: 1.3rem;
   font-weight: 600;
-  margin-bottom: 2rem;
+  text-align: left;
+  padding-left: 0.75rem;
 }
 .nav-section {
   display: flex;

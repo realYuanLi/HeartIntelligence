@@ -3,13 +3,20 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>Personal Health Pal</title>
+  <title>HeartIntelligence</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=2"/>
 </head>
 <body>
 
   <aside>
-    <div class="logo">Personal Health Pal</div>
+    <div class="logo-container">
+      <div class="institution-logos">
+        <img src="{{ url_for('static', filename='MGH.png') }}" alt="MGH Logo" class="institution-logo">
+        <img src="{{ url_for('static', filename='HMS.png') }}" alt="HMS Logo" class="institution-logo">
+        <img src="{{ url_for('static', filename='CAMCA.png') }}" alt="CAMCA Logo" class="institution-logo">
+      </div>
+      <div class="logo">HeartIntelligence</div>
+    </div>
     <div class="nav-section">
       <div class="nav-item" id="newChatBtn">+  New Chat</div>
       <div class="nav-item" id="dashboardBtn">☰  Dashboard</div>

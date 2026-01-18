@@ -5,6 +5,14 @@
       <h1>Health Dashboard</h1>
     </div>
     
+    <!-- ECG Section -->
+    <div class="ecg-section">
+      <div class="ecg-image-container">
+        <img src="{{ url_for('static', filename='ECG.jpg') }}" alt="ECG from Apple Watch" class="ecg-image">
+      </div>
+      <p class="ecg-caption">ECG from Apple Watch</p>
+    </div>
+    
     <div id="dashboardData" class="dashboard-content">
       <div class="loading">Loading health data...</div>
     </div>

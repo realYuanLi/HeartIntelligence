@@ -2210,6 +2210,45 @@ body.sources-sidebar-open .input-container.fixed {
   color: var(--text);
 }
 
+/* ECG Section */
+.ecg-section {
+  max-width: 1400px;
+  margin: 0 auto 2rem;
+  padding: 0 2rem;
+}
+
+.ecg-image-container {
+  background: var(--card);
+  border: 2px solid var(--border);
+  border-radius: 1rem;
+  padding: 1.5rem;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  transition: all 0.3s ease;
+}
+
+.ecg-image-container:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  transform: translateY(-2px);
+}
+
+.ecg-image {
+  max-width: 100%;
+  height: auto;
+  border-radius: 0.5rem;
+  display: block;
+}
+
+.ecg-caption {
+  text-align: center;
+  font-size: 0.9rem;
+  font-weight: normal;
+  color: var(--muted);
+  margin: 0.75rem 0 0 0;
+}
+
 .dashboard-content {
   max-width: 1400px;
   margin: 0 auto;

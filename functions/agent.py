@@ -82,144 +82,6 @@ class Agent:
         
         return web_results, health_results
     
-    def _count_tokens(self, text: str, model: str = "gpt-4o") -> int:
-        """Count tokens in text using tiktoken."""
-        try:
-            encoding = tiktoken.encoding_for_model(model)
-            return len(encoding.encode(text))
-        except:
-            # Fallback: rough estimation (1 token ≈ 4 characters)
-            return len(text) // 4
-    
-    def _split_text_by_tokens(self, text: str, max_tokens: int, model: str = "gpt-4o") -> list:
-        """Split text into chunks that don't exceed max_tokens."""
-        try:
-            encoding = tiktoken.encoding_for_model(model)
-            tokens = encoding.encode(text)
-            chunks = []
-            for i in range(0, len(tokens), max_tokens):
-                chunk_tokens = tokens[i:i + max_tokens]
-                chunk_text = encoding.decode(chunk_tokens)
-                chunks.append(chunk_text)
-            return chunks
-        except:
-            # Fallback: split by characters
-            chunk_size = max_tokens * 4  # rough estimation
-            return [text[i:i + chunk_size] for i in range(0, len(text), chunk_size)]
-    
-    async def _summarize_chunk_async(self, chunk: str, category: str) -> str:
-        """Summarize a single chunk of health data asynchronously."""
-        try:
-            client = openai.AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-            api_params = {
-                "model": "gpt-4o",
-                "messages": [
-                    {
-                        "role": "system",
-                        "content": f"Create a concise, clinically relevant summary of this {category} data. Include key metrics, dates, trends, medications, conditions, and important findings. Focus on clinically significant information and exclude administrative data like ID numbers."
-                    },
-                    {
-                        "role": "user",
-                        "content": f"Summarize this {category} data, focusing on clinically relevant information and patterns:\n\n{chunk}"
-                    }
-                ],
-                "temperature": self.temperature,
-                "max_tokens": 10000
-            }
-            response = await client.chat.completions.create(**api_params)
-            return response.choices[0].message.content.strip()
-        except Exception as e:
-            print(f"Error summarizing chunk: {e}")
-            return f"[Summary unavailable for {category} chunk]"
-    
-    async def _summarize_health_data_async(self, raw_data_output: str, max_tokens_per_chunk: int = 10000) -> str:
-        """Summarize health data asynchronously, splitting into chunks if necessary."""
-        if not raw_data_output or raw_data_output == "No raw data available.":
-            return "No health data available for summarization."
-        
-        # Count total tokens
-        total_tokens = self._count_tokens(raw_data_output)
-        
-        # If data is small enough, summarize directly
-        if total_tokens <= max_tokens_per_chunk:
-            try:
-                client = openai.AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-                api_params = {
-                    "model": "gpt-4o",
-                    "messages": [
-                        {
-                            "role": "system",
-                            "content": "Create a concise, clinically relevant summary of this health data. Include key metrics, dates, trends, medications, conditions, and important findings. Focus on clinically significant information and exclude administrative data like ID numbers."
-                        },
-                        {
-                            "role": "user",
-                            "content": f"Summarize this health data, focusing on clinically relevant information and patterns:\n\n{raw_data_output}"
-                        }
-                    ],
-                    "temperature": self.temperature,
-                    "max_tokens": 8000
-                }
-                response = await client.chat.completions.create(**api_params)
-                return response.choices[0].message.content.strip()
-            except Exception as e:
-                print(f"Error summarizing health data: {e}")
-                return raw_data_output
-        
-        # Split into chunks and summarize in parallel
-        chunks = self._split_text_by_tokens(raw_data_output, max_tokens_per_chunk)
-        
-        # Extract category from the data for better context
-        category = "health data"
-        if "CATEGORY:" in raw_data_output:
-            lines = raw_data_output.split('\n')
-            for line in lines:
-                if line.startswith("CATEGORY:"):
-                    category = line.replace("CATEGORY:", "").strip()
-                    break
-        
-        # Summarize all chunks in parallel using asyncio.gather
-        try:
-            tasks = [self._summarize_chunk_async(chunk, category) for chunk in chunks]
-            summaries = await asyncio.gather(*tasks, return_exceptions=True)
-            
-            # Handle any exceptions in the results
-            summaries = [
-                s if not isinstance(s, Exception) else "[Summary chunk failed]"
-                for s in summaries
-            ]
-        except Exception as e:
-            print(f"Error in parallel summarization: {e}")
-            summaries = ["[Summary chunk failed]"] * len(chunks)
-        
-        # Combine summaries
-        combined_summary = "\n\n".join(summaries)
-        
-        # Final summary of summaries if still too long
-        if self._count_tokens(combined_summary) > 15000:
-            try:
-                client = openai.AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-                api_params = {
-                    "model": "gpt-4o",
-                    "messages": [
-                        {
-                            "role": "system",
-                            "content": "Create a final, concise summary by combining these health data summaries. Focus on the most clinically significant findings, key trends, current status, and areas needing attention. Maintain clinical accuracy while providing a complete health overview."
-                        },
-                        {
-                            "role": "user",
-                            "content": f"Create a final, comprehensive summary from these health data summaries, focusing on the most clinically relevant information:\n\n{combined_summary}"
-                        }
-                    ],
-                    "temperature": self.temperature,
-                    "max_tokens": 10000
-                }
-                response = await client.chat.completions.create(**api_params)
-                return response.choices[0].message.content.strip()
-            except Exception as e:
-                print(f"Error in final summarization: {e}")
-                return combined_summary
-        
-        return combined_summary
     
     def _web_search_task(self, query: str):
         """Task for web search analysis."""
@@ -237,12 +99,12 @@ class Agent:
         return None
     
     def _health_analysis_task(self, query: str):
-        """Task for health data analysis."""
+        """Task for health data analysis - simplified for patient profile."""
         try:
             import time
             start_time = time.time()
             
-            needs_health, categories, formatted_output, raw_data_output = analyze_health_query_with_raw_data(query, self.ehr_data, show_raw_data=True)
+            needs_health, patient_profile, formatted_output, patient_data_formatted = analyze_health_query_with_raw_data(query, self.ehr_data, show_raw_data=True)
             
             elapsed = time.time() - start_time
             print(f"Health analysis completed in {elapsed:.2f} seconds")
@@ -251,9 +113,9 @@ class Agent:
                 return {
                     'health_analysis': {
                         'needs_health': needs_health,
-                        'categories': categories,
+                        'patient_profile': patient_profile,
                         'formatted_output': formatted_output,
-                        'raw_data_output': raw_data_output
+                        'patient_data_formatted': patient_data_formatted
                     }
                 }
         except Exception as e:
@@ -290,7 +152,7 @@ class Agent:
                 update_status("processing")
                 web_results, health_results = self._parallel_analysis(latest_user_message)
             
-            # Process and summarize data sources
+            # Process data sources
             web_summary = None
             health_summary = None
             
@@ -300,29 +162,14 @@ class Agent:
                 formatted_results = format_search_results(search_results)
                 web_summary = formatted_results
             
-            # Process health data analysis results
+            # Process patient data - no summarization needed, data is small
             if health_results and health_results.get('health_analysis'):
                 health_analysis = health_results['health_analysis']
-                if health_analysis.get('raw_data_output'):
-                    # Update status before starting summarization
-                    update_status("summarizing_health_data")
-                    try:
-                        # Add timeout protection for summarization
-                        import asyncio
-                        health_summary = asyncio.run(
-                            asyncio.wait_for(
-                                self._summarize_health_data_async(health_analysis['raw_data_output']),
-                                timeout=180  # 3 minute timeout for summarization
-                            )
-                        )
-                    except asyncio.TimeoutError:
-                        print("Health data summarization timed out, using raw data categories instead")
-                        health_summary = f"Available Health Data Categories:\n{health_analysis['formatted_output']}\n\n(Note: Full data analysis timed out - using category summary instead)"
-                    except Exception as e:
-                        print(f"Error in health data summarization: {e}")
-                        health_summary = f"Available Health Data Categories:\n{health_analysis['formatted_output']}"
+                if health_analysis.get('patient_data_formatted'):
+                    # Patient profile is small enough to include directly
+                    health_summary = health_analysis['patient_data_formatted']
                 elif health_analysis.get('formatted_output'):
-                    health_summary = f"Available Health Data Categories:\n{health_analysis['formatted_output']}"
+                    health_summary = health_analysis['formatted_output']
             
             # Build intelligent response based on available sources
             if web_summary and health_summary:

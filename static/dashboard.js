@@ -32,64 +32,401 @@ function renderDashboard(data) {
   const container = document.getElementById("dashboardData");
   let html = '';
   
-  // Cardiovascular section
-  if (data.cardiovascular) {
-    html += renderCategoryPanel('Cardiovascular Health', '🫀', data.cardiovascular, 'cardiovascular');
+  // Primary Cardiac Diagnosis section (HEART CONDITION)
+  if (data.diagnosis) {
+    html += renderDiagnosisPanel(data.diagnosis);
   }
   
-  // Activity section
-  if (data.activity) {
-    html += renderCategoryPanel('Physical Activity', '💪', data.activity, 'activity');
+  // Comorbidities section
+  if (data.comorbidities) {
+    html += renderComorbiditiesPanel(data.comorbidities);
   }
   
-  // Mobility section
-  if (data.mobility) {
-    html += renderCategoryPanel('Mobility & Movement', '🚶', data.mobility, 'mobility');
+  // Medications section
+  if (data.medications) {
+    html += renderMedicationsPanel(data.medications);
   }
   
-  // Clinical section (medications, labs, conditions, allergies)
-  if (data.clinical) {
-    html += renderClinicalPanel(data.clinical);
+  // Symptoms section
+  if (data.symptoms) {
+    html += renderSymptomsPanel(data.symptoms);
+  }
+  
+  // Wearable data section
+  if (data.wearable_data) {
+    html += renderWearableDataPanel(data.wearable_data);
+  }
+  
+  // Recent healthcare section
+  if (data.recent_care) {
+    html += renderRecentCarePanel(data.recent_care);
   }
   
   container.innerHTML = html;
 }
 
 /* ========================================================= */
-/*  Summary Panel                                            */
+/*  Patient Profile Summary Panel                            */
 /* ========================================================= */
 
-function renderSummaryPanel(summary, demographics) {
+function renderPatientSummary(summary, demographics) {
   let html = '<div class="summary-panel">';
-  html += '<h2>Health Summary</h2>';
+  html += '<h2>📋 Patient Profile</h2>';
   
-  if (demographics && demographics.name) {
+  if (demographics) {
     html += '<div class="summary-demographics">';
-    html += `<div class="demo-item"><strong>Name:</strong> ${demographics.name}</div>`;
+    html += `<div class="demo-item"><strong>Name:</strong> ${demographics.name || 'N/A'}</div>`;
     html += `<div class="demo-item"><strong>Age:</strong> ${demographics.age || 'N/A'}</div>`;
     html += `<div class="demo-item"><strong>Sex:</strong> ${demographics.sex || 'N/A'}</div>`;
+    if (demographics.living_situation) {
+      html += `<div class="demo-item"><strong>Living Situation:</strong> ${demographics.living_situation}</div>`;
+    }
+    if (demographics.baseline_functional_status) {
+      html += `<div class="demo-item"><strong>Functional Status:</strong> ${demographics.baseline_functional_status}</div>`;
+    }
     html += '</div>';
   }
   
-  html += '<div class="summary-stats">';
-  html += `<div class="stat-item">`;
-  html += `<div class="stat-value">${summary.total_data_points?.toLocaleString() || '0'}</div>`;
-  html += `<div class="stat-label">Total Records</div>`;
-  html += `</div>`;
+  if (summary && summary.ui_summary) {
+    html += '<div class="patient-summary-text">';
+    html += `<p><strong>Summary:</strong> ${summary.ui_summary}</p>`;
+    html += '</div>';
+  }
   
-  html += `<div class="stat-item">`;
-  html += `<div class="stat-value">${summary.categories_tracked?.length || '0'}</div>`;
-  html += `<div class="stat-label">Categories Tracked</div>`;
-  html += `</div>`;
+  html += '</div>';
   
-  if (summary.date_range && summary.date_range.earliest) {
-    const earliest = new Date(summary.date_range.earliest);
-    const latest = new Date(summary.date_range.latest);
-    const days = Math.floor((latest - earliest) / (1000 * 60 * 60 * 24));
-    html += `<div class="stat-item">`;
-    html += `<div class="stat-value">${days}</div>`;
-    html += `<div class="stat-label">Days of Data</div>`;
-    html += `</div>`;
+  return html;
+}
+
+/* ========================================================= */
+/*  Primary Cardiac Diagnosis Panel (HEART CONDITION)       */
+/* ========================================================= */
+
+function renderDiagnosisPanel(diagnosis) {
+  let html = '<div class="category-panel diagnosis-panel">';
+  html += '<div class="category-header">';
+  html += '<h2>🫀 Primary Cardiac Diagnosis</h2>';
+  html += '</div>';
+  
+  html += '<div class="category-content">';
+  
+  if (diagnosis.condition) {
+    html += '<div class="diagnosis-condition">';
+    html += `<h3>${diagnosis.condition}</h3>`;
+    html += '</div>';
+  }
+  
+  if (diagnosis.echocardiogram) {
+    html += '<div class="echocardiogram-data">';
+    html += '<h4>Echocardiogram Findings:</h4>';
+    html += '<div class="metrics-grid">';
+    
+    const echo = diagnosis.echocardiogram;
+    
+    if (echo.lvef_percent) {
+      html += '<div class="metric-card">';
+      html += '<h4>LVEF</h4>';
+      html += `<div class="metric-value">${echo.lvef_percent}<span class="metric-unit">%</span></div>`;
+      html += '<div class="metric-label">Left Ventricular Ejection Fraction</div>';
+      html += '</div>';
+    }
+    
+    if (echo.diastolic_function) {
+      html += '<div class="metric-card">';
+      html += '<h4>Diastolic Function</h4>';
+      html += `<div class="metric-value-text">${echo.diastolic_function}</div>`;
+      html += '</div>';
+    }
+    
+    if (echo.left_atrial_size) {
+      html += '<div class="metric-card">';
+      html += '<h4>Left Atrial Size</h4>';
+      html += `<div class="metric-value-text">${echo.left_atrial_size}</div>`;
+      html += '</div>';
+    }
+    
+    if (echo.pulmonary_artery_systolic_pressure) {
+      html += '<div class="metric-card">';
+      html += '<h4>PA Systolic Pressure</h4>';
+      html += `<div class="metric-value-text">${echo.pulmonary_artery_systolic_pressure}</div>`;
+      html += '</div>';
+    }
+    
+    html += '</div>';
+    html += '</div>';
+  }
+  
+  html += '</div>';
+  html += '</div>';
+  
+  return html;
+}
+
+/* ========================================================= */
+/*  Comorbidities Panel                                      */
+/* ========================================================= */
+
+function renderComorbiditiesPanel(comorbidities) {
+  let html = '<div class="category-panel comorbidities-panel">';
+  html += '<div class="category-header">';
+  html += '<h2>🏥 Comorbidities</h2>';
+  html += '</div>';
+  
+  html += '<div class="category-content">';
+  html += '<div class="comorbidities-grid">';
+  
+  if (comorbidities.cardiovascular && comorbidities.cardiovascular.length > 0) {
+    html += '<div class="comorbidity-category">';
+    html += '<h4>Cardiovascular</h4>';
+    html += '<ul>';
+    comorbidities.cardiovascular.forEach(condition => {
+      html += `<li>${condition}</li>`;
+    });
+    html += '</ul>';
+    html += '</div>';
+  }
+  
+  if (comorbidities.metabolic_systemic && comorbidities.metabolic_systemic.length > 0) {
+    html += '<div class="comorbidity-category">';
+    html += '<h4>Metabolic/Systemic</h4>';
+    html += '<ul>';
+    comorbidities.metabolic_systemic.forEach(condition => {
+      html += `<li>${condition}</li>`;
+    });
+    html += '</ul>';
+    html += '</div>';
+  }
+  
+  if (comorbidities.respiratory_sleep && comorbidities.respiratory_sleep.length > 0) {
+    html += '<div class="comorbidity-category">';
+    html += '<h4>Respiratory/Sleep</h4>';
+    html += '<ul>';
+    comorbidities.respiratory_sleep.forEach(condition => {
+      html += `<li>${condition}</li>`;
+    });
+    html += '</ul>';
+    html += '</div>';
+  }
+  
+  if (comorbidities.other && comorbidities.other.length > 0) {
+    html += '<div class="comorbidity-category">';
+    html += '<h4>Other</h4>';
+    html += '<ul>';
+    comorbidities.other.forEach(condition => {
+      html += `<li>${condition}</li>`;
+    });
+    html += '</ul>';
+    html += '</div>';
+  }
+  
+  html += '</div>';
+  html += '</div>';
+  html += '</div>';
+  
+  return html;
+}
+
+/* ========================================================= */
+/*  Medications Panel                                        */
+/* ========================================================= */
+
+function renderMedicationsPanel(medications) {
+  let html = '<div class="category-panel medications-panel">';
+  html += '<div class="category-header">';
+  html += '<h2>💊 Medications</h2>';
+  html += '</div>';
+  
+  html += '<div class="category-content">';
+  html += '<div class="medications-grid">';
+  
+  if (medications.cardiovascular_hf && medications.cardiovascular_hf.length > 0) {
+    html += '<div class="medication-category">';
+    html += '<h4>Cardiovascular/Heart Failure</h4>';
+    medications.cardiovascular_hf.forEach(med => {
+      html += '<div class="medication-item">';
+      html += `<div class="med-name">${med.name}</div>`;
+      html += `<div class="med-dose">${med.dose}</div>`;
+      html += `<div class="med-indication">${med.indication}</div>`;
+      html += '</div>';
+    });
+    html += '</div>';
+  }
+  
+  if (medications.metabolic && medications.metabolic.length > 0) {
+    html += '<div class="medication-category">';
+    html += '<h4>Metabolic</h4>';
+    medications.metabolic.forEach(med => {
+      html += '<div class="medication-item">';
+      html += `<div class="med-name">${med.name}</div>`;
+      html += `<div class="med-dose">${med.dose}</div>`;
+      html += `<div class="med-indication">${med.indication}</div>`;
+      html += '</div>';
+    });
+    html += '</div>';
+  }
+  
+  if (medications.other && medications.other.length > 0) {
+    html += '<div class="medication-category">';
+    html += '<h4>Other</h4>';
+    medications.other.forEach(med => {
+      html += '<div class="medication-item">';
+      html += `<div class="med-name">${med.name}</div>`;
+      html += `<div class="med-dose">${med.dose}</div>`;
+      html += `<div class="med-indication">${med.indication}</div>`;
+      html += '</div>';
+    });
+    html += '</div>';
+  }
+  
+  if (medications.supplements && medications.supplements.length > 0) {
+    html += '<div class="medication-category">';
+    html += '<h4>Supplements</h4>';
+    html += '<ul>';
+    medications.supplements.forEach(supp => {
+      html += `<li>${supp}</li>`;
+    });
+    html += '</ul>';
+    html += '</div>';
+  }
+  
+  html += '</div>';
+  html += '</div>';
+  html += '</div>';
+  
+  return html;
+}
+
+/* ========================================================= */
+/*  Symptoms Panel                                           */
+/* ========================================================= */
+
+function renderSymptomsPanel(symptoms) {
+  let html = '<div class="category-panel symptoms-panel">';
+  html += '<div class="category-header">';
+  html += '<h2>🩺 Symptoms</h2>';
+  html += '</div>';
+  
+  html += '<div class="category-content">';
+  html += '<div class="symptoms-grid">';
+  
+  if (symptoms.chronic_baseline && symptoms.chronic_baseline.length > 0) {
+    html += '<div class="symptom-category">';
+    html += '<h4>Chronic Baseline Symptoms</h4>';
+    html += '<ul>';
+    symptoms.chronic_baseline.forEach(symptom => {
+      html += `<li>${symptom}</li>`;
+    });
+    html += '</ul>';
+    html += '</div>';
+  }
+  
+  if (symptoms.intermittent_recent && symptoms.intermittent_recent.length > 0) {
+    html += '<div class="symptom-category">';
+    html += '<h4>Intermittent/Recent Symptoms</h4>';
+    html += '<ul>';
+    symptoms.intermittent_recent.forEach(symptom => {
+      html += `<li>${symptom}</li>`;
+    });
+    html += '</ul>';
+    html += '</div>';
+  }
+  
+  if (symptoms.negative_findings && symptoms.negative_findings.length > 0) {
+    html += '<div class="symptom-category">';
+    html += '<h4>Negative Findings</h4>';
+    html += '<ul>';
+    symptoms.negative_findings.forEach(finding => {
+      html += `<li>${finding}</li>`;
+    });
+    html += '</ul>';
+    html += '</div>';
+  }
+  
+  html += '</div>';
+  html += '</div>';
+  html += '</div>';
+  
+  return html;
+}
+
+/* ========================================================= */
+/*  Wearable Data Panel                                      */
+/* ========================================================= */
+
+function renderWearableDataPanel(wearable) {
+  let html = '<div class="category-panel wearable-panel">';
+  html += '<div class="category-header">';
+  html += '<h2>⌚ Wearable Data Summary</h2>';
+  html += '</div>';
+  
+  html += '<div class="category-content">';
+  
+  if (wearable.ecg && wearable.ecg.length > 0) {
+    html += '<div class="wearable-section">';
+    html += '<h4>ECG Findings:</h4>';
+    html += '<ul>';
+    wearable.ecg.forEach(finding => {
+      html += `<li>${finding}</li>`;
+    });
+    html += '</ul>';
+    html += '</div>';
+  }
+  
+  if (wearable.activity) {
+    html += '<div class="wearable-section">';
+    html += '<h4>Activity:</h4>';
+    html += `<p>${wearable.activity}</p>`;
+    html += '</div>';
+  }
+  
+  if (wearable.sleep) {
+    html += '<div class="wearable-section">';
+    html += '<h4>Sleep:</h4>';
+    html += `<p>${wearable.sleep}</p>`;
+    html += '</div>';
+  }
+  
+  html += '</div>';
+  html += '</div>';
+  
+  return html;
+}
+
+/* ========================================================= */
+/*  Recent Healthcare Utilization Panel                      */
+/* ========================================================= */
+
+function renderRecentCarePanel(recent_care) {
+  let html = '<div class="category-panel recent-care-panel">';
+  html += '<div class="category-header">';
+  html += '<h2>🏥 Recent Healthcare Utilization</h2>';
+  html += '</div>';
+  
+  html += '<div class="category-content">';
+  
+  if (recent_care.last_hospitalization) {
+    const hosp = recent_care.last_hospitalization;
+    html += '<div class="care-section">';
+    html += `<h4>Last Hospitalization (${hosp.time_ago || 'N/A'})</h4>`;
+    html += `<p><strong>Reason:</strong> ${hosp.reason || 'N/A'}</p>`;
+    html += `<p><strong>Length of Stay:</strong> ${hosp.length_of_stay_days || 'N/A'} days</p>`;
+    if (hosp.treatments && hosp.treatments.length > 0) {
+      html += '<p><strong>Treatments:</strong></p>';
+      html += '<ul>';
+      hosp.treatments.forEach(treatment => {
+        html += `<li>${treatment}</li>`;
+      });
+      html += '</ul>';
+    }
+    html += '</div>';
+  }
+  
+  if (recent_care.last_cardiology_clinic_visit) {
+    const visit = recent_care.last_cardiology_clinic_visit;
+    html += '<div class="care-section">';
+    html += `<h4>Last Cardiology Clinic Visit (${visit.time_ago || 'N/A'})</h4>`;
+    html += `<p><strong>Status:</strong> ${visit.status_at_visit || 'N/A'}</p>`;
+    html += '</div>';
   }
   
   html += '</div>';

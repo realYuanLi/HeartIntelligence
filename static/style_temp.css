@@ -1,0 +1,3815 @@
+/* ===================== CSS Variables ===================== */
+:root {
+  --bg: #ffffff;
+  --text: #111;
+  --aside-bg: #f7f7f7;
+  --border: #e5e7eb;
+  --card: #f3f4f6;
+  --user: #e5e7eb;
+  --accent: #ff6850;
+  --accent-hover: #e55a00;
+  --muted: #555;
+  --muted-2: #444;
+  --overlay-bg: rgba(0,0,0,0.4);
+  --login-bg: #ffffff;
+  --input-bg: #ffffff;
+  --input-border: #d1d5db;
+  --dropdown-bg: #ffffff;
+  --dropdown-hover: #f3f4f6;
+}
+
+
+/* ===================== Global layout/colors ===================== */
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  display: flex;
+  height: 100vh;
+  overflow: hidden;
+  line-height: 1.5;
+}
+aside {
+  background: var(--aside-bg);
+  width: 260px;
+  display: flex;
+  flex-direction: column;
+  padding: 1rem;
+  box-sizing: border-box;
+  border-right: 1px solid var(--border);
+}
+.logo-container {
+  margin-bottom: 2rem;
+}
+
+.institution-logos {
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+  gap: 1.25rem;
+  margin-bottom: 0.75rem;
+  padding-left: 0.75rem;
+}
+
+.institution-logo {
+  height: 35px;
+  width: auto;
+  object-fit: contain;
+}
+
+.logo {
+  font-size: 1.3rem;
+  font-weight: 600;
+  text-align: left;
+  padding-left: 0.75rem;
+}
+.nav-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0rem;
+  margin-bottom: 1rem;
+}
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0.75rem;
+  border-radius: 0.4rem;
+  cursor: pointer;
+  font-size: 1rem;
+}
+.nav-item:hover {
+  background: #ddd;
+}
+.recents {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scroll-behavior: auto;
+  -webkit-overflow-scrolling: touch;
+  will-change: scroll-position;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  overscroll-behavior: none;
+}
+
+.recents::-webkit-scrollbar {
+  width: 4px;
+}
+
+.recents::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.recents::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 2px;
+}
+
+.recents::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.18);
+}
+
+
+.recent-item {
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.4rem;
+  cursor: pointer;
+  font-size: 0.9rem;
+  color: var(--muted-2);
+}
+.recent-item:hover {
+  background: #ddd;
+}
+.login-btn {
+  font-size: 0.9rem;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.4rem;
+}
+.login-btn:hover {
+  background: var(--card);
+}
+main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow-y: auto;
+  scroll-behavior: auto;
+  -webkit-overflow-scrolling: touch;
+  will-change: scroll-position;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  perspective: 1000px;
+  scroll-padding-bottom: 0;
+  scroll-snap-type: none;
+  overscroll-behavior: none;
+  /* Ensure main takes available space between sidebars */
+  width: 0;
+  flex-grow: 1;
+}
+
+main::-webkit-scrollbar {
+  width: 6px;
+}
+
+main::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+main::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.12);
+  border-radius: 3px;
+}
+
+main::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.2);
+}
+
+
+.chat-header {
+  padding: 1rem 1.5rem;
+  font-weight: 500;
+}
+.chat-content {
+  flex: 1;
+  min-width: 0;
+  padding: 1.5rem 0rem 0rem 0rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  max-width: 850px;
+  margin: 0 auto;
+  align-items: stretch;
+  width: 100%;
+  /* Ensure content stays centered and doesn't overflow */
+  box-sizing: border-box;
+}
+
+.chat-content::after {
+  content: '';
+  height: 6rem;
+  flex-shrink: 0;
+  pointer-events: none;
+  user-select: none;
+}
+
+/* override inline color in new_chat.html */
+.chat-content h1 { color: var(--text) !important; }
+
+.message {
+  max-width: 850px;
+  padding: 1rem;
+  white-space: normal;  /* Changed from pre-line to normal for better control */
+  align-self: flex-start;
+  margin-right: auto;
+  margin-left: 2rem; /* Align with left edge of input content (container padding + wrapper padding) */
+  text-align: justify;
+  font-size: 1.05rem;
+  line-height: 1.5;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  transform: translateZ(0);
+  will-change: transform;
+  direction: ltr;
+}
+
+/* Increase message max-width when sources panel is open */
+body.sources-sidebar-open .message {
+  max-width: 1200px;
+}
+.message.user {
+  align-self: flex-end !important;
+  background: var(--user) !important;
+  color: var(--text) !important;
+  white-space: normal;  /* Changed from pre-line to normal for better control */
+  border: 1px solid var(--user) !important;
+  border-radius: 1.5rem !important;
+  margin-left: auto !important;
+  margin-right: 0rem !important; /* Align with right outer arc of input box */
+  padding: 0.3rem 0.9rem !important;
+  max-width: 70% !important;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1) !important;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  text-align: justify !important;
+  width: auto !important;
+  display: block !important;
+  position: relative !important;
+}
+
+/* Ensure the chat content container allows proper flex positioning */
+.chat-content .message.user {
+  align-self: flex-end !important;
+  margin-left: auto !important;
+  margin-right: 2rem !important; /* Align with right edge of input content (container padding + wrapper padding) */
+}
+
+/* Immediate positioning for user messages */
+.message.user {
+  transform: translateZ(0); /* Force hardware acceleration for immediate positioning */
+}
+.icon-btn {
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  font-size: 1.2rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.4rem;
+  border-radius: 0.4rem;
+}
+.icon-btn:hover {
+  background: var(--dropdown-hover);
+}
+.model-select {
+  color: var(--text);
+  font-size: 0.95rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  position: relative;
+  user-select: none;
+}
+.model-dropdown {
+  position: absolute;
+  bottom: 2.5rem;
+  right: 0;
+  background: var(--dropdown-bg);
+  border: 1px solid var(--input-border);
+  border-radius: 0.5rem;
+  display: none;
+  flex-direction: column;
+  z-index: 20;
+}
+.model-option {
+  padding: 0.75rem 1rem;
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+.model-option:hover {
+  background: var(--dropdown-hover);
+}
+.filter-menu {
+  position: absolute;
+  bottom: 3rem;
+  left: 2rem;
+  background: var(--dropdown-bg);
+  border: 1px solid var(--input-border);
+  border-radius: 0.5rem;
+  display: none;
+  flex-direction: column;
+  z-index: 20;
+  width: 200px;
+}
+.filter-item {
+  padding: 0.75rem 1rem;
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+.filter-item:hover {
+  background: var(--dropdown-hover);
+}
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: var(--overlay-bg);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+}
+.login-modal {
+  background: var(--login-bg);
+  padding: 2rem;
+  border-radius: 0.5rem;
+  width: 300px;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+.login-modal input {
+  padding: 0.5rem;
+  border: 1px solid var(--input-border);
+  border-radius: 0.4rem;
+  background: var(--input-bg);
+  color: var(--text);
+}
+.login-modal button {
+  padding: 0.5rem;
+  background: #4f46e5;
+  border: none;
+  color: #fff;
+  border-radius: 0.4rem;
+  cursor: pointer;
+}
+.highlight-big { font-size: 1.2rem; }
+.highlight-small { font-size: 0.85rem; }
+
+/* Active item highlight */
+.recent-item.active {
+  background: var(--card);
+  color: #fff;
+}
+
+/* Recents title */
+.recents-title {
+  font-size: 0.85rem;
+  /* text-transform: uppercase; */
+  color: #777;
+  margin: 1.5rem 0 0% 0.75rem;
+  border-top: 1px solid #ccc;
+  padding-top: 1rem;
+}
+
+/* Suggestions under input */
+.suggestions {
+  display: none;
+  flex-direction: column;
+  position: absolute;
+  bottom: 3.2rem; /* float above input text box */
+  left: 0;
+  width: 100%;
+  background: var(--dropdown-bg);
+  border: 1px solid var(--input-border);
+  border-radius: 0.5rem;
+  z-index: 30;
+}
+.suggestion-item {
+  padding: 0.75rem 1rem;
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+.suggestion-item:hover {
+  background: var(--dropdown-hover);
+}
+/* make text 90% of normal size */
+.small-text { font-size: 0.8em; }
+
+.recent-item {
+  position: relative;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 2.5rem;
+  overflow: hidden;
+  width: 100%;
+  box-sizing: border-box;
+}
+.recent-content {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  gap: 0.2rem;
+  justify-content: center;
+  min-width: 0;
+  overflow: hidden;
+}
+.recent-title {
+  font-weight: 500;
+  font-size: 0.85rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  width: 100%;
+  max-width: 100%;
+}
+.recent-time {
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+.more-btn {
+  background: none;
+  border: none;
+  color: transparent;
+  cursor: pointer;
+  font-size: 1.2rem;
+  font-weight: bold;
+  padding: 0 0.25rem;
+  margin-left: auto;
+  transition: color 0.2s ease;
+}
+.recent-item:hover .more-btn {
+  color: #000;
+}
+
+.dropdown-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  background: var(--dropdown-bg);
+  border: 1px solid var(--input-border);
+  border-radius: 0.25rem;
+  overflow: hidden;
+  z-index: 100;
+}
+.dropdown-item {
+  padding: 0.5rem 1rem;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+.dropdown-item:hover {
+  background: var(--dropdown-hover);
+}
+
+/* Breathing dot animation for Processing... */
+@keyframes breathing-dot {
+  0%, 100% { 
+    transform: scale(0.7); 
+  }
+  50% { 
+    transform: scale(1.2); 
+  }
+}
+
+/* Soft pulsing effect for other status messages */
+@keyframes soft-pulse {
+  0%, 100% { 
+    opacity: 0.7; 
+  }
+  50% { 
+    opacity: 1; 
+  }
+}
+
+.status-container {
+  display: flex;
+  align-items: center;
+  padding: 0.5rem 0;
+  color: var(--muted-2);
+  font-style: normal;
+  font-size: 1rem;
+}
+
+/* Breathing dot for Processing... status */
+.status-container.processing {
+  font-style: normal;
+}
+
+.status-container.processing::before {
+  content: '●';
+  color: var(--text);
+  margin-right: 0.5rem;
+  animation: breathing-dot 3s ease-in-out infinite;
+  display: inline-block;
+}
+
+/* Soft pulsing for other status messages */
+.status-container:not(.processing) {
+  animation: soft-pulse 3s ease-in-out infinite;
+}
+
+/* common look for status labels */
+.message.status-label {
+  background: transparent;
+  opacity: 1;
+}
+
+/* waiting message styling */
+.message.waiting-message {
+  background: transparent;
+  opacity: 1;
+}
+
+
+/* ===================== Welcome Page Styles ===================== */
+.welcome-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 2rem 1rem;
+  max-width: 1200px;
+  margin: 0 auto;
+  text-align: center;
+  height: 100%;
+  position: relative;
+  padding-top: 35vh;
+}
+
+.welcome-content {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.welcome-header {
+  margin-bottom: 1rem;
+  text-align: center;
+  width: 100%;
+}
+
+.welcome-title {
+  font-size: 2rem;
+  font-weight: 400;
+  margin: 0 auto;
+  color: var(--text);
+  line-height: 1.2;
+  text-align: center;
+  max-width: 100%;
+}
+
+.suggestions-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1rem;
+  margin-bottom: 2rem;
+  padding: 0;
+}
+
+.suggestion-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  padding: 1rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: left;
+}
+
+.suggestion-card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border-color: var(--accent);
+  background: var(--dropdown-hover);
+}
+
+.suggestion-card h3 {
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin: 0 0 0.25rem 0;
+  color: var(--text);
+  line-height: 1.5;
+}
+
+.suggestion-card p {
+  font-size: 0.85rem;
+  color: var(--muted);
+  margin: 0;
+  line-height: 1.4;
+}
+
+
+/* ===================== Input Box Styles ===================== */
+.input-container {
+  width: 100%;
+  max-width: 850px;
+  margin: 2rem auto 0;
+  padding: 0 1rem;
+  position: relative;
+  box-sizing: border-box;
+}
+
+/* Fixed input container for chat page */
+.input-container.fixed {
+  position: fixed;
+  bottom: 0rem;
+  left: 260px;
+  right: 0;
+  margin: 0;
+  padding: 1rem; /* Align with outer arc */
+  background: var(--bg);
+  z-index: 100;
+  max-width: 850px;
+  margin-left: auto;
+  margin-right: auto;
+  box-sizing: border-box;
+  /* Ensure input doesn't extend beyond viewport */
+  width: calc(100vw - 260px);
+  max-width: min(850px, calc(100vw - 260px - 2rem));
+}
+
+
+/* Auto-resize for chat page input - flexible height */
+.input-container.fixed .message-input {
+  height: auto;
+  min-height: 1.2rem !important;
+  max-height: 12rem !important; /* 8 rows * 1.5rem line-height = 12rem */
+  resize: none;
+  overflow-y: auto;
+  line-height: 1.5;
+  transition: height 0.1s ease;
+}
+
+/* Welcome page input container - longer than chat */
+.welcome-container .input-container {
+  width: 100%; /* Full width for welcome page */
+  min-width: 700px; /* Ensure minimum width */
+  max-width: 1000px;
+  margin: 1rem auto 0;
+  padding: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+/* Auto-resize for welcome page input - flexible height */
+.welcome-container .message-input {
+  height: auto;
+  min-height: 1.2rem !important;
+  max-height: 12rem !important; /* 8 rows * 1.5rem line-height = 12rem */
+  resize: none;
+  overflow-y: auto;
+  line-height: 1.5;
+  transition: height 0.1s ease;
+}
+
+/* Welcome page input wrapper - single row height */
+.welcome-container .input-wrapper {
+  min-height: 2.2rem; /* Reduced height for single row appearance */
+  max-height: 14rem; /* Maximum height to accommodate 8 rows + padding */
+  align-items: center; /* Center align for single row appearance */
+}
+
+.input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  background: var(--input-bg);
+  border: 1px solid var(--input-border);
+  border-radius: 1.5rem;
+  padding: 0.5rem 1rem;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* Flexible height for input wrapper in fixed containers */
+.input-container.fixed .input-wrapper {
+  min-height: 2.2rem; /* Reduced height for single row appearance */
+  max-height: 14rem; /* Maximum height to accommodate 8 rows + padding */
+  align-items: center; /* Center align for single row appearance */
+  padding-top: 0.5rem;
+  padding-bottom: 0.5rem;
+}
+
+.input-wrapper:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(255, 104, 80, 0.15), 0 2px 12px rgba(0, 0, 0, 0.15);
+}
+
+.message-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text);
+  font-size: 1rem;
+  line-height: 1.5;
+  resize: none;
+  min-height: 1.2rem;
+  max-height: 12rem; /* 8 rows * 1.5rem line-height = 12rem */
+  overflow-y: auto;
+  font-family: inherit;
+  padding: 0;
+  margin: 0;
+  width: 100%;
+  box-sizing: border-box;
+  transition: height 0.1s ease;
+  text-align: justify;
+}
+
+/* Auto-resize functionality for all message inputs */
+
+.message-input::placeholder {
+  color: #888;
+}
+
+.send-button {
+  background: var(--accent);
+  border: none;
+  border-radius: 0.75rem;
+  color: white;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.375rem;
+  margin-left: 0.75rem;
+  margin-top: 0.25rem; /* Slight top margin to align with text baseline */
+  transition: all 0.2s ease;
+  min-width: 2.25rem;
+  height: 2.25rem;
+  flex-shrink: 0;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  align-self: flex-start; /* Align to top of flex container */
+}
+
+.send-button:hover:not(:disabled) {
+  background: var(--accent-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.send-button:active {
+  transform: translateY(0);
+}
+
+.send-button:disabled {
+  background: var(--muted);
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+/* ===================== Microphone Button Styles ===================== */
+.mic-button {
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.375rem;
+  margin-right: 0.5rem;
+  transition: all 0.2s ease;
+  min-width: 2rem;
+  height: 2rem;
+  flex-shrink: 0;
+  border-radius: 0.5rem;
+}
+
+.mic-button:hover {
+  background: var(--card);
+  color: var(--text);
+}
+
+.mic-button:active {
+  transform: scale(0.95);
+}
+
+/* Recording state */
+.mic-button.recording {
+  background: var(--accent);
+  color: white;
+  animation: pulse-recording 1.5s ease-in-out infinite;
+}
+
+.mic-button.recording:hover {
+  background: var(--accent-hover);
+}
+
+@keyframes pulse-recording {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(255, 104, 80, 0.7);
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgba(255, 104, 80, 0);
+  }
+}
+
+/* Recording visual effect in input wrapper */
+.input-wrapper.recording {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(255, 104, 80, 0.15), 0 2px 12px rgba(0, 0, 0, 0.15);
+  animation: border-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes border-pulse {
+  0%, 100% {
+    border-color: var(--accent);
+  }
+  50% {
+    border-color: var(--accent-hover);
+  }
+}
+
+/* Auto-resize textarea with smooth transition for all inputs */
+
+/* Chat page specific styles */
+.chat-page .chat-content {
+  padding-bottom: 7rem; /* Space for fixed input at bottom */
+}
+
+/* Disclaimer styling */
+.disclaimer {
+  text-align: center;
+  margin-top: 0.5rem;
+  font-size: 0.9rem;
+  color: var(--muted);
+  opacity: 0.7;
+}
+
+.disclaimer span {
+  font-style: normal;
+}
+
+/* Hide sidebar on small screens */
+@media (max-width: 1200px) {
+  aside {
+    display: none;
+  }
+  
+  main {
+    width: 100%;
+    flex-grow: 1;
+  }
+  
+  .input-container.fixed {
+    left: 0;
+    right: 0;
+    margin: 0 auto;
+    max-width: 850px;
+    padding: 1rem;
+    width: calc(100vw - 2rem);
+    max-width: min(850px, calc(100vw - 2rem));
+  }
+}
+
+/* Responsive design for welcome page */
+@media (max-width: 1200px) {
+  /* Hide sidebar on welcome page for small screens */
+  body:has(.welcome-container) aside {
+    display: none;
+  }
+  
+  /* Make main take full width on welcome page for small screens */
+  body:has(.welcome-container) main {
+    width: 100%;
+  }
+}
+
+/* Center input on medium screens */
+@media (max-width: 1200px) and (min-width: 901px) {
+  .welcome-container .input-container {
+    margin: 1rem auto 0;
+    justify-content: center;
+  }
+}
+
+/* Make input responsive to narrow screens */
+@media (max-width: 900px) {
+  /* Remove min-width constraint for narrow screens */
+  .welcome-container .input-container {
+    min-width: unset;
+  }
+}
+
+/* Move input to bottom when screen is smaller than input min-width */
+@media (max-width: 900px) {
+  /* Hide sidebar on welcome page for small screens */
+  body:has(.welcome-container) aside {
+    display: none;
+  }
+  
+  /* Make main take full width on welcome page for small screens */
+  body:has(.welcome-container) main {
+    width: 100%;
+  }
+  
+  .welcome-container {
+    padding: 1rem;
+    height: 100%;
+    padding-top: 0; /* Remove top padding for small screens */
+    padding-bottom: 5rem; /* Add bottom padding to account for fixed input */
+    justify-content: center; /* Center content vertically */
+  }
+  
+  .welcome-title {
+    font-size: 1.75rem;
+  }
+  
+  .suggestions-grid {
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+  }
+  
+  .suggestion-card {
+    padding: 0.875rem;
+  }
+  
+  .input-container {
+    max-width: 100%;
+    margin: 1.5rem auto 0;
+    padding: 0 0.5rem;
+  }
+  
+  .input-container.fixed {
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 0.75rem 1rem;
+    bottom: 0;
+    max-width: 850px;
+    width: calc(100vw - 2rem);
+    max-width: min(850px, calc(100vw - 2rem));
+  }
+  
+  .input-container.fixed .input-wrapper {
+    min-height: 2.2rem; /* Single row height on mobile */
+    max-height: 14rem; /* Allow growth up to 8 rows on mobile too */
+  }
+  
+  /* Move welcome page input to bottom on small screens */
+  .welcome-container .input-container {
+    position: fixed;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: calc(100% - 2rem);
+    max-width: 100%;
+    margin: 0;
+    padding: 0.75rem 1rem;
+    background: var(--bg);
+    z-index: 100;
+  }
+  
+  .input-wrapper {
+    padding: 0.625rem 0.875rem;
+  }
+  
+  .send-button {
+    min-width: 2.25rem;
+    height: 2.25rem;
+    margin-left: 0.5rem;
+  }
+}
+
+@media (max-width: 480px) {
+  /* Hide sidebar on welcome page for small screens */
+  body:has(.welcome-container) aside {
+    display: none;
+  }
+  
+  /* Make main take full width on welcome page for small screens */
+  body:has(.welcome-container) main {
+    width: 100%;
+  }
+  
+  .welcome-container {
+    padding: 0.75rem;
+    padding-top: 1.5rem; /* Reduce top padding for very small screens */
+    padding-bottom: 4.5rem; /* Add bottom padding to account for fixed input */
+  }
+  
+  .welcome-title {
+    font-size: 1.5rem;
+  }
+  
+  .suggestions-grid {
+    margin-bottom: 1rem;
+  }
+  
+  .suggestion-card {
+    padding: 0.75rem;
+  }
+  
+  .input-container {
+    margin: 1rem auto 0;
+    padding: 0 0.25rem;
+  }
+  
+  .input-container.fixed {
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 0.5rem 0.75rem;
+    bottom: 0;
+    max-width: 850px;
+    width: calc(100vw - 1rem);
+    max-width: min(850px, calc(100vw - 1rem));
+  }
+  
+  .input-container.fixed .input-wrapper {
+    min-height: 2.2rem; /* Single row height on small mobile */
+    max-height: 14rem; /* Allow growth up to 8 rows on small mobile too */
+  }
+  
+  /* Move welcome page input to bottom on very small screens */
+  .welcome-container .input-container {
+    position: fixed;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: calc(100% - 1rem);
+    max-width: 100%;
+    margin: 0;
+    padding: 0.5rem 0.75rem;
+    background: var(--bg);
+    z-index: 100;
+  }
+  
+  .input-wrapper {
+    padding: 0.5rem 0.75rem;
+  }
+  
+  .message-input {
+    font-size: 0.95rem;
+  }
+  
+  .send-button {
+    min-width: 2rem;
+    height: 2rem;
+    margin-left: 0.375rem;
+  }
+}
+
+/* ========================================================= */
+/*  Markdown formatting styles - ChatGPT-like                */
+/* ========================================================= */
+
+/* Markdown content within assistant messages */
+.message.assistant {
+  white-space: normal !important;  /* Override pre-line to allow markdown control */
+  line-height: 1.6 !important;
+  align-self: flex-start !important;
+  margin-left: 2rem !important; /* Align with left edge of input content (container padding + wrapper padding) */
+  margin-right: auto !important;
+  font-size: 1rem;
+  color: #374151;
+  text-align: left !important;  /* Override justify for better markdown rendering */
+}
+
+/* Refined headings spacing - based on AI output patterns */
+.message.assistant h1,
+.message.assistant h2,
+.message.assistant h3,
+.message.assistant h4,
+.message.assistant h5,
+.message.assistant h6 {
+  margin: 1rem 0 0.5rem 0;
+  font-weight: 600;
+  line-height: 1.4;
+  color: #111827;
+  font-family: inherit;
+}
+
+.message.assistant h1 {
+  font-size: 1.75rem;
+  font-weight: 700;
+  margin-top: 1.5rem;
+  margin-bottom: 0.75rem;
+  border-bottom: 2px solid #e5e7eb;
+  padding-bottom: 0.5rem;
+}
+
+.message.assistant h2 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin-top: 1.25rem;
+  margin-bottom: 0.5rem;
+  border-bottom: 1px solid #e5e7eb;
+  padding-bottom: 0.25rem;
+}
+
+.message.assistant h3 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-top: 1rem;
+  margin-bottom: 0.375rem;
+  color: #374151;
+}
+
+.message.assistant h4 {
+  font-size: 1.125rem;
+  font-weight: 600;
+  margin-top: 0.875rem;
+  margin-bottom: 0.375rem;
+}
+
+.message.assistant h5,
+.message.assistant h6 {
+  font-size: 1rem;
+  font-weight: 600;
+  margin-top: 0.75rem;
+  margin-bottom: 0.375rem;
+}
+
+/* Enhanced bold and italic text */
+.message.assistant strong,
+.message.assistant b {
+  font-weight: 700;
+  color: #111827;
+  letter-spacing: -0.01em;
+}
+
+.message.assistant em,
+.message.assistant i {
+  font-style: italic;
+  color: #374151;
+}
+
+/* Combined bold and italic */
+.message.assistant strong em,
+.message.assistant em strong,
+.message.assistant b i,
+.message.assistant i b {
+  font-weight: 700;
+  font-style: italic;
+  color: #111827;
+}
+
+/* Enhanced Code formatting - ChatGPT-like */
+.message.assistant code {
+  background: #f1f5f9;
+  color: #e11d48;
+  padding: 0.125rem 0.25rem;
+  border-radius: 0.25rem;
+  font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', 'Source Code Pro', 'Consolas', monospace;
+  font-size: 0.875em;
+  font-weight: 500;
+  border: 1px solid #e2e8f0;
+  white-space: nowrap;
+}
+
+.message.assistant pre {
+  background: #f8fafc;
+  color: #334155;
+  padding: 1rem;
+  border-radius: 0.5rem;
+  overflow-x: auto;
+  margin: 0.75rem 0;
+  border: 1px solid #e2e8f0;
+  font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', 'Source Code Pro', 'Consolas', monospace;
+  font-size: 0.875em;
+  line-height: 1.5;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.message.assistant pre code {
+  background: none;
+  color: inherit;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  font-size: inherit;
+  font-weight: normal;
+  white-space: pre;
+}
+
+/* Code block with language indicator */
+.message.assistant pre[class*="language-"] {
+  position: relative;
+}
+
+.message.assistant pre[class*="language-"]::before {
+  content: attr(class);
+  position: absolute;
+  top: 0.5rem;
+  right: 0.75rem;
+  font-size: 0.75em;
+  color: #64748b;
+  text-transform: uppercase;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+}
+
+/* Refined Lists - based on AI output patterns */
+.message.assistant ul,
+.message.assistant ol {
+  margin: 0.5rem 0 !important;
+  padding-left: 1.5rem;
+  line-height: 1.6;
+}
+
+.message.assistant li {
+  margin: 0.15rem 0 !important;
+  line-height: 1.6 !important;
+  padding-left: 0.25rem;
+  position: relative;
+}
+
+.message.assistant ul li {
+  list-style-type: none;
+  position: relative;
+}
+
+.message.assistant ul li::before {
+  content: "•";
+  color: #6b7280;
+  font-weight: bold;
+  position: absolute;
+  left: -1.25rem;
+  top: 0;
+  font-size: 1.1em;
+}
+
+.message.assistant ol li {
+  list-style-type: decimal;
+  padding-left: 0.5rem;
+}
+
+/* Nested lists with proper indentation */
+.message.assistant ul ul,
+.message.assistant ol ol,
+.message.assistant ul ol,
+.message.assistant ol ul {
+  margin: 0.25rem 0;
+  padding-left: 1.25rem;
+}
+
+/* Second level bullet points */
+.message.assistant ul ul li::before {
+  content: "◦";
+  color: #9ca3af;
+  font-size: 1em;
+}
+
+/* Third level bullet points */
+.message.assistant ul ul ul li::before {
+  content: "▪";
+  color: #d1d5db;
+  font-size: 0.9em;
+}
+
+/* List spacing improvements */
+.message.assistant li p {
+  margin: 0.25rem 0 !important;
+  line-height: 1.6 !important;
+}
+
+.message.assistant li:first-child {
+  margin-top: 0 !important;
+}
+
+.message.assistant li:last-child {
+  margin-bottom: 0 !important;
+}
+
+/* Refined Blockquotes - based on AI output patterns */
+.message.assistant blockquote {
+  margin: 0.75rem 0;
+  padding: 0.75rem 1rem;
+  border-left: 4px solid #3b82f6;
+  background: #f8fafc;
+  border-radius: 0 0.375rem 0.375rem 0;
+  font-style: normal;
+  color: #475569;
+  position: relative;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.message.assistant blockquote p {
+  margin: 0;
+  line-height: 1.6;
+}
+
+.message.assistant blockquote p:first-child {
+  margin-top: 0;
+}
+
+.message.assistant blockquote p:last-child {
+  margin-bottom: 0;
+}
+
+/* Nested blockquotes */
+.message.assistant blockquote blockquote {
+  margin: 0.5rem 0;
+  border-left-color: #64748b;
+  background: #f1f5f9;
+}
+
+/* Links */
+.message.assistant a {
+  color: var(--accent);
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  transition: border-bottom-color 0.2s ease;
+}
+
+.message.assistant a:hover {
+  border-bottom-color: var(--accent);
+}
+
+/* Citation badges */
+a.citation-badge {
+  display: inline-block !important;
+  background: #f4f4f4 !important;
+  color: #5d5d5d !important;
+  padding: 0.125rem 0.375rem !important;
+  border-radius: 1rem !important;
+  font-size: 0.75rem !important;
+  font-weight: 500 !important;
+  text-decoration: none !important;
+  border: none !important;
+  margin: 0 0.125rem !important;
+  transition: all 0.2s ease !important;
+  cursor: pointer !important;
+  line-height: 1.2 !important;
+}
+
+a.citation-badge:hover {
+  background: #e5e7eb !important;
+  color: #374151 !important;
+  text-decoration: none !important;
+  border-bottom: none !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+}
+
+/* Refined Tables - based on AI output patterns */
+.message.assistant table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0.75rem 0;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.5rem;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  font-size: 0.9em;
+}
+
+.message.assistant th,
+.message.assistant td {
+  padding: 0.75rem 1rem;
+  text-align: left;
+  border-bottom: 1px solid #e2e8f0;
+  line-height: 1.5;
+}
+
+.message.assistant th {
+  background: #f8fafc;
+  font-weight: 600;
+  color: #374151;
+  font-size: 0.875em;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.message.assistant td {
+  color: #475569;
+}
+
+.message.assistant tr:last-child td {
+  border-bottom: none;
+}
+
+.message.assistant tr:nth-child(even) {
+  background: #fafbfc;
+}
+
+.message.assistant tr:hover {
+  background: #f1f5f9;
+}
+
+/* Responsive table */
+.message.assistant table {
+  display: block;
+  overflow-x: auto;
+  white-space: nowrap;
+}
+
+.message.assistant table thead,
+.message.assistant table tbody,
+.message.assistant table tr {
+  display: table;
+  width: 100%;
+  table-layout: fixed;
+}
+
+/* Horizontal rule */
+.message.assistant hr {
+  border: none;
+  height: 1px;
+  background: var(--border);
+  margin: 1.5rem 0;
+}
+
+/* Images */
+.message.assistant img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 0.5rem;
+  margin: 0.5rem 0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Task lists */
+.message.assistant input[type="checkbox"] {
+  margin-right: 0.5rem;
+  accent-color: var(--accent);
+}
+
+.message.assistant li:has(input[type="checkbox"]) {
+  list-style: none;
+  margin-left: -1.5rem;
+}
+
+
+/* Code and content styling - ChatGPT-like colors */
+.message.assistant {
+  --code-bg: #f1f5f9;
+  --code-text: #e11d48;
+  --blockquote-bg: #f8fafc;
+  --table-header-bg: #f1f5f9;
+  --table-row-bg: #fafbfc;
+  --text-secondary: #64748b;
+}
+
+/* ========================================================= */
+/*  Line break normalization                                 */
+/* ========================================================= */
+
+/* Normalize line breaks in user messages only */
+.message.user {
+  /* Set consistent line height for user messages */
+  line-height: 1.5 !important;
+}
+
+/* Refined paragraph spacing - based on AI output patterns */
+.message.assistant p {
+  margin: 0 0 0.75rem 0 !important;  /* Controlled spacing between paragraphs */
+  line-height: 1.6 !important;
+  color: #374151;
+  font-size: 1rem;
+}
+
+/* ========================================================= */
+/*  Health Information Overlay Styles                       */
+/* ========================================================= */
+
+#organInfoOverlay {
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  animation: fadeInScale 0.3s ease-out;
+}
+
+@keyframes fadeInScale {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+#organInfoOverlay h3 {
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+#organInfoOverlay h4 {
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+#organInfoOverlay ul {
+  list-style-type: none;
+  padding-left: 0;
+}
+
+#organInfoOverlay li {
+  position: relative;
+  padding-left: 20px;
+  margin-bottom: 8px;
+  line-height: 1.4;
+}
+
+#organInfoOverlay li::before {
+  content: "•";
+  color: #4CAF50;
+  font-weight: bold;
+  position: absolute;
+  left: 0;
+}
+
+#organInfoOverlay li:hover {
+  color: #fff;
+  transition: color 0.2s ease;
+}
+
+#organInfoOverlay strong {
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+/* Scrollbar styling for health info overlay */
+#organInfoOverlay::-webkit-scrollbar {
+  width: 8px;
+}
+
+#organInfoOverlay::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+}
+
+#organInfoOverlay::-webkit-scrollbar-thumb {
+  background: rgba(76, 175, 80, 0.6);
+  border-radius: 4px;
+}
+
+#organInfoOverlay::-webkit-scrollbar-thumb:hover {
+  background: rgba(76, 175, 80, 0.8);
+}
+
+/* Health info section styling */
+.health-info-section {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  padding: 15px;
+  margin: 10px 0;
+  border-left: 3px solid #4CAF50;
+}
+
+.health-info-section h4 {
+  margin-top: 0;
+  margin-bottom: 12px;
+}
+
+/* Color-coded health categories */
+.health-conditions { color: #FF9800; }
+.health-symptoms { color: #F44336; }
+.health-prevention { color: #4CAF50; }
+.health-screening { color: #2196F3; }
+.health-normal { color: #9C27B0; }
+
+/* ========================================================= */
+/*  Health Information Sidebar Styles                       */
+/* ========================================================= */
+
+.health-info-sidebar {
+  position: fixed;
+  top: 0;
+  right: -400px;
+  width: 400px;
+  height: calc(100vh - 80px);
+  bottom: 80px;
+  background: #ffffff;
+  color: #000000;
+  z-index: 1000;
+  transition: right 0.3s ease-in-out;
+  border-left: 2px solid #4CAF50;
+  box-shadow: -2px 0 10px rgba(0, 0, 0, 0.1);
+}
+
+.health-info-sidebar.active {
+  right: 0;
+}
+
+.sidebar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 25px;
+  border-bottom: 1px solid #e0e0e0;
+  background: #f8f9fa;
+}
+
+.sidebar-header h3 {
+  margin: 0;
+  color: #4CAF50;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  color: #000000;
+  font-size: 28px;
+  cursor: pointer;
+  padding: 0;
+  width: 35px;
+  height: 35px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: all 0.2s ease;
+}
+
+.close-btn:hover {
+  background: rgba(0, 0, 0, 0.1);
+  color: #000000;
+}
+
+.sidebar-content {
+  padding: 25px;
+  height: calc(100vh - 160px);
+  overflow-y: auto;
+}
+
+.sidebar-placeholder {
+  color: #000000;
+  font-style: italic;
+  text-align: center;
+  margin: 20px 0;
+}
+
+.no-organ-message {
+  color: #F44336;
+  text-align: center;
+  margin: 20px 0;
+  font-weight: 500;
+}
+
+.organ-stats {
+  background: #f0f8f0;
+  border-radius: 8px;
+  padding: 15px;
+  margin-bottom: 20px;
+  border-left: 4px solid #4CAF50;
+}
+
+.stat-item {
+  margin-bottom: 8px;
+  font-size: 14px;
+}
+
+.stat-item:last-child {
+  margin-bottom: 0;
+}
+
+.organ-description {
+  font-style: italic;
+  color: #000000;
+  margin-bottom: 20px;
+  padding: 10px;
+  background: #f8f9fa;
+  border-radius: 6px;
+}
+
+.info-category {
+  margin-bottom: 20px;
+  padding: 15px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border-left: 3px solid #4CAF50;
+}
+
+.info-category strong {
+  display: block;
+  margin-bottom: 10px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.info-category ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.info-category li {
+  position: relative;
+  padding-left: 20px;
+  margin-bottom: 6px;
+  font-size: 13px;
+  line-height: 1.4;
+  color: #000000;
+}
+
+.info-category li::before {
+  content: "•";
+  color: #4CAF50;
+  font-weight: bold;
+  position: absolute;
+  left: 0;
+}
+
+.normal-values {
+  margin-top: 8px;
+}
+
+.normal-values div {
+  margin-bottom: 4px;
+  font-size: 13px;
+  color: #000000;
+}
+
+/* Sidebar scrollbar styling */
+.sidebar-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.sidebar-content::-webkit-scrollbar-track {
+  background: #f0f0f0;
+  border-radius: 3px;
+}
+
+.sidebar-content::-webkit-scrollbar-thumb {
+  background: #4CAF50;
+  border-radius: 3px;
+}
+
+.sidebar-content::-webkit-scrollbar-thumb:hover {
+  background: #45a049;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .health-info-sidebar {
+    width: 100%;
+    right: -100%;
+    height: calc(100vh - 80px);
+    bottom: 80px;
+  }
+  
+  .sidebar-content {
+    padding: 20px;
+    height: calc(100vh - 160px);
+  }
+}
+
+/* Remove extra spacing from consecutive paragraphs */
+.message.assistant p + p {
+  margin-top: 0.75rem !important;
+}
+
+/* Ensure our normalization overrides any other paragraph rules */
+.message.assistant p:first-child {
+  margin-top: 0 !important;
+}
+
+.message.assistant p:last-child {
+  margin-bottom: 0 !important;
+}
+
+/* Refined spacing for paragraphs after headings */
+.message.assistant h1 + p,
+.message.assistant h2 + p,
+.message.assistant h3 + p,
+.message.assistant h4 + p,
+.message.assistant h5 + p,
+.message.assistant h6 + p {
+  margin-top: 0.25rem !important;
+}
+
+/* Refined spacing for paragraphs before headings */
+.message.assistant p + h1,
+.message.assistant p + h2,
+.message.assistant p + h3,
+.message.assistant p + h4,
+.message.assistant p + h5,
+.message.assistant p + h6 {
+  margin-top: 1rem !important;
+}
+
+/* Normalize line breaks in user messages (raw text) */
+.message.user {
+  white-space: normal !important;  /* Changed from pre-line to normal */
+  line-height: 1.5 !important;
+}
+
+/* Ensure proper line break handling in assistant messages */
+.message.assistant {
+  white-space: normal !important;
+}
+
+/* Handle line breaks within paragraphs - controlled spacing */
+.message.assistant br,
+.message.user br {
+  line-height: 1.5 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  display: block !important;
+  content: "" !important;
+  margin-bottom: 0.25rem !important;  /* Small spacing for single line breaks */
+}
+
+/* Handle double line breaks (paragraph breaks) with more spacing */
+.message.assistant br + br,
+.message.user br + br {
+  margin-bottom: 0.75rem !important;  /* More spacing for paragraph breaks */
+}
+
+/* Normalize spacing for other markdown elements */
+.message.assistant h1,
+.message.assistant h2,
+.message.assistant h3,
+.message.assistant h4,
+.message.assistant h5,
+.message.assistant h6 {
+  margin: 0.5rem 0 0.3rem 0 !important;
+  line-height: 1.5 !important;
+}
+
+.message.assistant ul,
+.message.assistant ol {
+  margin: 0.3rem 0 !important;
+  padding-left: 1.2rem;
+}
+
+.message.assistant li {
+  margin: 0.1rem 0 !important;
+  line-height: 1.5 !important;
+}
+
+.message.assistant blockquote {
+  margin: 0.3rem 0 !important;
+  padding: 0.6rem 0.8rem;
+}
+
+.message.assistant pre {
+  margin: 0.3rem 0 !important;
+}
+
+.message.assistant hr {
+  margin: 0.5rem 0 !important;
+}
+
+/* ========================================================= */
+/*  Sources Button and Sidebar                               */
+/* ========================================================= */
+
+/* Sources button */
+.sources-button {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: transparent;
+  border: none;
+  border-radius: 1rem;
+  padding: 0.5rem 0.75rem;
+  margin: 0.75rem 0 0 0;
+  font-size: 0.875rem;
+  color: var(--muted);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: inherit;
+}
+
+.sources-button:hover {
+  background: #f3f4f6;
+  color: var(--text);
+}
+
+.sources-button:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.sources-button svg {
+  flex-shrink: 0;
+}
+
+/* Sources sidebar */
+.sources-sidebar {
+  position: fixed;
+  top: 0;
+  right: -400px;
+  width: 400px;
+  height: 100vh;
+  background: #ffffff;
+  border-left: 1px solid var(--border);
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  box-shadow: -4px 0 12px rgba(0, 0, 0, 0.1);
+  /* Only transition when explicitly active, not during responsive changes */
+  transition: none;
+}
+
+.sources-sidebar.active {
+  right: 0;
+  /* Enable transition only when active */
+  transition: right 0.3s ease;
+}
+
+.sources-header {
+  display: flex;
+  justify-content: space-between;
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid var(--border);
+  background: #ffffff;
+}
+
+.sources-header h3 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 500;
+  color: var(--text);
+}
+
+.sources-close {
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 0.25rem;
+  border-radius: 0.25rem;
+  transition: all 0.2s ease;
+}
+
+.sources-close:hover {
+  background: var(--card);
+  color: var(--text);
+}
+
+.sources-close:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.sources-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0;
+}
+
+.sources-list {
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.no-sources {
+  text-align: center;
+  color: var(--muted);
+  font-style: italic;
+  padding: 2rem 1rem;
+}
+
+/* Source cards */
+.source-card {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  background: transparent;
+  border: none;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-decoration: none;
+  color: inherit;
+  outline: none;
+}
+
+.source-card:hover {
+  background: #f4f4f4;
+}
+
+.source-card:focus {
+  outline: none;
+}
+
+.source-favicon {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.source-favicon img {
+  width: 24px;
+  height: 24px;
+  border-radius: 2px;
+}
+
+.source-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.source-domain-line {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.125rem;
+}
+
+.source-domain {
+  font-size: 0.75rem;
+  color: var(--muted);
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+
+.source-title {
+  font-weight: 500;
+  font-size: 0.875rem;
+  color: var(--text);
+  padding: 0;
+  line-height: 1.25;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.source-preview {
+  font-size: 0.75rem;
+  color: var(--muted);
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+
+/* Body state when sidebar is open */
+body.sources-sidebar-open {
+  overflow: hidden;
+}
+
+/* Chat content layout adjustment when sources panel is open */
+body.sources-sidebar-open .chat-content {
+  padding-right: 400px;
+  max-width: 1200px; /* Increase max-width when sources panel is open */
+  transition: padding-right 0.3s ease;
+}
+
+/* Input container adjustment when sources panel is open */
+body.sources-sidebar-open .input-container.fixed {
+  padding-right: 400px;
+  max-width: 1200px; /* Increase max-width when sources panel is open */
+  transition: padding-right 0.3s ease;
+}
+
+/* Slower close transition */
+.chat-content {
+  transition: padding-right 0.3s ease;
+}
+
+.input-container.fixed {
+  transition: padding-right 0.3s ease;
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .sources-sidebar,
+  .sources-sidebar.active {
+    transition: none;
+  }
+  
+  .source-card {
+    transition: none;
+  }
+  
+  .sources-button {
+    transition: none;
+  }
+  
+  /* Remove transitions for layout adjustments */
+  body.sources-sidebar-open .chat-content {
+    transition: none;
+  }
+  
+  body.sources-sidebar-open .input-container.fixed {
+    transition: none;
+  }
+  
+  .chat-content {
+    transition: none;
+  }
+  
+  .input-container.fixed {
+    transition: none;
+  }
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .sources-sidebar {
+    width: 100vw;
+    right: -100vw;
+    /* Ensure no transition during responsive changes */
+    transition: none;
+  }
+  
+  .sources-sidebar.active {
+    /* Enable transition only when active on mobile */
+    transition: right 0.3s ease;
+  }
+  
+  .sources-header {
+    padding: 1rem;
+  }
+  
+  .sources-list {
+    padding: 0.75rem;
+  }
+  
+  .source-card {
+    padding: 0.625rem;
+  }
+  
+  /* On mobile, don't add padding since sidebar takes full width */
+  body.sources-sidebar-open .chat-content {
+    padding-right: 0;
+  }
+  
+  body.sources-sidebar-open .input-container.fixed {
+    padding-right: 1rem;
+    width: calc(100vw - 1rem);
+    max-width: calc(100vw - 1rem); /* Ensure input doesn't extend beyond viewport on mobile */
+  }
+}
+
+/* Focus trap for accessibility */
+.sources-sidebar:focus-within {
+  /* Ensure focus stays within sidebar when active */
+  z-index: 1001;
+}
+
+/* Source highlighting */
+.source-highlight {
+  background: rgba(255, 104, 80, 0.2) !important;
+  border: 2px solid var(--accent) !important;
+  border-radius: 0.25rem !important;
+  padding: 0.125rem 0.25rem !important;
+  animation: highlight-pulse 0.5s ease-in-out !important;
+}
+
+@keyframes highlight-pulse {
+  0% {
+    background: rgba(255, 104, 80, 0.4);
+    transform: scale(1.05);
+  }
+  50% {
+    background: rgba(255, 104, 80, 0.3);
+    transform: scale(1.02);
+  }
+  100% {
+    background: rgba(255, 104, 80, 0.2);
+    transform: scale(1);
+  }
+}
+
+/* Reduced motion support for highlighting */
+@media (prefers-reduced-motion: reduce) {
+  .source-highlight {
+    animation: none !important;
+  }
+  
+  @keyframes highlight-pulse {
+    0%, 100% {
+      background: rgba(255, 104, 80, 0.2);
+    }
+  }
+}
+
+/* ===================== Dashboard Styles ===================== */
+.dashboard-page {
+  flex: 1;
+  overflow-y: auto;
+  padding-bottom: 6rem;
+}
+
+.dashboard-header {
+  padding: 1rem 2rem 1rem;
+  background: var(--bg);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.dashboard-header h1 {
+  margin: 0;
+  font-size: 1.75rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+/* ECG Section */
+.ecg-section {
+  max-width: 1400px;
+  margin: 0 auto 2rem;
+  padding: 0 2rem;
+}
+
+.ecg-image-container {
+  background: var(--card);
+  border: 2px solid var(--border);
+  border-radius: 1rem;
+  padding: 1.5rem;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  transition: all 0.3s ease;
+}
+
+.ecg-image-container:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  transform: translateY(-2px);
+}
+
+.ecg-image {
+  max-width: 100%;
+  height: auto;
+  border-radius: 0.5rem;
+  display: block;
+}
+
+.ecg-caption {
+  text-align: center;
+  font-size: 0.9rem;
+  font-weight: normal;
+  color: var(--muted);
+  margin: 0.75rem 0 0 0;
+}
+
+.dashboard-content {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+/* Summary Panel */
+.summary-panel {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border-radius: 1rem;
+  padding: 2rem;
+  margin-bottom: 2rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.summary-panel h2 {
+  margin: 0 0 1rem 0;
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+.summary-demographics {
+  display: flex;
+  gap: 2rem;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.summary-demographics .demo-item {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.summary-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 1.5rem;
+}
+
+.stat-item {
+  text-align: center;
+}
+
+.stat-value {
+  font-size: 2rem;
+  font-weight: 700;
+  margin-bottom: 0.25rem;
+}
+
+.stat-label {
+  font-size: 0.9rem;
+  opacity: 0.9;
+}
+
+/* Category Panels */
+.category-panel {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  margin-bottom: 1rem;
+  overflow: hidden;
+}
+
+.category-header {
+  padding: 1rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.category-header h2 {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.category-content {
+  padding: 1rem;
+}
+
+/* Metrics Grid */
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 1rem;
+}
+
+/* Metric Cards */
+.metric-card {
+  background: var(--bg);
+  border: 2px solid var(--border);
+  border-radius: 0.5rem;
+  padding: 1rem;
+  transition: all 0.2s ease;
+}
+
+.metric-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  transform: translateY(-2px);
+}
+
+.metric-card.status-normal {
+  border-color: #10b981;
+  background: linear-gradient(to bottom, #ffffff, #f0fdf4);
+}
+
+.metric-card.status-borderline {
+  border-color: #f59e0b;
+  background: linear-gradient(to bottom, #ffffff, #fffbeb);
+}
+
+.metric-card.status-alert {
+  border-color: #ef4444;
+  background: linear-gradient(to bottom, #ffffff, #fef2f2);
+}
+
+.metric-card h3 {
+  margin: 0 0 0.75rem 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.metric-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.metric-unit {
+  font-size: 1rem;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.metric-trend {
+  font-size: 0.9rem;
+  font-weight: 600;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.375rem;
+  margin-left: auto;
+}
+
+.metric-trend.up {
+  color: #10b981;
+  background: #d1fae5;
+}
+
+.metric-trend.down {
+  color: #ef4444;
+  background: #fee2e2;
+}
+
+.metric-trend.stable {
+  color: #6b7280;
+  background: #f3f4f6;
+}
+
+.metric-stats {
+  margin-bottom: 1rem;
+  padding: 0.75rem;
+  background: var(--card);
+  border-radius: 0.5rem;
+}
+
+.stat-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.25rem 0;
+  font-size: 0.9rem;
+}
+
+.stat-label {
+  color: var(--muted);
+}
+
+.stat-value {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.metric-reference {
+  padding: 0.5rem;
+  background: var(--card);
+  border-radius: 0.375rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+  margin-bottom: 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.ref-label {
+  font-weight: 600;
+}
+
+.metric-footer {
+  font-size: 0.75rem;
+  color: var(--muted);
+  margin-top: 0.5rem;
+}
+
+/* Status Badges */
+.status-badge {
+  display: inline-block;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.375rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.status-badge.normal {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.status-badge.borderline {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.status-badge.alert {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+/* Blood Pressure Card */
+.blood-pressure-card {
+  grid-column: span 2;
+}
+
+.bp-date {
+  font-size: 0.85rem;
+  color: var(--muted);
+  margin-bottom: 1rem;
+}
+
+.bp-history {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+}
+
+.bp-history h4 {
+  margin: 0 0 0.75rem 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.bp-reading {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.5rem;
+  background: var(--card);
+  border-radius: 0.375rem;
+  margin-bottom: 0.5rem;
+}
+
+.bp-value {
+  font-weight: 600;
+  color: var(--text);
+}
+
+/* Clinical Panel */
+.clinical-panel .category-content {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.clinical-section {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  padding: 1rem;
+}
+
+.clinical-section h3 {
+  margin: 0 0 0.75rem 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+/* Medications */
+.medications-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.medication-item {
+  padding: 0.75rem;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  transition: all 0.2s ease;
+}
+
+.medication-item:hover {
+  border-color: var(--accent);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.med-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.med-name {
+  font-weight: 600;
+  color: var(--text);
+  font-size: 1rem;
+}
+
+.med-category {
+  font-size: 0.75rem;
+  padding: 0.25rem 0.5rem;
+  background: #e0e7ff;
+  color: #4338ca;
+  border-radius: 0.375rem;
+  font-weight: 500;
+}
+
+.med-date {
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+/* Lab Results */
+.lab-results-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 1rem;
+}
+
+.lab-item {
+  padding: 0.75rem;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+}
+
+.lab-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.lab-name {
+  font-weight: 600;
+  color: var(--text);
+  font-size: 0.9rem;
+}
+
+.lab-status {
+  font-size: 0.7rem;
+  padding: 0.2rem 0.4rem;
+  border-radius: 0.25rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.lab-status.normal {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.lab-status.abnormal {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.lab-value {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 0.25rem;
+}
+
+.lab-date {
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+/* Conditions and Allergies Grid */
+.clinical-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1rem;
+}
+
+.clinical-subsection {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  padding: 1rem;
+}
+
+.clinical-subsection h3 {
+  margin: 0 0 0.75rem 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.conditions-list,
+.allergies-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.condition-item,
+.allergy-item {
+  padding: 0.5rem;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+}
+
+.allergy-item {
+  border-left: 3px solid #f59e0b;
+  background: linear-gradient(to right, #fffbeb, var(--card));
+}
+
+.condition-name,
+.allergy-name {
+  font-weight: 600;
+  color: var(--text);
+  font-size: 0.9rem;
+  margin-bottom: 0.25rem;
+}
+
+.condition-date,
+.allergy-date {
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+/* Loading and Error States */
+.loading,
+.no-data,
+.error {
+  text-align: center;
+  padding: 3rem;
+  color: var(--muted);
+  font-size: 1.1rem;
+}
+
+.error {
+  color: #ef4444;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .dashboard-content {
+    padding: 1rem;
+  }
+  
+  .metrics-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .blood-pressure-card {
+    grid-column: span 1;
+  }
+  
+  .lab-results-list {
+    grid-template-columns: 1fr;
+  }
+  
+  .clinical-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .summary-stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* ===================== Digital Twin Styles ===================== */
+.digital-twin-page {
+  flex: 1;
+  overflow-y: auto;
+  padding-bottom: 6rem;
+}
+
+.digital-twin-header {
+  padding: 1rem 2rem 1rem;
+  background: var(--bg);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.digital-twin-header h1 {
+  margin: 0;
+  font-size: 1.75rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.digital-twin-header .subtitle {
+  margin: 0.5rem 0 0;
+  color: var(--muted);
+  font-size: 1rem;
+}
+
+.digital-twin-content {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 2rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* Medical Imaging Viewer Styles */
+.medical-viewer-container {
+  display: grid;
+  grid-template-columns: 200px 1fr 200px;
+  gap: 1.5rem;
+  height: calc(100vh - 520px);
+  min-height: 400px;
+  width: 100%;
+  max-width: 1400px;
+}
+
+.viewer-controls {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  padding: 1rem;
+  overflow-y: auto;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.control-group {
+  margin-bottom: 1rem;
+}
+
+.control-group:last-child {
+  margin-bottom: 0;
+}
+
+.control-group label {
+  display: block;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.control-group select,
+.control-group input[type="range"] {
+  width: 100%;
+  margin-bottom: 0.25rem;
+}
+
+.control-group select {
+  padding: 0.5rem;
+  border: 1px solid var(--input-border);
+  border-radius: 0.5rem;
+  background: var(--input-bg);
+  color: var(--text);
+  font-size: 0.9rem;
+}
+
+.slider {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--border);
+  outline: none;
+  cursor: pointer;
+}
+
+.slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.slider::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  border: none;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+/* Axis-specific slice controls */
+.slice-control {
+  margin-top: 0.5rem;
+  padding: 0.5rem;
+  background: var(--card);
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.axis-slider {
+  width: 60%;
+  margin: 0 auto 0.25rem auto;
+}
+
+.slice-control .slice-info {
+  font-size: 0.8rem;
+  color: var(--muted);
+  text-align: center;
+  margin-top: 0.25rem;
+}
+
+.control-group span {
+  font-size: 0.85rem;
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.control-group input[type="checkbox"] {
+  margin-right: 0.5rem;
+  accent-color: var(--accent);
+}
+
+.image-viewer {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.multi-view-container {
+  flex: 1;
+}
+
+.view-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-rows: 1fr;
+  gap: 1rem;
+  height: 100%;
+}
+
+.view-panel {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  padding: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.view-panel h4 {
+  margin: 0 0 0.25rem 0;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text);
+  text-align: center;
+}
+
+.viewer-canvas-container {
+  position: relative;
+  background: #000;
+  border-radius: 0.5rem;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+}
+
+.viewer-canvas-container canvas {
+  transform: rotate(-90deg);
+  width: 200px;
+  height: 200px;
+}
+
+.slice-info {
+  margin-top: 0.25rem;
+  font-size: 0.75rem;
+  color: var(--muted);
+  text-align: center;
+}
+
+#viewerCanvas,
+#coronalCanvas,
+#sagittalCanvas {
+  max-width: 100%;
+  max-height: 100%;
+  cursor: crosshair;
+  /* Performance optimizations for canvas rendering */
+  image-rendering: optimizeSpeed;
+  image-rendering: -moz-crisp-edges;
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: optimize-contrast;
+}
+
+
+.organ-info-panel {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  padding: 1rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.organ-info-panel h3 {
+  margin: 0 0 0.75rem 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.organ-info-content {
+  font-size: 0.9rem;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+.organ-info-content h4 {
+  margin: 0 0 0.5rem 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.organ-info-content p {
+  margin: 0;
+}
+
+.organ-list-panel {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  padding: 1rem;
+  overflow-y: auto;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.organ-list-panel h3 {
+  margin: 0 0 0.75rem 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.organ-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.organ-item {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  padding: 1rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.organ-item:hover {
+  background: var(--dropdown-hover);
+  border-color: var(--accent);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.organ-name {
+  font-weight: 600;
+  color: var(--text);
+  font-size: 0.9rem;
+  margin-bottom: 0.5rem;
+  text-transform: capitalize;
+}
+
+.organ-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.organ-stats span {
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+/* Responsive design for medical viewer */
+@media (max-width: 1200px) {
+  .medical-viewer-container {
+    grid-template-columns: 250px 1fr 250px;
+    gap: 1.5rem;
+  }
+}
+
+@media (max-width: 1024px) {
+  .medical-viewer-container {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr auto;
+    height: auto;
+    min-height: 600px;
+  }
+  
+  .viewer-controls {
+    order: 1;
+  }
+  
+  .image-viewer {
+    order: 2;
+    min-height: 500px;
+  }
+  
+  .organ-list-panel {
+    order: 3;
+    max-height: 300px;
+  }
+  
+  .view-grid {
+    grid-template-columns: 1fr 1fr 1fr;
+    grid-template-rows: 1fr;
+    gap: 0.75rem;
+  }
+  
+  .view-panel {
+    padding: 0.75rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .digital-twin-content {
+    padding: 1rem;
+  }
+  
+  .medical-viewer-container {
+    gap: 1rem;
+  }
+  
+  .viewer-controls,
+  .organ-info-panel,
+  .organ-list-panel {
+    padding: 1rem;
+  }
+  
+  .view-grid {
+    grid-template-columns: 1fr;
+    grid-template-rows: repeat(3, 1fr);
+    gap: 0.5rem;
+  }
+  
+  .view-panel {
+    padding: 0.5rem;
+  }
+  
+  .viewer-canvas-container {
+    min-height: 150px;
+  }
+  
+  canvas {
+    width: 100%;
+    height: auto;
+  }
+}
+
+.placeholder-content {
+  text-align: center;
+  padding: 4rem 2rem;
+  background: var(--card);
+  border-radius: 1rem;
+  border: 2px dashed var(--border);
+}
+
+.placeholder-icon {
+  font-size: 4rem;
+  margin-bottom: 1.5rem;
+  opacity: 0.6;
+}
+
+.placeholder-content h2 {
+  margin: 0 0 1rem;
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.placeholder-content p {
+  margin: 0.5rem 0;
+  color: var(--muted);
+  font-size: 1rem;
+  line-height: 1.6;
+}
+
+.dashboard-header {
+  padding: 1rem 2rem 1rem;
+  background: var(--bg);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.dashboard-header h1 {
+  margin: 0;
+  font-size: 1.75rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.dashboard-content {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+.section-title {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--text);
+  margin: 2rem 0 1.5rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 2px solid var(--border);
+}
+
+/* Demographics Card */
+.demographics-card {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  padding: 1.75rem;
+  border-radius: 1rem;
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+  margin-bottom: 2rem;
+  display: flex;
+  gap: 1.5rem;
+  align-items: flex-start;
+}
+
+.card-icon {
+  font-size: 3rem;
+  line-height: 1;
+  opacity: 0.9;
+}
+
+.card-content {
+  flex: 1;
+}
+
+.demographics-card h2 {
+  margin: 0 0 1rem 0;
+  font-size: 1.35rem;
+  font-weight: 600;
+  color: white;
+  border: none;
+  padding: 0;
+}
+
+.demographics-info {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+}
+
+.demo-item {
+  background: rgba(255, 255, 255, 0.15);
+  padding: 0.75rem 1rem;
+  border-radius: 0.5rem;
+  backdrop-filter: blur(10px);
+}
+
+.demo-label {
+  font-size: 0.85rem;
+  opacity: 0.9;
+  display: block;
+  margin-bottom: 0.25rem;
+}
+
+.demo-value {
+  font-size: 1.1rem;
+  font-weight: 600;
+  display: block;
+}
+
+/* Vital Signs Grid */
+.vitals-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.vital-card {
+  background: var(--card);
+  border: 2px solid var(--border);
+  border-radius: 1rem;
+  padding: 1.5rem;
+  display: flex;
+  gap: 1.25rem;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.vital-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.vital-card.status-normal {
+  border-color: #10b981;
+  background: linear-gradient(to bottom, #f0fdf4 0%, var(--card) 100%);
+}
+
+.vital-card.status-abnormal {
+  border-color: #f59e0b;
+  background: linear-gradient(to bottom, #fffbeb 0%, var(--card) 100%);
+}
+
+.vital-icon {
+  font-size: 2.5rem;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 60px;
+  flex-shrink: 0;
+}
+
+.vital-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.vital-name {
+  font-weight: 600;
+  color: var(--text);
+  font-size: 0.95rem;
+  margin-bottom: 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  opacity: 0.8;
+}
+
+.vital-value {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--accent);
+  line-height: 1.2;
+  margin-bottom: 0.5rem;
+}
+
+.vital-unit {
+  font-size: 1rem;
+  font-weight: 500;
+  color: var(--muted);
+  margin-left: 0.25rem;
+}
+
+.vital-range {
+  font-size: 0.85rem;
+  color: var(--muted);
+  margin-top: 0.5rem;
+  line-height: 1.4;
+}
+
+.vital-status {
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin-top: 0.5rem;
+  padding: 0.25rem 0.75rem;
+  border-radius: 1rem;
+  display: inline-block;
+}
+
+.status-normal .vital-status {
+  color: #10b981;
+  background: rgba(16, 185, 129, 0.1);
+}
+
+.status-abnormal .vital-status {
+  color: #f59e0b;
+  background: rgba(245, 158, 11, 0.1);
+}
+
+/* ========================================================= */
+/*  Activity Cards                                           */
+/* ========================================================= */
+
+.activity-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1.5rem;
+  margin-top: 1rem;
+  margin-bottom: 2rem;
+}
+
+.activity-card {
+  background: var(--card);
+  border: 2px solid var(--border);
+  border-radius: 1rem;
+  padding: 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  transition: all 0.2s ease;
+}
+
+.activity-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  border-color: #3b82f6;
+}
+
+.activity-icon {
+  font-size: 2.5rem;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 60px;
+  flex-shrink: 0;
+}
+
+.activity-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.activity-name {
+  font-weight: 600;
+  color: var(--text);
+  font-size: 0.95rem;
+  margin-bottom: 0.5rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.activity-value {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #3b82f6;
+  line-height: 1.2;
+}
+
+.activity-unit {
+  font-size: 1rem;
+  font-weight: 500;
+  color: var(--muted);
+  margin-left: 0.25rem;
+}
+
+/* ========================================================= */
+/*  Cardiovascular Cards                                     */
+/* ========================================================= */
+
+.cardio-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1.5rem;
+  margin-top: 1rem;
+  margin-bottom: 2rem;
+}
+
+.cardio-card {
+  background: var(--card);
+  border: 2px solid var(--border);
+  border-radius: 1rem;
+  padding: 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  transition: all 0.2s ease;
+}
+
+.cardio-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  border-color: #ef4444;
+}
+
+.cardio-icon {
+  font-size: 2.5rem;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 60px;
+  flex-shrink: 0;
+}
+
+.cardio-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.cardio-name {
+  font-weight: 600;
+  color: var(--text);
+  font-size: 0.95rem;
+  margin-bottom: 0.5rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cardio-value {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #ef4444;
+  line-height: 1.2;
+}
+
+.cardio-unit {
+  font-size: 1rem;
+  font-weight: 500;
+  color: var(--muted);
+  margin-left: 0.25rem;
+}
+
+/* ========================================================= */
+/*  Mobility Cards                                           */
+/* ========================================================= */
+
+.mobility-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1.5rem;
+  margin-top: 1rem;
+  margin-bottom: 2rem;
+}
+
+.mobility-card {
+  background: var(--card);
+  border: 2px solid var(--border);
+  border-radius: 1rem;
+  padding: 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  transition: all 0.2s ease;
+}
+
+.mobility-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  border-color: #8b5cf6;
+}
+
+.mobility-icon {
+  font-size: 2.5rem;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 60px;
+  flex-shrink: 0;
+}
+
+.mobility-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.mobility-name {
+  font-weight: 600;
+  color: var(--text);
+  font-size: 0.95rem;
+  margin-bottom: 0.5rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mobility-value {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #8b5cf6;
+  line-height: 1.2;
+}
+
+.mobility-unit {
+  font-size: 1rem;
+  font-weight: 500;
+  color: var(--muted);
+  margin-left: 0.25rem;
+}
+
+/* ========================================================= */
+/*  Medications Card                                         */
+/* ========================================================= */
+
+.medications-card {
+  margin-bottom: 2rem;
+}
+
+.medications-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.med-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  transition: all 0.2s ease;
+}
+
+.med-item:hover {
+  background: var(--hover);
+  border-color: #f97316;
+}
+
+.med-name {
+  font-weight: 600;
+  color: var(--text);
+  font-size: 0.95rem;
+  flex: 1;
+}
+
+.med-date {
+  font-size: 0.85rem;
+  color: var(--muted);
+  white-space: nowrap;
+  margin-left: 1rem;
+}
+
+/* ========================================================= */
+/*  Lab Results Card                                         */
+/* ========================================================= */
+
+.lab-results-card {
+  margin-bottom: 2rem;
+}
+
+.lab-results-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.lab-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 1rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  transition: all 0.2s ease;
+}
+
+.lab-item:hover {
+  background: var(--hover);
+  border-color: #06b6d4;
+}
+
+.lab-name {
+  font-weight: 600;
+  color: var(--text);
+  font-size: 0.95rem;
+}
+
+.lab-value {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #06b6d4;
+}
+
+.lab-date {
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+/* ========================================================= */
+/*  Clinical Card (Allergies & Conditions)                   */
+/* ========================================================= */
+
+.clinical-card {
+  margin-bottom: 2rem;
+}
+
+.clinical-section {
+  margin-top: 1.5rem;
+}
+
+.clinical-section:first-child {
+  margin-top: 0;
+}
+
+.clinical-section h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 0.75rem;
+}
+
+.clinical-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.clinical-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  transition: all 0.2s ease;
+}
+
+.clinical-item:hover {
+  background: var(--hover);
+  border-color: #ec4899;
+}
+
+.clinical-name {
+  font-weight: 600;
+  color: var(--text);
+  font-size: 0.95rem;
+  flex: 1;
+}
+
+.clinical-date {
+  font-size: 0.85rem;
+  color: var(--muted);
+  white-space: nowrap;
+  margin-left: 1rem;
+}
+
+.loading,
+.no-data,
+.error {
+  text-align: center;
+  padding: 4rem 2rem;
+  color: var(--muted);
+  font-size: 1.1rem;
+}
+
+.error {
+  color: var(--accent);
+}
+
+/* Dashboard responsive styles */
+@media (max-width: 1024px) {
+  .vitals-grid {
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1.25rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .dashboard-content {
+    padding: 1.5rem;
+  }
+  
+  .dashboard-header {
+    padding: 1.5rem;
+  }
+  
+  .dashboard-header h1 {
+    font-size: 1.5rem;
+  }
+  
+  .demographics-card {
+    flex-direction: column;
+    padding: 1.5rem;
+  }
+  
+  .demographics-info {
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+  }
+  
+  .vitals-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+  
+  .vital-card {
+    padding: 1.25rem;
+  }
+  
+  .vital-icon {
+    font-size: 2rem;
+    width: 50px;
+  }
+  
+  .vital-value {
+    font-size: 1.75rem;
+  }
+  
+  /* Mobile responsive styles for new health sections */
+  .activity-grid,
+  .cardio-grid,
+  .mobility-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+  
+  .activity-card,
+  .cardio-card,
+  .mobility-card {
+    padding: 1.25rem;
+  }
+  
+  .activity-icon,
+  .cardio-icon,
+  .mobility-icon {
+    font-size: 2rem;
+    width: 50px;
+  }
+  
+  .activity-value,
+  .cardio-value,
+  .mobility-value {
+    font-size: 1.75rem;
+  }
+  
+  .med-item,
+  .lab-item,
+  .clinical-item {
+    padding: 0.875rem;
+  }
+  
+  .med-name,
+  .lab-name,
+  .clinical-name {
+    font-size: 0.9rem;
+  }
+  
+  .lab-value {
+    font-size: 1.1rem;
+  }
+}
+

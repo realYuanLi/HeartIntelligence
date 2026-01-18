@@ -48,28 +48,24 @@ DATA_DIR.mkdir(parents=True, exist_ok=True)
 with open(CONFIG_PATH, "r", encoding="utf-8") as f:
     CONFIG = json.load(f)
 
-# Patient data is now handled through EHR data
+# Patient data is now handled through patient.json
 PATIENT_DATA = None
-EHR_DATA = None
 
-# Load EHR test data (prefer transformed raw_ehr.json if available)
-EHR_DATA_PATH_TRANSFORMED = APP_DIR / "data" / "test_file" / "raw_ehr_transformed.json"
-
-# Prefer transformed data if available, otherwise fall back to original
-ehr_path = EHR_DATA_PATH_TRANSFORMED
+# Load patient profile data
+PATIENT_DATA_PATH = APP_DIR / "data" / "test_file" / "patient.json"
 
 try:
-    if ehr_path.exists() and ehr_path.is_file():
-        print(f"Loading EHR data from {ehr_path}...")
-        with open(ehr_path, "r", encoding="utf-8") as f:
-            EHR_DATA = json.load(f)
-        print(f"Loaded EHR data with {EHR_DATA.get('metadata', {}).get('summary', {}).get('total_records', 0)} records")
+    if PATIENT_DATA_PATH.exists() and PATIENT_DATA_PATH.is_file():
+        print(f"Loading patient data from {PATIENT_DATA_PATH}...")
+        with open(PATIENT_DATA_PATH, "r", encoding="utf-8") as f:
+            PATIENT_DATA = json.load(f)
+        print(f"Loaded patient profile: {PATIENT_DATA.get('patient_profile', {}).get('demographics', {}).get('name', 'Unknown')}")
     else:
-        EHR_DATA = None
-        print("EHR data file not found - health data features will be limited")
+        PATIENT_DATA = None
+        print("Patient data file not found - health data features will be limited")
 except Exception as e:
-    EHR_DATA = None
-    print(f"Could not load EHR data: {e}")
+    PATIENT_DATA = None
+    print(f"Could not load patient data: {e}")
 
 # Load my body data
 MY_BODY_DATA_PATH = APP_DIR / "data" / "my_body"
@@ -131,7 +127,7 @@ try:
         llm=CONFIG["chatbot"]["llm_model"],
         temperature=0.7,
         sys_message=system_prompt,
-        ehr_data=EHR_DATA
+        ehr_data=PATIENT_DATA
     )
     print(f"✓ Chatbot initialized with model: {CONFIG['chatbot']['llm_model']}")
 except Exception as e:
@@ -268,8 +264,8 @@ def health_check():
     """Health check endpoint"""
     return jsonify({
         "status": "healthy",
-        "ehr_data_available": EHR_DATA is not None,
-        "ehr_records": EHR_DATA.get('metadata', {}).get('summary', {}).get('total_records', 0) if EHR_DATA else 0
+        "patient_data_available": PATIENT_DATA is not None,
+        "patient_name": PATIENT_DATA.get('patient_profile', {}).get('demographics', {}).get('name', 'N/A') if PATIENT_DATA else 'N/A'
     })
 
 @app.route("/api/status")
@@ -534,22 +530,24 @@ def api_patient_info():
 
 @app.route("/api/dashboard_data")
 def api_dashboard_data():
-    """Get dashboard health data with comprehensive analytics"""
+    """Get dashboard health data from patient profile"""
     if not _require_login():
         return jsonify(success=False, message="Login required"), 401
     
-    if not EHR_DATA:
-        return jsonify(success=False, message="No health data available"), 404
+    if not PATIENT_DATA:
+        return jsonify(success=False, message="No patient data available"), 404
     
     try:
-        # Calculate comprehensive analytics
+        # Extract patient profile data
         analytics = {
-            "summary": _calculate_summary_stats(),
-            "cardiovascular": _analyze_cardiovascular(),
-            "activity": _analyze_activity(),
-            "mobility": _analyze_mobility(),
-            "clinical": _analyze_clinical(),
-            "demographics": _get_demographics()
+            "summary": _extract_patient_summary(),
+            "demographics": _extract_demographics(),
+            "diagnosis": _extract_diagnosis(),
+            "medications": _extract_medications(),
+            "symptoms": _extract_symptoms(),
+            "comorbidities": _extract_comorbidities(),
+            "wearable_data": _extract_wearable_data(),
+            "recent_care": _extract_recent_care()
         }
         
         return jsonify(success=True, data=analytics)
@@ -560,313 +558,130 @@ def api_dashboard_data():
         return jsonify(success=False, message=f"Error processing data: {str(e)}"), 500
 
 # --------------------------------------------------------------------------------
-# Analytics Helper Functions
+# Patient Profile Helper Functions
 # --------------------------------------------------------------------------------
 
-def _calculate_metric_stats(data_list, value_key="Value"):
-    """Calculate statistics for a metric from a list of data points"""
-    if not data_list or len(data_list) == 0:
-        return None
-    
-    try:
-        # Extract numeric values
-        values = []
-        for item in data_list[:90]:  # Last 90 days max
-            val = item.get(value_key)
-            if val is not None:
-                try:
-                    values.append(float(val))
-                except (ValueError, TypeError):
-                    continue
-        
-        if not values:
-            return None
-        
-        current = values[0] if len(values) > 0 else None
-        avg_7d = sum(values[:7]) / len(values[:7]) if len(values) >= 7 else current
-        avg_30d = sum(values[:30]) / len(values[:30]) if len(values) >= 30 else current
-        avg_90d = sum(values) / len(values) if len(values) > 0 else current
-        
-        # Calculate change
-        prev_30d = sum(values[30:60]) / len(values[30:60]) if len(values) >= 60 else avg_30d
-        change = avg_30d - prev_30d if prev_30d else 0
-        change_pct = (change / prev_30d * 100) if prev_30d and prev_30d != 0 else 0
-        
-        return {
-            "current": round(current, 1) if current else None,
-            "avg_7d": round(avg_7d, 1) if avg_7d else None,
-            "avg_30d": round(avg_30d, 1) if avg_30d else None,
-            "avg_90d": round(avg_90d, 1) if avg_90d else None,
-            "min_30d": round(min(values[:30]), 1) if len(values) >= 30 else None,
-            "max_30d": round(max(values[:30]), 1) if len(values) >= 30 else None,
-            "change": round(change, 1),
-            "change_pct": round(change_pct, 1),
-            "data_points": len(values[:30]),
-            "trend": "up" if change_pct > 2 else "down" if change_pct < -2 else "stable"
-        }
-    except Exception as e:
-        print(f"Error calculating stats: {e}")
-        return None
-
-def _get_demographics():
-    """Get patient demographics"""
-    if "demographics" not in EHR_DATA:
+def _extract_patient_summary():
+    """Extract patient summary information"""
+    if not PATIENT_DATA or 'patient_profile' not in PATIENT_DATA:
         return {}
     
-    demographics_records = EHR_DATA["demographics"]
-    
-    # First try the old format with "Demographics" subcategory
-    if "Demographics" in demographics_records and len(demographics_records["Demographics"]) > 0:
-        demo = demographics_records["Demographics"][0]
-        return {
-            "name": demo.get("DisplayName", "N/A"),
-            "birth_date": demo.get("BirthDate", "N/A"),
-            "sex": demo.get("BiologicalSex", "N/A"),
-            "age": demo.get("Age", "N/A")
-        }
-    
-    # Fallback: Extract from individual characteristic records (new format)
-    result = {}
-    
-    if "BiologicalSex" in demographics_records and len(demographics_records["BiologicalSex"]) > 0:
-        result["sex"] = demographics_records["BiologicalSex"][0].get("Value", "N/A")
-    
-    if "DateOfBirth" in demographics_records and len(demographics_records["DateOfBirth"]) > 0:
-        dob_str = demographics_records["DateOfBirth"][0].get("Value", "")
-        # Parse date string to extract just the date part
-        if dob_str:
-            result["birth_date"] = dob_str.split("T")[0] if "T" in dob_str else dob_str
-        else:
-            result["birth_date"] = "N/A"
-    
-    if "WheelchairUse" in demographics_records and len(demographics_records["WheelchairUse"]) > 0:
-        result["wheelchair_use"] = demographics_records["WheelchairUse"][0].get("Value", "N/A")
-    
-    return result
+    profile = PATIENT_DATA['patient_profile']
+    return {
+        "ui_summary": profile.get('ui_summary_sentence', ''),
+        "name": profile.get('demographics', {}).get('name', 'N/A'),
+        "age": profile.get('demographics', {}).get('age', 'N/A'),
+        "sex": profile.get('demographics', {}).get('sex', 'N/A')
+    }
 
-def _calculate_summary_stats():
-    """Calculate overall summary statistics"""
-    summary = {
-        "total_data_points": 0,
-        "date_range": {},
-        "categories_tracked": []
+def _extract_demographics():
+    """Extract patient demographics"""
+    if not PATIENT_DATA or 'patient_profile' not in PATIENT_DATA:
+        return {}
+    
+    demographics = PATIENT_DATA['patient_profile'].get('demographics', {})
+    return {
+        "age": demographics.get('age', 'N/A'),
+        "sex": demographics.get('sex', 'N/A'),
+        "name": demographics.get('name', 'N/A'),
+        "living_situation": demographics.get('living_situation', 'N/A'),
+        "baseline_functional_status": demographics.get('baseline_functional_status', 'N/A')
+    }
+
+def _extract_diagnosis():
+    """Extract primary cardiac diagnosis information"""
+    if not PATIENT_DATA or 'patient_profile' not in PATIENT_DATA:
+        return {}
+    
+    diagnosis = PATIENT_DATA['patient_profile'].get('primary_cardiac_diagnosis', {})
+    return {
+        "condition": diagnosis.get('condition', 'N/A'),
+        "echocardiogram": diagnosis.get('echocardiogram', {})
+    }
+
+def _extract_medications():
+    """Extract medications list"""
+    if not PATIENT_DATA or 'patient_profile' not in PATIENT_DATA:
+        return {}
+    
+    meds_data = PATIENT_DATA['patient_profile'].get('medications', {})
+    
+    medications = {
+        "cardiovascular_hf": meds_data.get('cardiovascular_hf', []),
+        "metabolic": meds_data.get('metabolic', []),
+        "other": meds_data.get('other', []),
+        "supplements": meds_data.get('supplements', [])
     }
     
-    # Get metadata
-    if "metadata" in EHR_DATA:
-        metadata = EHR_DATA["metadata"]
-        summary["total_data_points"] = metadata.get("summary", {}).get("total_records", 0)
-        summary["categories_tracked"] = metadata.get("summary", {}).get("categories", [])
-        
-        participants = metadata.get("participants", {})
-        if participants:
-            first_participant = list(participants.values())[0]
-            summary["date_range"] = first_participant.get("date_range", {})
-    
-    return summary
+    return medications
 
-def _analyze_cardiovascular():
-    """Analyze cardiovascular health data"""
-    cardio_data = {
-        "resting_heart_rate": None,
-        "hrv": None,
-        "blood_pressure": None
+def _extract_symptoms():
+    """Extract symptoms information"""
+    if not PATIENT_DATA or 'patient_profile' not in PATIENT_DATA:
+        return {}
+    
+    symptoms = PATIENT_DATA['patient_profile'].get('symptoms', {})
+    return {
+        "chronic_baseline": symptoms.get('chronic_baseline', []),
+        "intermittent_recent": symptoms.get('intermittent_recent', []),
+        "negative_findings": symptoms.get('negative_findings', [])
     }
-    
-    if "cardiovascular" not in EHR_DATA:
-        return cardio_data
-    
-    cardio_records = EHR_DATA["cardiovascular"]
-    
-    # Resting Heart Rate
-    if "RestingHeartRate" in cardio_records:
-        rhr_stats = _calculate_metric_stats(cardio_records["RestingHeartRate"])
-        if rhr_stats:
-            cardio_data["resting_heart_rate"] = {
-                **rhr_stats,
-                "unit": "bpm",
-                "name": "Resting Heart Rate",
-                "normal_range": {"min": 60, "max": 100},
-                "latest_date": cardio_records["RestingHeartRate"][0].get("Date", "N/A") if len(cardio_records["RestingHeartRate"]) > 0 else "N/A"
-            }
-    
-    # Heart Rate Variability
-    if "HeartRateVariabilitySDNN" in cardio_records:
-        hrv_stats = _calculate_metric_stats(cardio_records["HeartRateVariabilitySDNN"])
-        if hrv_stats:
-            cardio_data["hrv"] = {
-                **hrv_stats,
-                "unit": "ms",
-                "name": "Heart Rate Variability",
-                "normal_range": {"min": 40, "max": 100},
-                "latest_date": cardio_records["HeartRateVariabilitySDNN"][0].get("Date", "N/A") if len(cardio_records["HeartRateVariabilitySDNN"]) > 0 else "N/A"
-            }
-    
-    # Blood Pressure from vital_signs
-    if "vital_signs" in EHR_DATA and "ClinicalBloodPressure" in EHR_DATA["vital_signs"]:
-        bp_records = EHR_DATA["vital_signs"]["ClinicalBloodPressure"]
-        if len(bp_records) > 0:
-            latest_bp = bp_records[0]
-            cardio_data["blood_pressure"] = {
-                "current": latest_bp.get("Value", "N/A"),
-                "unit": latest_bp.get("Unit", "mmHg"),
-                "date": latest_bp.get("Date", "N/A"),
-                "name": "Blood Pressure",
-                "normal_range": {"systolic": {"min": 90, "max": 120}, "diastolic": {"min": 60, "max": 80}},
-                "recent_readings": [
-                    {
-                        "value": bp.get("Value", "N/A"),
-                        "date": bp.get("Date", "N/A")
-                    } for bp in bp_records[:5]
-                ]
-            }
-    
-    return cardio_data
 
-def _analyze_activity():
-    """Analyze physical activity data"""
-    activity_data = {
-        "steps": None,
-        "active_energy": None,
-        "exercise_time": None
+def _extract_comorbidities():
+    """Extract comorbidities information"""
+    if not PATIENT_DATA or 'patient_profile' not in PATIENT_DATA:
+        return {}
+    
+    comorbidities = PATIENT_DATA['patient_profile'].get('comorbidities', {})
+    return {
+        "cardiovascular": comorbidities.get('cardiovascular', []),
+        "metabolic_systemic": comorbidities.get('metabolic_systemic', []),
+        "respiratory_sleep": comorbidities.get('respiratory_sleep', []),
+        "other": comorbidities.get('other', [])
     }
-    
-    if "activity" not in EHR_DATA:
-        return activity_data
-    
-    activity_records = EHR_DATA["activity"]
-    
-    # Steps
-    if "StepCount" in activity_records:
-        steps_stats = _calculate_metric_stats(activity_records["StepCount"])
-        if steps_stats:
-            activity_data["steps"] = {
-                **steps_stats,
-                "unit": "steps",
-                "name": "Daily Steps",
-                "goal": 10000,
-                "latest_date": activity_records["StepCount"][0].get("Date", "N/A") if len(activity_records["StepCount"]) > 0 else "N/A"
-            }
-    
-    # Active Energy
-    if "ActiveEnergyBurned" in activity_records:
-        energy_stats = _calculate_metric_stats(activity_records["ActiveEnergyBurned"])
-        if energy_stats:
-            activity_data["active_energy"] = {
-                **energy_stats,
-                "unit": "Cal",
-                "name": "Active Energy",
-                "latest_date": activity_records["ActiveEnergyBurned"][0].get("Date", "N/A") if len(activity_records["ActiveEnergyBurned"]) > 0 else "N/A"
-            }
-    
-    # Exercise Time
-    if "AppleExerciseTime" in activity_records:
-        exercise_stats = _calculate_metric_stats(activity_records["AppleExerciseTime"])
-        if exercise_stats:
-            activity_data["exercise_time"] = {
-                **exercise_stats,
-                "unit": "min",
-                "name": "Exercise Time",
-                "goal": 30,
-                "latest_date": activity_records["AppleExerciseTime"][0].get("Date", "N/A") if len(activity_records["AppleExerciseTime"]) > 0 else "N/A"
-            }
-    
-    return activity_data
 
-def _analyze_mobility():
-    """Analyze mobility and movement data"""
-    mobility_data = {
-        "walking_speed": None,
-        "step_length": None
+def _extract_wearable_data():
+    """Extract wearable data summary"""
+    if not PATIENT_DATA or 'patient_profile' not in PATIENT_DATA:
+        return {}
+    
+    wearable = PATIENT_DATA['patient_profile'].get('wearable_data_summary', {})
+    return {
+        "ecg": wearable.get('ecg', []),
+        "activity": wearable.get('activity', ''),
+        "sleep": wearable.get('sleep', '')
     }
-    
-    if "mobility" not in EHR_DATA:
-        return mobility_data
-    
-    mobility_records = EHR_DATA["mobility"]
-    
-    # Walking Speed
-    if "WalkingSpeed" in mobility_records:
-        speed_stats = _calculate_metric_stats(mobility_records["WalkingSpeed"])
-        if speed_stats:
-            mobility_data["walking_speed"] = {
-                **speed_stats,
-                "unit": "mph",
-                "name": "Walking Speed",
-                "latest_date": mobility_records["WalkingSpeed"][0].get("Date", "N/A") if len(mobility_records["WalkingSpeed"]) > 0 else "N/A"
-            }
-    
-    # Walking Step Length
-    if "WalkingStepLength" in mobility_records:
-        length_stats = _calculate_metric_stats(mobility_records["WalkingStepLength"])
-        if length_stats:
-            mobility_data["step_length"] = {
-                **length_stats,
-                "unit": "in",
-                "name": "Step Length",
-                "latest_date": mobility_records["WalkingStepLength"][0].get("Date", "N/A") if len(mobility_records["WalkingStepLength"]) > 0 else "N/A"
-            }
-    
-    return mobility_data
 
-def _analyze_clinical():
-    """Analyze clinical records including medications, labs, conditions"""
-    clinical_data = {
-        "medications": [],
-        "lab_results": [],
-        "conditions": [],
-        "allergies": []
+def _extract_recent_care():
+    """Extract recent healthcare utilization information"""
+    if not PATIENT_DATA or 'patient_profile' not in PATIENT_DATA:
+        return {}
+    
+    recent_care = PATIENT_DATA['patient_profile'].get('recent_healthcare_utilization', {})
+    return {
+        "last_hospitalization": recent_care.get('last_hospitalization', {}),
+        "last_cardiology_clinic_visit": recent_care.get('last_cardiology_clinic_visit', {})
     }
-    
-    # Medications
-    if "medications" in EHR_DATA and "ClinicalMedication" in EHR_DATA["medications"]:
-        meds = EHR_DATA["medications"]["ClinicalMedication"][:20]
-        for med in meds:
-            clinical_data["medications"].append({
-                "name": med.get("DisplayName", "Unknown"),
-                "date": med.get("Date", "N/A"),
-                "category": med.get("Resource", {}).get("Data", {}).get("category", [{}])[0].get("text", "N/A") if med.get("Resource") else "N/A"
-            })
-    
-    # Lab Results
-    if "lab_results" in EHR_DATA and "ClinicalLabResult" in EHR_DATA["lab_results"]:
-        labs = EHR_DATA["lab_results"]["ClinicalLabResult"][:20]
-        for lab in labs:
-            clinical_data["lab_results"].append({
-                "name": lab.get("DisplayName", "Unknown"),
-                "value": lab.get("Value", "N/A"),
-                "unit": lab.get("Unit", ""),
-                "date": lab.get("Date", "N/A"),
-                "status": lab.get("Status", "")
-            })
-    
-    # Clinical Records
-    if "clinical" in EHR_DATA:
-        clinical_records = EHR_DATA["clinical"]
-        
-        # Conditions
-        if "ClinicalCondition" in clinical_records:
-            conditions = clinical_records["ClinicalCondition"][:10]
-            for cond in conditions:
-                clinical_data["conditions"].append({
-                    "name": cond.get("DisplayName", "Unknown"),
-                    "date": cond.get("Date", "N/A")
-                })
-        
-        # Allergies
-        if "ClinicalAllergy" in clinical_records:
-            allergies = clinical_records["ClinicalAllergy"][:10]
-            for allergy in allergies:
-                clinical_data["allergies"].append({
-                    "name": allergy.get("DisplayName", "Unknown"),
-                    "date": allergy.get("Date", "N/A")
-                })
-    
-    return clinical_data
 
 def _get_user_ehr_data(user):
-    """Get EHR data for a user (currently global EHR_DATA)"""
-    return EHR_DATA
+    """Get patient data for a user (currently global PATIENT_DATA)"""
+    return PATIENT_DATA
+
+def _get_demographics():
+    """Get patient demographics (compatibility function)"""
+    return _extract_demographics()
+
+def _analyze_cardiovascular():
+    """Get cardiovascular data (compatibility function)"""
+    return _extract_diagnosis()
+
+def _analyze_clinical():
+    """Get clinical data (compatibility function)"""
+    return {
+        "medications": _extract_medications(),
+        "comorbidities": _extract_comorbidities(),
+        "symptoms": _extract_symptoms()
+    }
 
 # --------------------------------------------------------------------------------
 # Initialize PDF Form Filling Blueprint

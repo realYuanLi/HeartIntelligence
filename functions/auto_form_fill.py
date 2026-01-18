@@ -189,40 +189,46 @@ def _generate_field_values_with_llm(fields_data, user):
         EHR_DATA = _get_user_ehr_data(user) if _get_user_ehr_data else None
         
         if EHR_DATA:
-            # Extract relevant demographics and health data
-            demographics = _get_demographics()
+            # Extract patient profile data
+            patient_profile = EHR_DATA.get('patient_profile', {})
+            demographics = patient_profile.get('demographics', {})
             
             patient_context = f"""
 Patient Information Available:
 - Name: {demographics.get('name', 'N/A')}
-- Birth Date: {demographics.get('birth_date', 'N/A')}
 - Age: {demographics.get('age', 'N/A')}
 - Sex: {demographics.get('sex', 'N/A')}
+- Living Situation: {demographics.get('living_situation', 'N/A')}
 """
             
-            # Add cardiovascular data if available
-            cardio = _analyze_cardiovascular()
-            if cardio.get('resting_heart_rate'):
-                rhr = cardio['resting_heart_rate']
-                patient_context += f"\nResting Heart Rate: {rhr.get('current', 'N/A')} {rhr.get('unit', '')}"
+            # Add diagnosis information
+            diagnosis = patient_profile.get('primary_cardiac_diagnosis', {})
+            if diagnosis:
+                patient_context += f"\nPrimary Diagnosis: {diagnosis.get('condition', 'N/A')}"
             
-            if cardio.get('blood_pressure'):
-                bp = cardio['blood_pressure']
-                patient_context += f"\nBlood Pressure: {bp.get('current', 'N/A')}"
+            # Add medications
+            medications = patient_profile.get('medications', {})
+            all_meds = []
+            for category in ['cardiovascular_hf', 'metabolic', 'other']:
+                if category in medications:
+                    for med in medications[category]:
+                        if isinstance(med, dict):
+                            all_meds.append(f"{med.get('name', 'Unknown')} {med.get('dose', '')}")
+            if all_meds:
+                patient_context += f"\nCurrent Medications: {', '.join(all_meds[:5])}"
             
-            # Add medications and conditions
-            clinical = _analyze_clinical()
-            if clinical.get('medications'):
-                meds = [med['name'] for med in clinical['medications'][:5]]
-                patient_context += f"\nCurrent Medications: {', '.join(meds)}"
+            # Add comorbidities
+            comorbidities = patient_profile.get('comorbidities', {})
+            all_conditions = []
+            for category, conditions in comorbidities.items():
+                all_conditions.extend(conditions)
+            if all_conditions:
+                patient_context += f"\nMedical Conditions: {', '.join(all_conditions[:5])}"
             
-            if clinical.get('conditions'):
-                conditions = [cond['name'] for cond in clinical['conditions'][:5]]
-                patient_context += f"\nMedical Conditions: {', '.join(conditions)}"
-            
-            if clinical.get('allergies'):
-                allergies = [allergy['name'] for allergy in clinical['allergies'][:5]]
-                patient_context += f"\nAllergies: {', '.join(allergies)}"
+            # Add symptoms
+            symptoms = patient_profile.get('symptoms', {})
+            if symptoms.get('chronic_baseline'):
+                patient_context += f"\nChronic Symptoms: {', '.join(symptoms['chronic_baseline'][:3])}"
         else:
             patient_context = """
 No patient data available. Please generate realistic sample data for a test patient.

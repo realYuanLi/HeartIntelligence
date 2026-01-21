@@ -1,4 +1,4 @@
-# DREAM-Chat
+# HeartIntelligence
 
 A health-focused AI platform providing personalized medical insights and interactive data visualization.
 

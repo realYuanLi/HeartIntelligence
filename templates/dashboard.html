@@ -9,16 +9,25 @@
     <div class="ecg-section">
       <div class="ecg-image-container">
         <img src="{{ url_for('static', filename='ECG.jpg') }}" alt="ECG from Apple Watch" class="ecg-image">
+        <img src="{{ url_for('static', filename='applewatch.gif') }}" alt="Apple Watch" class="ecg-image">
       </div>
       <p class="ecg-caption">ECG from Apple Watch</p>
     </div>
     
-    <div id="dashboardData" class="dashboard-content">
-      <!-- Mobile Health Data Section -->
-      <div id="mobileHealthData">
-        <div class="loading">Loading mobile health data...</div>
+    <!-- Apple Health Data Sections -->
+    <div class="dashboard-content apple-health-sections">
+      <!-- Activity & Steps Section -->
+      <div id="activitySection" class="apple-health-section">
+        <div class="loading">Loading activity data...</div>
       </div>
       
+      <!-- Heart Health Section -->
+      <div id="heartHealthSection" class="apple-health-section">
+        <div class="loading">Loading heart health data...</div>
+      </div>
+    </div>
+    
+    <div id="dashboardData" class="dashboard-content">
       <div class="loading">Loading health data...</div>
     </div>
   </div>

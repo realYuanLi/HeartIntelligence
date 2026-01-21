@@ -2233,12 +2233,14 @@ body.sources-sidebar-open .input-container.fixed {
   background: var(--card);
   border: 2px solid var(--border);
   border-radius: 1rem;
-  padding: 1.5rem;
+  padding: 1rem;
   display: flex;
   justify-content: center;
   align-items: center;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
   transition: all 0.3s ease;
+  overflow: hidden;
+  gap: 1rem;
 }
 
 .ecg-image-container:hover {
@@ -3277,7 +3279,7 @@ body.sources-sidebar-open .input-container.fixed {
   background: var(--card);
   border: 2px solid var(--border);
   border-radius: 1rem;
-  padding: 1.5rem;
+  padding: 1rem;
   display: flex;
   gap: 1.25rem;
   transition: all 0.3s ease;
@@ -3381,7 +3383,7 @@ body.sources-sidebar-open .input-container.fixed {
   background: var(--card);
   border: 2px solid var(--border);
   border-radius: 1rem;
-  padding: 1.5rem;
+  padding: 1rem;
   display: flex;
   align-items: center;
   gap: 1.25rem;
@@ -3449,7 +3451,7 @@ body.sources-sidebar-open .input-container.fixed {
   background: var(--card);
   border: 2px solid var(--border);
   border-radius: 1rem;
-  padding: 1.5rem;
+  padding: 1rem;
   display: flex;
   align-items: center;
   gap: 1.25rem;
@@ -3517,7 +3519,7 @@ body.sources-sidebar-open .input-container.fixed {
   background: var(--card);
   border: 2px solid var(--border);
   border-radius: 1rem;
-  padding: 1.5rem;
+  padding: 1rem;
   display: flex;
   align-items: center;
   gap: 1.25rem;
@@ -3742,11 +3744,11 @@ body.sources-sidebar-open .input-container.fixed {
 
 @media (max-width: 768px) {
   .dashboard-content {
-    padding: 1.5rem;
+    padding: 1rem;
   }
   
   .dashboard-header {
-    padding: 1.5rem;
+    padding: 1rem;
   }
   
   .dashboard-header h1 {
@@ -3755,7 +3757,7 @@ body.sources-sidebar-open .input-container.fixed {
   
   .demographics-card {
     flex-direction: column;
-    padding: 1.5rem;
+    padding: 1rem;
   }
   
   .demographics-info {
@@ -3833,7 +3835,7 @@ body.sources-sidebar-open .input-container.fixed {
   background: var(--bg);
   border: 1px solid var(--border);
   border-radius: 8px;
-  padding: 1.5rem;
+  padding: 1rem;
   margin-bottom: 1.5rem;
 }
 
@@ -4177,4 +4179,68 @@ body.sources-sidebar-open .input-container.fixed {
   left: 0;
   color: var(--muted);
   font-weight: bold;
+}
+
+/* ECG image should be larger than the GIF */
+.ecg-image:first-child {
+  max-width: 100%;
+  flex: 1 1 100%;
+}
+
+.ecg-image:last-child {
+  max-width: 13%;
+  flex: 1 1 13%;
+}
+
+/* ===================== Apple Health Sections ===================== */
+.apple-health-sections {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  padding-top: 0;
+}
+
+.apple-health-section {
+  width: 100%;
+}
+
+.activity-panel,
+.heart-health-panel {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  overflow: hidden;
+}
+
+.activity-panel .category-header {
+  background: var(--bg);
+  border-bottom: 3px solid #3b82f6;
+}
+
+.heart-health-panel .category-header {
+  background: var(--bg);
+  border-bottom: 3px solid #ef4444;
+}
+
+.activity-panel .category-header h2 {
+  color: #3b82f6;
+}
+
+.heart-health-panel .category-header h2 {
+  color: #ef4444;
+}
+
+.data-period {
+  font-size: 0.85rem;
+  color: var(--muted);
+  margin-bottom: 1rem;
+  padding: 0.5rem;
+  background: var(--bg);
+  border-radius: 0.5rem;
+}
+
+.metric-details {
+  font-size: 0.85rem;
+  color: var(--muted);
+  margin-top: 0.25rem;
 }

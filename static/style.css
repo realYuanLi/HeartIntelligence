@@ -4183,13 +4183,13 @@ body.sources-sidebar-open .input-container.fixed {
 
 /* ECG image should be larger than the GIF */
 .ecg-image:first-child {
-  max-width: 100%;
-  flex: 1 1 100%;
+  max-width: 85%;
+  flex: 1 1 85%;
 }
 
 .ecg-image:last-child {
-  max-width: 13%;
-  flex: 1 1 13%;
+  max-width: 10%;
+  flex: 1 1 10%;
 }
 
 /* ===================== Apple Health Sections ===================== */

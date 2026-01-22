@@ -9,6 +9,13 @@ A health-focused AI platform providing personalized medical insights and interac
 - **"My Body" CT Visualization**: Interactive 3D visualization of CT scans and organ segmentations for better understanding of personal anatomy.
 - **Voice Interaction**: Integrated speech-to-text for natural conversation about your health.
 
+## Data Processing
+
+To update the dashboard with the latest mobile health data, run the processing script:
+```bash
+python3 data/process_mobile_data.py
+```
+
 ## Quick Start
 
 1. **Install dependencies**: `pip install -r requirements.txt`

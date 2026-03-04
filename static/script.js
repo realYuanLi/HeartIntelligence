@@ -372,7 +372,15 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const titleSpan = document.createElement("span");
     titleSpan.className = "recent-title";
-    titleSpan.textContent = item.title;
+    if (item.source === "whatsapp") {
+      const badge = document.createElement("span");
+      badge.className = "wa-badge";
+      badge.textContent = "WA";
+      titleSpan.appendChild(badge);
+      titleSpan.appendChild(document.createTextNode(" " + item.title));
+    } else {
+      titleSpan.textContent = item.title;
+    }
     contentDiv.appendChild(titleSpan);
 
     const timeSpan = document.createElement("span");
@@ -459,10 +467,16 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
+  const cronJobsBtn = document.getElementById("cronJobsBtn");
+  if (cronJobsBtn) {
+    cronJobsBtn.addEventListener("click", () => {
+      window.location.href = "/cron-jobs";
+    });
+  }
+
   const digitalTwinBtn = document.getElementById("digitalTwinBtn");
   if (digitalTwinBtn) {
     digitalTwinBtn.addEventListener("click", () => {
-      // Navigate to my body page
       window.location.href = "/my-body";
     });
   }

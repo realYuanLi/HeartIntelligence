@@ -133,4 +133,130 @@ export class FlaskBridge {
 
     return body.assistant_message;
   }
+
+  /**
+   * Send a WhatsApp user's message via the dedicated /api/whatsapp/message
+   * endpoint.  Flask manages the session mapping (sender_jid → session_id)
+   * so the bridge no longer needs to track it locally.
+   *
+   * Automatically re-authenticates on 401 and retries once.
+   */
+  async sendWhatsAppMessage(
+    senderJid: string,
+    senderName: string,
+    text: string,
+  ): Promise<string> {
+    await this.ensureSession();
+    return this.doSendWhatsAppMessage(senderJid, senderName, text);
+  }
+
+  private async doSendWhatsAppMessage(
+    senderJid: string,
+    senderName: string,
+    text: string,
+    retried = false,
+  ): Promise<string> {
+    const res = await fetch(`${FLASK_BASE_URL}/api/whatsapp/message`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Cookie: this.sessionCookie!,
+      },
+      body: JSON.stringify({
+        sender_jid: senderJid,
+        sender_name: senderName,
+        message: text,
+      }),
+    });
+
+    if (res.status === 401 && !retried) {
+      this.sessionCookie = null;
+      await this.login();
+      return this.doSendWhatsAppMessage(senderJid, senderName, text, true);
+    }
+
+    if (!res.ok) {
+      const body = (await res.json().catch(() => ({}))) as {
+        message?: string;
+        assistant_message?: string;
+      };
+      throw new Error(
+        body.assistant_message ??
+          body.message ??
+          `Flask /api/whatsapp/message returned HTTP ${res.status}`,
+      );
+    }
+
+    const body = (await res.json()) as {
+      success: boolean;
+      assistant_message?: string;
+      session_id?: string;
+    };
+
+    if (!body.assistant_message) {
+      throw new Error('Flask returned no assistant_message');
+    }
+
+    return body.assistant_message;
+  }
+
+  /**
+   * Poll Flask for pending outbound messages (cron job deliveries).
+   * Returns an array of messages to send, each with msg_id, target_jid, and message.
+   */
+  async pollOutbound(): Promise<
+    Array<{ msg_id: string; target_jid: string; message: string }>
+  > {
+    await this.ensureSession();
+    return this.doPollOutbound();
+  }
+
+  private async doPollOutbound(
+    retried = false,
+  ): Promise<Array<{ msg_id: string; target_jid: string; message: string }>> {
+    const res = await fetch(`${FLASK_BASE_URL}/api/whatsapp/outbound`, {
+      headers: {
+        Cookie: this.sessionCookie!,
+      },
+    });
+
+    if (res.status === 401 && !retried) {
+      this.sessionCookie = null;
+      await this.login();
+      return this.doPollOutbound(true);
+    }
+
+    if (!res.ok) return [];
+
+    const body = (await res.json()) as {
+      success: boolean;
+      messages?: Array<{ msg_id: string; target_jid: string; message: string }>;
+    };
+
+    return body.messages ?? [];
+  }
+
+  /**
+   * Acknowledge delivery of an outbound message so Flask marks it as delivered.
+   */
+  async ackOutbound(msgId: string): Promise<void> {
+    await this.ensureSession();
+    await this.doAckOutbound(msgId);
+  }
+
+  private async doAckOutbound(msgId: string, retried = false): Promise<void> {
+    const res = await fetch(`${FLASK_BASE_URL}/api/whatsapp/outbound/${msgId}/ack`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Cookie: this.sessionCookie!,
+      },
+    });
+
+    if (res.status === 401 && !retried) {
+      this.sessionCookie = null;
+      await this.login();
+      return this.doAckOutbound(msgId, true);
+    }
+  }
 }

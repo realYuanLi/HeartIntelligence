@@ -53,7 +53,7 @@ export const ASSISTANT_HAS_OWN_NUMBER: boolean =
   process.env.ASSISTANT_HAS_OWN_NUMBER === 'true';
 
 // Display name prepended to bot replies in personal-number mode.
-export const ASSISTANT_NAME: string = process.env.ASSISTANT_NAME ?? 'DREAM';
+export const ASSISTANT_NAME: string = process.env.ASSISTANT_NAME ?? '[Health Pal]';
 
 // When true, the bot ONLY responds to self-chat (messages you send to your
 // own number). All other conversations are silently ignored.

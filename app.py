@@ -127,7 +127,13 @@ _slice_cache = {}
 _cache_max_size = 100  # Maximum number of cached slices
 
 # Simple system prompt
-system_prompt = """You are a helpful AI assistant."""
+system_prompt = (
+    "You are a helpful AI assistant. "
+    "You have the ability to set reminders and scheduled messages for users. "
+    "When a user asks to be reminded about something at a specific time, "
+    "the system will automatically create the reminder — just acknowledge it "
+    "naturally in your response. Do not say you cannot set reminders."
+)
 
 # Verify OpenAI API key is configured
 if not os.getenv("OPENAI_API_KEY"):
@@ -172,7 +178,7 @@ app = Flask(__name__, template_folder="templates", static_folder="static")
 app.secret_key = os.environ.get("SECRET_KEY", "replace-with-your-secret-key")
 
 # ---- "account name": password  ----
-USERS = {"Kevin": "123456", "Yuan": "3456", "test": "111"}
+USERS = {"Kevin": "123456", "Yuan": "3456", "test": "111", "whatsapp_bot": os.environ.get("WHATSAPP_BOT_PASSWORD", ""), "wechat_bot": os.environ.get("WECHAT_BOT_PASSWORD", "")}
 
 def _username() -> str | None:
     return session.get("username")
@@ -380,20 +386,46 @@ def api_history():
 
     user = _username()
     items = []
-    for fn in sorted(_user_dir(user).glob("*.json"), key=lambda p: p.stat().st_mtime, reverse=True):
+
+    # User's own sessions
+    for fn in _user_dir(user).glob("*.json"):
         try:
             with fn.open("r", encoding="utf-8") as f:
                 d = json.load(f)
             sid = d.get("session_id", fn.stem)
-
-            title = d.get("title") or f"Chat {sid[:6]}"
             items.append({
                 "session_id": sid,
-                "title": title,
-                "updated_at": d.get("updated_at") or datetime.fromtimestamp(fn.stat().st_mtime).isoformat(timespec="seconds")
+                "title": d.get("title") or f"Chat {sid[:6]}",
+                "updated_at": d.get("updated_at") or datetime.fromtimestamp(fn.stat().st_mtime).isoformat(timespec="seconds"),
+                "source": d.get("source", "web"),
             })
         except Exception:
             continue
+
+    # Merge WhatsApp sessions so every user sees them in the sidebar
+    wa_dir = DATA_DIR / "whatsapp_bot"
+    if wa_dir.is_dir() and user != "whatsapp_bot":
+        seen = {it["session_id"] for it in items}
+        for fn in wa_dir.glob("*.json"):
+            if fn.name.startswith("_"):
+                continue
+            try:
+                with fn.open("r", encoding="utf-8") as f:
+                    d = json.load(f)
+                sid = d.get("session_id", fn.stem)
+                if sid in seen:
+                    continue
+                items.append({
+                    "session_id": sid,
+                    "title": d.get("title") or f"WhatsApp {sid[:6]}",
+                    "updated_at": d.get("updated_at") or datetime.fromtimestamp(fn.stat().st_mtime).isoformat(timespec="seconds"),
+                    "source": "whatsapp",
+                    "sender_name": d.get("sender_name", ""),
+                })
+            except Exception:
+                continue
+
+    items.sort(key=lambda x: x.get("updated_at", ""), reverse=True)
     return jsonify(items)
 
 @app.route("/api/new_session", methods=["POST"])
@@ -423,6 +455,11 @@ def api_get_session(session_id: str):
 
     user = _username()
     d = _load_session(user, session_id)
+
+    # Fall back to WhatsApp sessions so the web UI can display them
+    if not d:
+        d = _load_session("whatsapp_bot", session_id)
+
     if not d:
         return jsonify(success=False, message="Session not found"), 404
     # Hide system messages; chat starts from the assistant greeting
@@ -442,7 +479,7 @@ def api_get_session(session_id: str):
                 continue
             else:
                 convo.append({"role": m.get("role"), "content": content})
-    return jsonify(success=True, conversation=convo)
+    return jsonify(success=True, conversation=convo, source=d.get("source", "web"))
 
 @app.route("/api/message", methods=["POST"])
 def api_message():
@@ -476,9 +513,37 @@ def api_message():
                 messages[i] = {"role": "system", "content": original_system + patient_info}
                 break
 
+    # Check for reminder intent before calling the main LLM
+    try:
+        from cron_jobs import create_reminder_from_chat
+        reminder_job = create_reminder_from_chat(
+            user_message=text,
+            user=user,
+            session_id=session_id,
+        )
+        if reminder_job:
+            sched = datetime.fromisoformat(reminder_job["scheduled_at"])
+            time_str = sched.strftime("%B %d, %Y at %I:%M %p")
+            print(f"Auto-created web reminder {reminder_job['job_id']} "
+                  f"for {user}/{session_id} at {time_str}")
+            messages.append({
+                "role": "system",
+                "content": (
+                    f"[System: a reminder has been successfully created. "
+                    f"It will fire on {time_str} and deliver a message "
+                    f"in this chat about: \"{reminder_job['message']}\". "
+                    f"Acknowledge this to the user naturally.]"
+                ),
+            })
+    except Exception as e:
+        import traceback
+        print(f"Reminder parse failed: {e}")
+        traceback.print_exc()
+
     try:
         resp = Chatbot.llm_reply(messages)
         assistant_text = resp.content if hasattr(resp, "content") else str(resp)
+
         d["conversation"].append({"role": "assistant", "content": assistant_text})
         d["updated_at"] = _now_iso()
         _save_session(user, d)
@@ -1176,7 +1241,39 @@ def _hsv_to_rgb(h, s, v):
 # --------------------------------------------------------------------------------
 # PDF Form Filling endpoints - now in functions/auto_form_fill.py
 # --------------------------------------------------------------------------------
- 
+
+# --------------------------------------------------------------------------------
+# WeCom (企业微信) self-built application callback
+# --------------------------------------------------------------------------------
+try:
+    from wechat.wecom import wecom_bp
+    app.register_blueprint(wecom_bp)
+except ImportError:
+    print("⚠ WeCom integration not available (wechat module not found)")
+
+# --------------------------------------------------------------------------------
+# WeChat Official Account integration
+# --------------------------------------------------------------------------------
+try:
+    from wechat.flask_wechat import wechat_bp
+    app.register_blueprint(wechat_bp)
+    print("✓ WeChat Official Account integration loaded")
+except ImportError as e:
+    print(f"⚠ WeChat Official Account integration not available: {e}")
+
+# --------------------------------------------------------------------------------
+# WhatsApp session management (总控)
+# --------------------------------------------------------------------------------
+from whatsapp.flask_whatsapp import whatsapp_bp
+app.register_blueprint(whatsapp_bp)
+
+# --------------------------------------------------------------------------------
+# Cron Jobs (proactive scheduled messaging)
+# --------------------------------------------------------------------------------
+from cron_jobs import cron_bp, start_scheduler
+app.register_blueprint(cron_bp)
+start_scheduler()
+print("✓ Cron job scheduler started")
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8000)), debug=False)

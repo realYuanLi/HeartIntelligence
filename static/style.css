@@ -422,6 +422,17 @@ body.sources-sidebar-open .message {
   width: 100%;
   max-width: 100%;
 }
+.wa-badge {
+  display: inline-block;
+  background: #25D366;
+  color: #fff;
+  font-size: 0.6rem;
+  font-weight: 700;
+  padding: 1px 4px;
+  border-radius: 3px;
+  vertical-align: middle;
+  line-height: 1.4;
+}
 .recent-time {
   font-size: 0.8rem;
   color: var(--muted);
@@ -4243,4 +4254,413 @@ body.sources-sidebar-open .input-container.fixed {
   font-size: 0.85rem;
   color: var(--muted);
   margin-top: 0.25rem;
+}
+
+/* ===================== Cron Jobs Styles ===================== */
+.cron-jobs-page {
+  flex: 1;
+  overflow-y: auto;
+  padding-bottom: 6rem;
+}
+
+.cron-jobs-header {
+  padding: 1rem 2rem 0.5rem;
+  background: var(--bg);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.cron-jobs-header h1 {
+  margin: 0;
+  font-size: 1.75rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.cron-jobs-header .subtitle {
+  margin: 0.25rem 0 0;
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+
+.cron-jobs-content {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 1.5rem 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+/* Form card */
+.cron-job-form-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  padding: 1.5rem;
+}
+
+.cron-job-form-card h2 {
+  margin: 0 0 1.25rem;
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.form-group {
+  margin-bottom: 1rem;
+}
+
+.form-group label {
+  display: block;
+  font-weight: 500;
+  color: var(--text);
+  margin-bottom: 0.375rem;
+  font-size: 0.9rem;
+}
+
+.form-group select,
+.form-group input[type="text"],
+.form-group input[type="datetime-local"],
+.form-group input[type="time"],
+.form-group textarea {
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--input-border);
+  border-radius: 0.5rem;
+  background: var(--input-bg);
+  color: var(--text);
+  font-size: 0.95rem;
+  font-family: inherit;
+  box-sizing: border-box;
+}
+
+.form-group textarea {
+  resize: vertical;
+  line-height: 1.5;
+}
+
+.form-group select:focus,
+.form-group input:focus,
+.form-group textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(255, 104, 80, 0.15);
+}
+
+.manual-input-toggle {
+  font-size: 0.8rem;
+  color: var(--muted);
+  margin-top: 0.375rem;
+}
+
+.manual-input-toggle a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.manual-input-toggle a:hover {
+  text-decoration: underline;
+}
+
+.schedule-options {
+  padding: 0.75rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.hidden {
+  display: none !important;
+}
+
+.create-job-btn {
+  display: inline-block;
+  padding: 0.6rem 1.5rem;
+  background: var(--accent);
+  color: white;
+  border: none;
+  border-radius: 0.5rem;
+  font-size: 0.95rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.create-job-btn:hover {
+  background: var(--accent-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+/* Jobs list card */
+.cron-jobs-list-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  padding: 1.5rem;
+}
+
+.cron-jobs-list-card h2 {
+  margin: 0 0 1rem;
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.jobs-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+/* Job card */
+.job-card {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  padding: 1rem;
+  transition: all 0.2s ease;
+}
+
+.job-card:hover {
+  border-color: var(--accent);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.job-card.disabled {
+  opacity: 0.6;
+}
+
+.job-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.job-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.job-message {
+  font-weight: 500;
+  color: var(--text);
+  font-size: 0.95rem;
+  margin-bottom: 0.375rem;
+  word-wrap: break-word;
+}
+
+.job-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.job-target {
+  color: var(--muted-2);
+  font-weight: 500;
+}
+
+.job-schedule {
+  color: var(--muted);
+}
+
+.badge {
+  display: inline-block;
+  padding: 0.125rem 0.375rem;
+  border-radius: 0.25rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+}
+
+.badge-chat {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.badge-dashboard {
+  background: #e0e7ff;
+  color: #4338ca;
+}
+
+.badge-wa {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.badge-web {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.job-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.job-status {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.2rem 0.5rem;
+  border-radius: 1rem;
+}
+
+.job-status.active {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.job-status.inactive {
+  background: #f3f4f6;
+  color: #6b7280;
+}
+
+.job-edit-btn,
+.job-toggle-btn,
+.job-delete-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 0.375rem;
+  padding: 0.25rem 0.5rem;
+  cursor: pointer;
+  font-size: 0.85rem;
+  color: var(--muted);
+  transition: all 0.15s ease;
+}
+
+.job-edit-btn:hover {
+  background: #dbeafe;
+  color: #1e40af;
+  border-color: #3b82f6;
+}
+
+.job-toggle-btn:hover {
+  background: var(--card);
+  color: var(--text);
+  border-color: var(--accent);
+}
+
+.job-delete-btn:hover {
+  background: #fee2e2;
+  color: #991b1b;
+  border-color: #ef4444;
+}
+
+.job-last-run {
+  font-size: 0.75rem;
+  color: var(--muted);
+  margin-top: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--border);
+}
+
+/* Inline edit panel */
+.job-edit-panel {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border);
+}
+
+.edit-row {
+  margin-bottom: 0.625rem;
+}
+
+.edit-row label {
+  display: block;
+  font-weight: 500;
+  font-size: 0.8rem;
+  color: var(--muted-2);
+  margin-bottom: 0.25rem;
+}
+
+.edit-row textarea,
+.edit-row input,
+.edit-row select {
+  width: 100%;
+  padding: 0.4rem 0.6rem;
+  border: 1px solid var(--input-border);
+  border-radius: 0.375rem;
+  background: var(--input-bg);
+  color: var(--text);
+  font-size: 0.875rem;
+  font-family: inherit;
+  box-sizing: border-box;
+}
+
+.edit-row textarea {
+  resize: vertical;
+  line-height: 1.4;
+}
+
+.edit-row textarea:focus,
+.edit-row input:focus,
+.edit-row select:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(255, 104, 80, 0.15);
+}
+
+.edit-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.edit-save-btn,
+.edit-cancel-btn {
+  padding: 0.375rem 1rem;
+  border-radius: 0.375rem;
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  transition: all 0.15s ease;
+}
+
+.edit-save-btn {
+  background: var(--accent);
+  color: white;
+  border-color: var(--accent);
+}
+
+.edit-save-btn:hover {
+  background: var(--accent-hover);
+}
+
+.edit-cancel-btn {
+  background: var(--bg);
+  color: var(--text);
+}
+
+.edit-cancel-btn:hover {
+  background: var(--card);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .cron-jobs-content {
+    padding: 1rem;
+  }
+  .cron-job-form-card,
+  .cron-jobs-list-card {
+    padding: 1rem;
+  }
+  .job-card-header {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  .job-actions {
+    align-self: flex-end;
+  }
 }

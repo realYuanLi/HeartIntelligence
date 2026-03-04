@@ -27,3 +27,7 @@ Pillow==10.2.0
 # PDF processing dependencies
 pypdf==4.0.1
 reportlab==4.1.0
+
+# WeCom (企业微信) integration
+pycryptodome
+requests

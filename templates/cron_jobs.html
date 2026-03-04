@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+{% block main %}
+  <div class="cron-jobs-page">
+    <div class="cron-jobs-header">
+      <h1>Cron Jobs</h1>
+      <p class="subtitle">Schedule proactive messages via WhatsApp or web chat</p>
+    </div>
+
+    <div class="cron-jobs-content">
+      <!-- Create new job form -->
+      <div class="cron-job-form-card">
+        <h2>Create New Job</h2>
+        <form id="createJobForm">
+          <div class="form-group">
+            <label for="targetContact">WhatsApp Contact</label>
+            <select id="targetContact" required>
+              <option value="">Select a contact...</option>
+            </select>
+            <div class="manual-input-toggle">
+              or <a href="#" id="toggleManualInput">enter phone number manually</a>
+            </div>
+            <input type="text" id="manualPhone" class="hidden" placeholder="+1234567890" />
+          </div>
+
+          <div class="form-group">
+            <label for="jobMessage">Message</label>
+            <textarea id="jobMessage" rows="3" placeholder="Enter the message to send..." required></textarea>
+          </div>
+
+          <div class="form-group">
+            <label for="scheduleType">Schedule Type</label>
+            <select id="scheduleType">
+              <option value="once">One-time</option>
+              <option value="recurring">Recurring</option>
+            </select>
+          </div>
+
+          <!-- One-time options -->
+          <div id="onceOptions" class="schedule-options">
+            <div class="form-group">
+              <label for="scheduledAt">Date & Time</label>
+              <input type="datetime-local" id="scheduledAt" />
+            </div>
+          </div>
+
+          <!-- Recurring options -->
+          <div id="recurringOptions" class="schedule-options hidden">
+            <div class="form-group">
+              <label for="frequency">Frequency</label>
+              <select id="frequency">
+                <option value="daily">Daily</option>
+                <option value="weekly">Weekly</option>
+                <option value="hourly">Hourly</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="timeOfDay">Time of Day</label>
+              <input type="time" id="timeOfDay" value="09:00" />
+            </div>
+            <div class="form-group hidden" id="dayOfWeekGroup">
+              <label for="dayOfWeek">Day of Week</label>
+              <select id="dayOfWeek">
+                <option value="monday">Monday</option>
+                <option value="tuesday">Tuesday</option>
+                <option value="wednesday">Wednesday</option>
+                <option value="thursday">Thursday</option>
+                <option value="friday">Friday</option>
+                <option value="saturday">Saturday</option>
+                <option value="sunday">Sunday</option>
+              </select>
+            </div>
+          </div>
+
+          <button type="submit" class="create-job-btn">Create Job</button>
+        </form>
+      </div>
+
+      <!-- Existing jobs list -->
+      <div class="cron-jobs-list-card">
+        <h2>Scheduled Jobs</h2>
+        <div id="jobsList" class="jobs-list">
+          <div class="loading">Loading jobs...</div>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock %}
+
+{% block input %}
+  <div class="input-container fixed">
+    <div class="input-wrapper">
+      <button id="micButton" class="mic-button" type="button" title="Voice input">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z" fill="currentColor"/>
+          <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z" fill="currentColor"/>
+        </svg>
+      </button>
+      <textarea 
+        id="messageInput" 
+        class="message-input" 
+        placeholder="Ask anything" 
+        rows="1"
+        maxlength="2000"
+      ></textarea>
+      <button id="sendButton" class="send-button" type="button">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" fill="currentColor"/>
+        </svg>
+      </button>
+    </div>
+    <div class="disclaimer">
+      <span>Disclaimer</span>
+    </div>
+  </div>
+{% endblock %}
+
+{% block scripts %}
+  <script src="{{ url_for('static', filename='cron_jobs.js') }}?v=3"></script>
+{% endblock %}

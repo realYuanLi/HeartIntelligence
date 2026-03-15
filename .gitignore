@@ -6,17 +6,17 @@ __pycache__/
 # Ignore JSON files except specific ones we want to include
 *.json
 !patient_info/*.json
-!data/test_file/ehr_test_data.json
-!data/test_file/raw_ehr_transformed.json
-!data/my_body/statistics.json
-!data/health_info.json
-!data/processed_mobile_data.json
+!personal_data/test_file/ehr_test_data.json
+!personal_data/test_file/raw_ehr_transformed.json
+!personal_data/my_body/statistics.json
+!personal_data/health_info.json
+!personal_data/processed_mobile_data.json
 !config/configs.json
 
 # Ignore chat history and other data directories
 chat_history/
-data/processed_embeddings/
-data/test_folder/
+personal_data/processed_embeddings/
+personal_data/test_folder/
 
 # Python and environment files
 chat_test_env/
@@ -26,11 +26,19 @@ venv/
 .DS_Store
 node_modules/
 
-# Keep data/test_file/ directory structure but ignore other files in it
-data/test_file/*
-!data/test_file/ehr_test_data.json
-!data/test_file/raw_ehr_transformed.json
+# Keep personal_data/test_file/ directory structure but ignore other files in it
+personal_data/test_file/*
+!personal_data/test_file/ehr_test_data.json
+!personal_data/test_file/raw_ehr_transformed.json
 
 # Keep only s1038_seg.nii.gz in seg_map_clean
-data/my_body/seg_map_clean/*
-!data/my_body/seg_map_clean/s1038_seg.nii.gz
+personal_data/my_body/seg_map_clean/*
+!personal_data/my_body/seg_map_clean/s1038_seg.nii.gz
+
+# Resources — keep exercise DB, ignore cached images (downloaded on demand)
+!resources/exercises/exercises.json
+resources/exercises/images/
+
+# Resources — keep nutrition reference data
+!resources/nutrition/food_nutrients.json
+!resources/nutrition/rda_reference.json

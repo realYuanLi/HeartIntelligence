@@ -1,12 +1,11 @@
+import json
 import os
 import openai
 import asyncio
 import threading
 import tiktoken
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from dotenv import load_dotenv
-from .web_search import web_search, format_search_results, needs_web_search
-from .health_analyzer import analyze_health_query, analyze_health_query_with_raw_data
+from .skills_runtime import SkillRuntime
 load_dotenv()
 
 openai.api_key = os.getenv("OPENAI_API_KEY")
@@ -35,6 +34,7 @@ class Agent:
         self.response_schema = response_schema
         self.ehr_data = ehr_data
         self.mobile_data = mobile_data
+        self.skill_runtime = SkillRuntime(ehr_data=ehr_data, mobile_data=mobile_data)
         
         # Define available LLM functions
         self.llm_name_list = {
@@ -51,255 +51,282 @@ class Agent:
         else:
             raise ValueError(f"Unknown LLM: {self.llm}")
     
-    def _parallel_analysis(self, query: str):
-        """
-        Run web search and health data analysis in parallel.
-        
-        Args:
-            query (str): The user's query
-            
-        Returns:
-            Tuple: (web_search_results, health_analysis_results)
-        """
-        web_results = None
-        health_results = None
-        
-        with ThreadPoolExecutor(max_workers=2) as executor:
-            # Submit both tasks
-            web_future = executor.submit(self._web_search_task, query)
-            health_future = executor.submit(self._health_analysis_task, query)
-            
-            # Collect results as they complete
-            for future in as_completed([web_future, health_future]):
-                try:
-                    result = future.result()
-                    if result is not None:
-                        if 'search_results' in result:
-                            web_results = result
-                        elif 'health_analysis' in result:
-                            health_results = result
-                except Exception as e:
-                    print(f"Error in parallel task: {e}")
-        
-        return web_results, health_results
-    
-    
-    def _web_search_task(self, query: str):
-        """Task for web search analysis."""
-        try:
-            if needs_web_search(query):
-                update_status("searching_web")
-                search_results = web_search(query)
-                update_status("analyzing_web_data")
-                return {
-                    'search_results': search_results,
-                    'needs_search': True
-                }
-        except Exception as e:
-            print(f"Web search error: {e}")
-        return None
-    
-    def _health_analysis_task(self, query: str):
-        """Task for health data analysis - includes patient profile and mobile health data."""
-        try:
-            import time
-            start_time = time.time()
-            
-            needs_health, patient_profile, formatted_output, patient_data_formatted = analyze_health_query_with_raw_data(
-                query, 
-                self.ehr_data, 
-                show_raw_data=True,
-                mobile_data=self.mobile_data
-            )
-            
-            elapsed = time.time() - start_time
-            print(f"Health analysis completed in {elapsed:.2f} seconds")
-            
-            if needs_health:
-                return {
-                    'health_analysis': {
-                        'needs_health': needs_health,
-                        'patient_profile': patient_profile,
-                        'formatted_output': formatted_output,
-                        'patient_data_formatted': patient_data_formatted
+    # Tool definition for workout plan management
+    WORKOUT_PLAN_TOOL = {
+        "type": "function",
+        "function": {
+            "name": "manage_workout_plan",
+            "description": "Create, modify, or view the user's workout plan, or mark a workout as complete.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "action": {
+                        "type": "string",
+                        "enum": ["create", "modify", "view", "complete_today", "complete_date"],
+                        "description": "The action to perform on the workout plan"
+                    },
+                    "details": {
+                        "type": "string",
+                        "description": "Request details: plan description for create, modification request for modify, or date (YYYY-MM-DD) for complete_date"
                     }
-                }
-        except Exception as e:
-            print(f"Health analysis error: {e}")
-            import traceback
-            traceback.print_exc()
-        return None
-        
+                },
+                "required": ["action"]
+            }
+        }
+    }
+
+    # Tool definition for exercise search
+    EXERCISE_TOOL = {
+        "type": "function",
+        "function": {
+            "name": "exercise_search",
+            "description": "Search the exercise database for workouts, exercises by muscle group, equipment, or difficulty. Use this whenever the user asks about exercises, workouts, or fitness routines.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "query": {
+                        "type": "string",
+                        "description": "The search query describing what exercises to find, e.g. 'chest exercises with dumbbells' or 'beginner leg workout'"
+                    }
+                },
+                "required": ["query"]
+            }
+        }
+    }
+
+    # Tool definition for nutrition management
+    NUTRITION_TOOL = {
+        "type": "function",
+        "function": {
+            "name": "manage_nutrition",
+            "description": "Create, modify, or view the user's meal plan, grocery list, nutrition profile, or nutrient gaps.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "action": {
+                        "type": "string",
+                        "enum": ["create_plan", "modify_plan", "view_plan", "grocery_list", "update_profile", "nutrient_check"],
+                        "description": "The action to perform on the nutrition plan or profile"
+                    },
+                    "details": {
+                        "type": "string",
+                        "description": "Plan description, modification request, or profile fields as JSON"
+                    }
+                },
+                "required": ["action"]
+            }
+        }
+    }
+
+    def _get_username_from_messages(self, messages):
+        """Extract username from system message metadata if available."""
+        for msg in messages:
+            if msg.get("role") == "system":
+                content = msg.get("content", "")
+                if isinstance(content, str) and "Username:" in content:
+                    for line in content.split("\n"):
+                        if line.strip().startswith("Username:"):
+                            return line.split("Username:", 1)[1].strip()
+        return ""
+
+    def _execute_exercise_search(self, query):
+        """Run exercise search and return text summary + image markdown separately."""
+        from .workout_search import search_exercises, ensure_exercise_image
+        exercises = search_exercises(query)
+        if not exercises:
+            return None, []
+
+        # Build text-only summary for the LLM (no image markdown)
+        sections = []
+        image_lines = []
+        for i, ex in enumerate(exercises, 1):
+            name = ex.get("name", "Unknown")
+            level = ex.get("level", "N/A").capitalize()
+            category = ex.get("category", "N/A").capitalize()
+            equipment = (ex.get("equipment") or "None").capitalize()
+            primary = ", ".join(m.capitalize() for m in ex.get("primaryMuscles", []))
+            secondary = ", ".join(m.capitalize() for m in ex.get("secondaryMuscles", []))
+            instructions = ex.get("instructions", [])
+            images = ex.get("images", [])
+
+            section = f"### {i}. {name}\n"
+            section += f"**{level} | {category} | {equipment}**\n"
+            section += f"Targets: {primary}"
+            if secondary:
+                section += f" (also: {secondary})"
+            section += "\n"
+
+            if instructions:
+                section += "\n**How to:**\n"
+                for step_num, step in enumerate(instructions, 1):
+                    section += f"{step_num}. {step}\n"
+
+            sections.append(section)
+
+            # Collect image data separately
+            if images:
+                img_path = images[0]
+                ensure_exercise_image(img_path)
+                image_lines.append({"name": name, "url": f"/exercises/images/{img_path}"})
+
+        text_summary = f"**Exercise Database — {len(exercises)} results:**\n\n"
+        text_summary += "\n---\n\n".join(sections)
+        return text_summary, image_lines
+
     def openai_reply(self, messages):
         class Response:
-            def __init__(self, content):
+            def __init__(self, content, exercise_images=None):
                 self.content = content
-        
+                self.exercise_images = exercise_images or []
+
         try:
             openai_messages = []
             for msg in messages:
-                if msg.get("role") in ["user", "assistant", "system"]:
-                    openai_messages.append({
-                        "role": msg["role"],
-                        "content": msg["content"]
-                    })
-            
+                if msg.get("role") not in ["user", "assistant", "system"]:
+                    continue
+                images = msg.get("images") or []
+                if images and msg["role"] == "user":
+                    # Build multi-part content for vision API
+                    parts = []
+                    if msg["content"]:
+                        parts.append({"type": "text", "text": msg["content"]})
+                    for data_uri in images:
+                        parts.append({"type": "image_url", "image_url": {"url": data_uri}})
+                    openai_messages.append({"role": "user", "content": parts})
+                else:
+                    openai_messages.append({"role": msg["role"], "content": msg["content"]})
+
             latest_user_message = None
             for msg in reversed(openai_messages):
                 if msg.get("role") == "user":
-                    latest_user_message = msg.get("content", "")
+                    content = msg.get("content", "")
+                    if isinstance(content, list):
+                        latest_user_message = " ".join(
+                            p["text"] for p in content if p.get("type") == "text"
+                        )
+                    else:
+                        latest_user_message = content
                     break
-            
-            web_results = None
-            health_results = None
-            
+
+            # Run non-tool context skills (web search, health data)
+            context_sections = []
             if latest_user_message:
-                print(f"Running parallel analysis for query: {latest_user_message}")
+                print(f"Running skill runtime for query: {latest_user_message}")
                 update_status("processing")
-                web_results, health_results = self._parallel_analysis(latest_user_message)
-            
-            # Process data sources
-            web_summary = None
-            health_summary = None
-            
-            # Process web search results
-            if web_results and web_results.get('needs_search'):
-                search_results = web_results['search_results']
-                formatted_results = format_search_results(search_results)
-                web_summary = formatted_results
-            
-            # Process patient data - no summarization needed, data is small
-            if health_results and health_results.get('health_analysis'):
-                health_analysis = health_results['health_analysis']
-                if health_analysis.get('patient_data_formatted'):
-                    # Patient profile is small enough to include directly
-                    health_summary = health_analysis['patient_data_formatted']
-                elif health_analysis.get('formatted_output'):
-                    health_summary = health_analysis['formatted_output']
-            
-            # Build intelligent response based on available sources
-            if web_summary and health_summary:
-                # Both sources available - integrate them
-                openai_messages.append({
-                    "role": "assistant",
-                    "content": f"I'll analyze your query using both current medical information and your personal health data to provide you with the most relevant and accurate response."
-                })
-                openai_messages.append({
-                    "role": "user",
-                    "content": f"""You are a personal health assistant that answers with specific guidance. You should be friendly, precise, and confidence-building. You may use current information and the user’s personal health data when they improve the answer.\nQuery: "{latest_user_message}"
+                skill_results = self.skill_runtime.run(
+                    query=latest_user_message,
+                    kind="context",
+                    runtime_context={},
+                    status_updater=update_status,
+                )
+                web_output = skill_results.get("web_search", {})
+                health_output = skill_results.get("personal_health_context", {})
 
-CURRENT INFORMATION:
-{web_summary}
+                if web_output.get("activated") and web_output.get("web_summary"):
+                    context_sections.append(f"CURRENT INFORMATION:\n{web_output['web_summary']}")
+                if health_output.get("activated") and health_output.get("health_summary"):
+                    context_sections.append(f"PERSONAL HEALTH DATA:\n{health_output['health_summary']}")
 
-PERSONAL HEALTH DATA:
-{health_summary}
+                if context_sections:
+                    combined = "\n\n".join(context_sections)
+                    openai_messages.append({
+                        "role": "user",
+                        "content": f'Query: "{latest_user_message}"\n\n{combined}\n\nAnswer the query using the above information. Follow your system instructions.'
+                    })
 
-Provide the best possible answer to the user’s question. 
-- If the question involves medications:
-  - Include: indications, key ingredients/formulations (if available), manufacturer (if available).
-  - Personalize when useful: link to the user’s conditions, allergies, current meds, renal/hepatic status, pregnancy, prior adverse events.
-  - Add practical use: timing with meals, missed-dose handling, duration.
-
-- If the question involves lab results:
-  - Lead with abnormal values and classify severity versus reference ranges.
-  - Provide multi-marker reasoning (patterns across related labs), not isolated one-by-one commentary.
-  - Compare to baseline/trend when available; quantify changes.
-  - Tie interpretations to relevant conditions/meds when helpful.
-  - End with a short, prioritized action list (monitoring cadence, lifestyle focus, medication checks).
-
-- If the question involves exercise:
-  - Report dynamics when data exist: day-to-day and week-over-week trends (e.g., steps, minutes, HR zones, effort, pain/fatigue).
-  - Set next-week targets with progression and recovery rules.
-  - Personalize to conditions/meds when useful (e.g., asthma, hypertension, diabetes, joint pain; beta-blockers).
-  - Specify what to track and thresholds to scale up/down.
-
-- For other topics (nutrition, symptoms, sleep, etc.):
-  - Connect recommendations to available context (web information and personal health data) when it improves precision.
-  - For symptoms, outline likely mechanisms, self-care steps, what to monitor, and a time-box for recheck.
-
-For web sources, use citation format [domain.com](url). Examples: [example.com](https://example.com/article) or [wikipedia.org](https://en.wikipedia.org/wiki/topic)."""
-                })
-            elif web_summary:
-                # Only web search available
-                openai_messages.append({
-                    "role": "assistant",
-                    "content": f"I'll search for current, evidence-based information to help answer your health question."
-                })
-                openai_messages.append({
-                    "role": "user",
-                    "content": f"""You are a personal health assistant. You should be friendly, precise, and confidence-building.\nQuery: "{latest_user_message}"
-
-CURRENT MEDICAL INFORMATION:
-{web_summary}
-
-Provide an accurate, evidence-based answer based on this information. Use citation format [domain.com](url). Examples: [example.com](https://example.com/article) or [wikipedia.org](https://en.wikipedia.org/wiki/topic). Include relevant safety information and medical disclaimers about consulting healthcare providers."""
-                })
-            elif health_summary:
-                # Only health data available
-                openai_messages.append({
-                    "role": "assistant",
-                    "content": f"I'll analyze your personal health data to provide insights relevant to your question."
-                })
-                openai_messages.append({
-                    "role": "user",
-                    "content": f"""You are a personal health assistant that answers with specific guidance. You should be friendly, precise, and confidence-building. You should use the user’s personal health data.\nQuery: "{latest_user_message}"
-
-PERSONAL HEALTH DATA:
-{health_summary}"
-
-Provide the best possible answer to the user’s question. 
-- If the question relates to medications:
-  - Include: indications, key ingredients/formulations (if available), manufacturer (if available).
-  - Personalize when useful: link to the user’s conditions, allergies, current meds, renal/hepatic status, pregnancy, prior adverse events.
-  - Add practical use: timing with meals, missed-dose handling, duration.
-
-- If the question relates to lab results:
-  - Lead with abnormal values and classify severity versus reference ranges.
-  - Provide multi-marker reasoning (patterns across related labs), not isolated one-by-one commentary.
-  - Compare to baseline/trend when available; quantify changes.
-  - Tie interpretations to relevant conditions/meds when helpful.
-  - End with a short, prioritized action list (monitoring cadence, lifestyle focus, medication checks).
-
-- If the question relates to exercise:
-  - Report dynamics when data exist: day-to-day and week-over-week trends (e.g., steps, minutes, HR zones, effort, pain/fatigue).
-  - Set next-week targets with progression and recovery rules.
-  - Personalize to conditions/meds when useful (e.g., asthma, hypertension, diabetes, joint pain; beta-blockers).
-  - Specify what to track and thresholds to scale up/down.
-
-- For other topics (nutrition, symptoms, sleep, etc.):
-  - Connect recommendations to available context (personal health data) when it improves precision.
-  - For symptoms, outline likely mechanisms, self-care steps, what to monitor, and a time-box for recheck.
-"""
-                })
-            
-            # Use the configured model instead of hardcoded gpt-5
+            # Use the configured model
             final_model = self.llm
-            
+
             api_params = {
                 "model": final_model,
-                "messages": openai_messages
+                "messages": openai_messages,
+                "tools": [self.EXERCISE_TOOL, self.WORKOUT_PLAN_TOOL, self.NUTRITION_TOOL],
             }
-            
-            # GPT-5 only supports temperature=1, other models support custom temperature
+
+            # GPT-5 only supports temperature=1
             if final_model != "gpt-5":
                 api_params["temperature"] = self.temperature
-            
+
             response = openai.chat.completions.create(**api_params)
-            
             message = response.choices[0].message
-            
-            # Update status to complete
+
+            # Handle tool calls
+            exercise_images = []
+            if message.tool_calls:
+                # Append the assistant message with tool calls
+                openai_messages.append(message)
+
+                for tool_call in message.tool_calls:
+                    if tool_call.function.name == "exercise_search":
+                        args = json.loads(tool_call.function.arguments)
+                        query = args.get("query", latest_user_message or "")
+                        update_status("searching_exercises")
+
+                        text_summary, exercise_images = self._execute_exercise_search(query)
+
+                        tool_result = text_summary or "No exercises found for that query."
+                        tool_result += "\n\n[Present concisely — name, sets/reps, schedule only. No full instructions unless asked.]"
+                        openai_messages.append({
+                            "role": "tool",
+                            "tool_call_id": tool_call.id,
+                            "content": tool_result,
+                        })
+
+                    elif tool_call.function.name == "manage_workout_plan":
+                        args = json.loads(tool_call.function.arguments)
+                        action = args.get("action", "view")
+                        details = args.get("details", "")
+                        update_status("processing")
+
+                        # Get username from conversation metadata or system context
+                        username = self._get_username_from_messages(openai_messages)
+
+                        from .workout_plans import handle_workout_plan_tool
+                        tool_result = handle_workout_plan_tool(action, details, username)
+                        openai_messages.append({
+                            "role": "tool",
+                            "tool_call_id": tool_call.id,
+                            "content": tool_result,
+                        })
+
+                    elif tool_call.function.name == "manage_nutrition":
+                        args = json.loads(tool_call.function.arguments)
+                        action = args.get("action", "view_plan")
+                        details = args.get("details", "")
+                        update_status("processing")
+
+                        username = self._get_username_from_messages(openai_messages)
+
+                        from .nutrition_plans import handle_nutrition_tool
+                        tool_result = handle_nutrition_tool(action, details, username)
+                        openai_messages.append({
+                            "role": "tool",
+                            "tool_call_id": tool_call.id,
+                            "content": tool_result,
+                        })
+
+                # Second LLM call with tool results
+                update_status("processing")
+                followup_params = {
+                    "model": final_model,
+                    "messages": openai_messages,
+                }
+                if final_model != "gpt-5":
+                    followup_params["temperature"] = self.temperature
+
+                response = openai.chat.completions.create(**followup_params)
+                message = response.choices[0].message
+
+            reply_text = message.content or ""
+
             update_status("idle")
-            
-            # Return response in expected format
-            return Response(message.content)
-        
+            return Response(reply_text, exercise_images=exercise_images)
+
         except Exception as e:
             error_msg = str(e)
             print(f"OpenAI API call failed: {e}")
             update_status("idle")
-            
-            # Check if it's an API key issue
+
             if "api_key" in error_msg.lower() or "authentication" in error_msg.lower():
                 return Response("I'm having trouble connecting to the AI service. Please check that the OpenAI API key is configured correctly in the environment variables.")
             elif "rate_limit" in error_msg.lower():

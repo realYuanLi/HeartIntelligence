@@ -17,6 +17,7 @@ try:
     # sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
     from functions.agent import Agent, get_status
     from functions.auto_form_fill import init_pdf_forms
+    from functions.skills_runtime import SkillRuntime
 except Exception as e:
     class _Resp:
         def __init__(self, content: str):
@@ -37,6 +38,12 @@ except Exception as e:
     def init_pdf_forms(*args, **kwargs):
         pass
 
+    class SkillRuntime:
+        def __init__(self, *args, **kwargs):
+            pass
+        def run(self, *args, **kwargs):
+            return {}
+
 # --------------------------------------------------------------------------------
 # Paths & config
 # --------------------------------------------------------------------------------
@@ -52,7 +59,7 @@ with open(CONFIG_PATH, "r", encoding="utf-8") as f:
 PATIENT_DATA = None
 
 # Load patient profile data
-PATIENT_DATA_PATH = APP_DIR / "data" / "test_file" / "patient.json"
+PATIENT_DATA_PATH = APP_DIR / "personal_data" / "test_file" / "patient.json"
 
 try:
     if PATIENT_DATA_PATH.exists() and PATIENT_DATA_PATH.is_file():
@@ -68,7 +75,7 @@ except Exception as e:
     print(f"Could not load patient data: {e}")
 
 # Load my body data
-MY_BODY_DATA_PATH = APP_DIR / "data" / "my_body"
+MY_BODY_DATA_PATH = APP_DIR / "personal_data" / "my_body"
 MY_BODY_STATS_PATH = MY_BODY_DATA_PATH / "statistics.json"
 MY_BODY_CT_PATH = MY_BODY_DATA_PATH / "CT.nii.gz"
 MY_BODY_SEG_PATH = MY_BODY_DATA_PATH / "seg_map_clean" / "s1038_seg.nii.gz"
@@ -88,7 +95,7 @@ except Exception as e:
     print(f"Could not load organ statistics: {e}")
 
 # Load health information
-HEALTH_INFO_PATH = APP_DIR / "data" / "health_info.json"
+HEALTH_INFO_PATH = APP_DIR / "personal_data" / "health_info.json"
 HEALTH_INFO = {}
 try:
     if HEALTH_INFO_PATH.exists():
@@ -103,7 +110,7 @@ except Exception as e:
     print(f"Could not load health information: {e}")
 
 # Load mobile health data
-MOBILE_HEALTH_DATA_PATH = APP_DIR / "data" / "processed_mobile_data.json"
+MOBILE_HEALTH_DATA_PATH = APP_DIR / "personal_data" / "processed_mobile_data.json"
 MOBILE_HEALTH_DATA = {}
 try:
     if MOBILE_HEALTH_DATA_PATH.exists():
@@ -126,14 +133,29 @@ _SEG_DATA = None
 _slice_cache = {}
 _cache_max_size = 100  # Maximum number of cached slices
 
-# Simple system prompt
-system_prompt = (
-    "You are a helpful AI assistant. "
-    "You have the ability to set reminders and scheduled messages for users. "
-    "When a user asks to be reminded about something at a specific time, "
-    "the system will automatically create the reminder — just acknowledge it "
-    "naturally in your response. Do not say you cannot set reminders."
-)
+# Load system prompt from context markdown files and skill instructions
+try:
+    from functions.context_loader import load_context_files
+    system_prompt = load_context_files()
+    if not system_prompt:
+        system_prompt = "You are a helpful AI health assistant."
+    print("✓ Context files loaded for system prompt")
+except Exception as e:
+    print(f"⚠ Failed to load context files: {e}")
+    system_prompt = "You are a helpful AI health assistant."
+
+try:
+    _boot_skill_rt = SkillRuntime()
+    _skill_descriptions = _boot_skill_rt.get_skill_descriptions()
+    if _skill_descriptions:
+        system_prompt = system_prompt + "\n\n" + _skill_descriptions
+        print("✓ Skill descriptions loaded into system prompt")
+    _skill_instructions = _boot_skill_rt.get_instructions()
+    if _skill_instructions:
+        system_prompt = system_prompt + "\n\n" + _skill_instructions
+        print("✓ Skill instructions loaded into system prompt")
+except Exception as e:
+    print(f"⚠ Failed to load skill context: {e}")
 
 # Verify OpenAI API key is configured
 if not os.getenv("OPENAI_API_KEY"):
@@ -164,6 +186,8 @@ except Exception as e:
     Chatbot = DummyAgent()
     print("⚠ Using fallback dummy chatbot")
 
+SkillRunner = SkillRuntime(ehr_data=PATIENT_DATA, mobile_data=MOBILE_HEALTH_DATA)
+
 SummaryBot = Agent(
     role="Summary assistant",
     llm="gpt-4o",
@@ -176,9 +200,20 @@ SummaryBot = Agent(
 # --------------------------------------------------------------------------------
 app = Flask(__name__, template_folder="templates", static_folder="static")
 app.secret_key = os.environ.get("SECRET_KEY", "replace-with-your-secret-key")
+app.config["SEND_FILE_MAX_AGE_DEFAULT"] = 0  # disable static file caching
+
+@app.context_processor
+def inject_cache_bust():
+    return {"cache_bust": int(time.time())}
+
+@app.after_request
+def add_no_cache_headers(response):
+    if response.content_type and "text/html" in response.content_type:
+        response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    return response
 
 # ---- "account name": password  ----
-USERS = {"Kevin": "123456", "Yuan": "3456", "test": "111", "whatsapp_bot": os.environ.get("WHATSAPP_BOT_PASSWORD", ""), "wechat_bot": os.environ.get("WECHAT_BOT_PASSWORD", "")}
+USERS = {"Kevin": "123456", "Yuan": "3456", "test": "111", "whatsapp_bot": os.environ.get("WHATSAPP_BOT_PASSWORD", "")}
 
 def _username() -> str | None:
     return session.get("username")
@@ -291,6 +326,34 @@ def health_check():
         "patient_name": PATIENT_DATA.get('patient_profile', {}).get('demographics', {}).get('name', 'N/A') if PATIENT_DATA else 'N/A'
     })
 
+@app.route("/exercises/images/<path:image_path>")
+def serve_exercise_image(image_path):
+    """Serve a locally cached exercise image, downloading on first access."""
+    from functions.workout_search import ensure_exercise_image, get_exercise_image_path
+    ensure_exercise_image(image_path)
+    local_path = get_exercise_image_path(image_path)
+    if local_path and local_path.exists():
+        return send_file(local_path, mimetype="image/jpeg")
+    return "Image not found", 404
+
+@app.route("/test/image")
+def test_image_render():
+    """Temporary test page to verify exercise images render in markdown."""
+    return '''
+    <html><head>
+    <script src="https://cdn.jsdelivr.net/npm/marked@12.0.0/marked.min.js"></script>
+    </head><body>
+    <h3>Raw img tag:</h3>
+    <img src="/exercises/images/3_4_Sit-Up/0.jpg" style="max-width:200px" />
+    <h3>Marked.js rendered markdown:</h3>
+    <div id="md"></div>
+    <script>
+      const md = "Here is an exercise:\\n\\n![3/4 Sit-Up](/exercises/images/3_4_Sit-Up/0.jpg)";
+      document.getElementById("md").innerHTML = marked.parse(md);
+    </script>
+    </body></html>
+    '''
+
 @app.route("/api/status")
 def api_status():
     """Get current backend processing status"""
@@ -307,7 +370,9 @@ def api_status():
         "retrieving_health_data": "Retrieving health data",
         "analyzing_health_data": "Analyzing health data",
         "analyzing_web_data": "Analyzing web data",
-        "summarizing_health_data": "Summarizing health data"
+        "summarizing_health_data": "Summarizing health data",
+        "searching_exercises": "Searching exercises",
+        "formatting_exercises": "Preparing exercise results",
     }
     
     label = status_labels.get(status, "Processing...")
@@ -478,7 +543,12 @@ def api_get_session(session_id: str):
                 # Skip assistant messages that were responses to the old format
                 continue
             else:
-                convo.append({"role": m.get("role"), "content": content})
+                entry = {"role": m.get("role"), "content": content}
+                if m.get("images"):
+                    entry["images"] = m["images"]
+                if m.get("exercise_images"):
+                    entry["exercise_images"] = m["exercise_images"]
+                convo.append(entry)
     return jsonify(success=True, conversation=convo, source=d.get("source", "web"))
 
 @app.route("/api/message", methods=["POST"])
@@ -490,42 +560,71 @@ def api_message():
     data = request.get_json(force=True)
     session_id = data.get("session_id")
     text = (data.get("message") or "").strip()
-    if not text:
+    images = data.get("images") or []  # list of base64 data URIs
+    if not text and not images:
         return jsonify(success=False, assistant_message="Please type a message."), 400
 
     d = _load_session(user, session_id)
+    is_whatsapp = False
+    if not d:
+        d = _load_session("whatsapp_bot", session_id)
+        if d and d.get("source") == "whatsapp":
+            is_whatsapp = True
+        else:
+            d = {}
+
     if not d:
         return jsonify(success=False, assistant_message="Session not found."), 404
 
-    # Store user's original message
-    d["conversation"].append({"role": "user", "content": text})
+    owner = "whatsapp_bot" if is_whatsapp else user
+
+    # Forward the web user's message to WhatsApp so it appears in the chat
+    if is_whatsapp:
+        try:
+            from functions.cron_jobs import queue_outbound_message
+            sender_jid = d.get("sender_jid", "")
+            if sender_jid:
+                queue_outbound_message(sender_jid, f"[Web] {text}", skip_prefix=True)
+        except Exception as e:
+            print(f"Failed to queue WhatsApp outbound user message: {e}")
+
+    # Store user's original message (with images if present)
+    user_msg = {"role": "user", "content": text}
+    if images:
+        user_msg["images"] = images
+    d["conversation"].append(user_msg)
     
     # Prepare messages for AI processing
     messages = d["conversation"].copy()
     
-    # If patient data exists, modify the system message to include it
-    if PATIENT_DATA:
-        # Find the system message and update it with patient data
-        for i, msg in enumerate(messages):
-            if msg.get("role") == "system":
-                original_system = msg["content"]
-                patient_info = f"\n\nPatient Information:\n{json.dumps(PATIENT_DATA, indent=2)}"
-                messages[i] = {"role": "system", "content": original_system + patient_info}
-                break
+    # Inject username and patient data into system message
+    for i, msg in enumerate(messages):
+        if msg.get("role") == "system":
+            original_system = msg["content"]
+            extras = f"\n\nUsername: {user}"
+            if PATIENT_DATA:
+                extras += f"\n\nPatient Information:\n{json.dumps(PATIENT_DATA, indent=2)}"
+            messages[i] = {"role": "system", "content": original_system + extras}
+            break
 
-    # Check for reminder intent before calling the main LLM
+    # Run action skills (currently includes reminder scheduling)
     try:
-        from cron_jobs import create_reminder_from_chat
-        reminder_job = create_reminder_from_chat(
-            user_message=text,
-            user=user,
-            session_id=session_id,
+        runtime_context = {
+            "user": "whatsapp_bot" if is_whatsapp else user,
+            "session_id": session_id,
+            "sender_jid": d.get("sender_jid", "") if is_whatsapp else "",
+        }
+        action_results = SkillRunner.run(
+            query=text,
+            kind="action",
+            runtime_context=runtime_context,
         )
+        reminder_job = action_results.get("set_reminder", {}).get("job")
         if reminder_job:
             sched = datetime.fromisoformat(reminder_job["scheduled_at"])
             time_str = sched.strftime("%B %d, %Y at %I:%M %p")
-            print(f"Auto-created web reminder {reminder_job['job_id']} "
-                  f"for {user}/{session_id} at {time_str}")
+            print(f"Auto-created reminder {reminder_job['job_id']} "
+                  f"for {owner}/{session_id} at {time_str}")
             messages.append({
                 "role": "system",
                 "content": (
@@ -543,27 +642,45 @@ def api_message():
     try:
         resp = Chatbot.llm_reply(messages)
         assistant_text = resp.content if hasattr(resp, "content") else str(resp)
+        exercise_images = getattr(resp, "exercise_images", []) or []
 
-        d["conversation"].append({"role": "assistant", "content": assistant_text})
+        # Store exercise images alongside the message for history reload
+        assistant_entry = {"role": "assistant", "content": assistant_text}
+        if exercise_images:
+            assistant_entry["exercise_images"] = exercise_images
+        d["conversation"].append(assistant_entry)
         d["updated_at"] = _now_iso()
-        _save_session(user, d)
-        
+        _save_session(owner, d)
+
+        # Forward the reply to WhatsApp so the conversation stays in sync
+        if is_whatsapp:
+            try:
+                from functions.cron_jobs import queue_outbound_message
+                sender_jid = d.get("sender_jid", "")
+                if sender_jid:
+                    queue_outbound_message(sender_jid, assistant_text)
+            except Exception as e:
+                print(f"Failed to queue WhatsApp outbound reply: {e}")
+
         user_messages = [msg for msg in d["conversation"] if msg.get("role") == "user"]
         assistant_messages = [msg for msg in d["conversation"] if msg.get("role") == "assistant"]
-        
+
         print(f"Message count - Users: {len(user_messages)}, Assistants: {len(assistant_messages)}")
         print(f"Total conversation length: {len(d['conversation'])}")
-        
+
         if len(user_messages) == 1 and len(assistant_messages) == 2:
             print("Triggering summary generation...")
-            _generate_summary_async(user, session_id, d["conversation"])
-        
-        return jsonify(success=True, assistant_message=assistant_text)
+            _generate_summary_async(owner, session_id, d["conversation"])
+
+        result = {"success": True, "assistant_message": assistant_text}
+        if exercise_images:
+            result["exercise_images"] = exercise_images
+        return jsonify(result)
     except Exception as e:
         err = f"Error from model: {e}"
         d["conversation"].append({"role": "assistant-error", "content": err})
         d["updated_at"] = _now_iso()
-        _save_session(user, d)
+        _save_session(owner, d)
         return jsonify(success=False, assistant_message=err), 500
 
 @app.route("/api/rename_session", methods=["POST"])
@@ -1243,25 +1360,6 @@ def _hsv_to_rgb(h, s, v):
 # --------------------------------------------------------------------------------
 
 # --------------------------------------------------------------------------------
-# WeCom (企业微信) self-built application callback
-# --------------------------------------------------------------------------------
-try:
-    from wechat.wecom import wecom_bp
-    app.register_blueprint(wecom_bp)
-except ImportError:
-    print("⚠ WeCom integration not available (wechat module not found)")
-
-# --------------------------------------------------------------------------------
-# WeChat Official Account integration
-# --------------------------------------------------------------------------------
-try:
-    from wechat.flask_wechat import wechat_bp
-    app.register_blueprint(wechat_bp)
-    print("✓ WeChat Official Account integration loaded")
-except ImportError as e:
-    print(f"⚠ WeChat Official Account integration not available: {e}")
-
-# --------------------------------------------------------------------------------
 # WhatsApp session management (总控)
 # --------------------------------------------------------------------------------
 from whatsapp.flask_whatsapp import whatsapp_bp
@@ -1270,10 +1368,24 @@ app.register_blueprint(whatsapp_bp)
 # --------------------------------------------------------------------------------
 # Cron Jobs (proactive scheduled messaging)
 # --------------------------------------------------------------------------------
-from cron_jobs import cron_bp, start_scheduler
+from functions.cron_jobs import cron_bp, start_scheduler
 app.register_blueprint(cron_bp)
 start_scheduler()
 print("✓ Cron job scheduler started")
+
+# --------------------------------------------------------------------------------
+# Workout Calendar
+# --------------------------------------------------------------------------------
+from functions.workout_plans import calendar_bp
+app.register_blueprint(calendar_bp)
+print("✓ Workout calendar blueprint registered")
+
+# --------------------------------------------------------------------------------
+# Nutrition Planner
+# --------------------------------------------------------------------------------
+from functions.nutrition_plans import nutrition_bp
+app.register_blueprint(nutrition_bp)
+print("✓ Nutrition planner blueprint registered")
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8000)), debug=False)

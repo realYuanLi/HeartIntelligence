@@ -18,6 +18,9 @@ let isErpThinking  = false;       // distinguishes ERP vs. profile sequence
 // Simple breathing dots animation instead of step-by-step thinking
 const thinkingDotCount = 3;
 
+// Pending files for the next message (array of {dataUri, name})
+let pendingImages = [];
+
 // Status polling variables
 let statusPollingInterval = null;
 let currentStatusContainer = null;
@@ -467,10 +470,10 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  const cronJobsBtn = document.getElementById("cronJobsBtn");
-  if (cronJobsBtn) {
-    cronJobsBtn.addEventListener("click", () => {
-      window.location.href = "/cron-jobs";
+  const settingsBtn = document.getElementById("settingsBtn");
+  if (settingsBtn) {
+    settingsBtn.addEventListener("click", () => {
+      window.location.href = "/settings";
     });
   }
 
@@ -478,6 +481,20 @@ document.addEventListener("DOMContentLoaded", () => {
   if (digitalTwinBtn) {
     digitalTwinBtn.addEventListener("click", () => {
       window.location.href = "/my-body";
+    });
+  }
+
+  const calendarBtn = document.getElementById("calendarBtn");
+  if (calendarBtn) {
+    calendarBtn.addEventListener("click", () => {
+      window.location.href = "/calendar";
+    });
+  }
+
+  const nutritionBtn = document.getElementById("nutritionBtn");
+  if (nutritionBtn) {
+    nutritionBtn.addEventListener("click", () => {
+      window.location.href = "/nutrition";
     });
   }
 
@@ -525,43 +542,175 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   /* ==================================================== */
+  /*  Image upload helpers                                 */
+  /* ==================================================== */
+
+  function addImageFiles(files) {
+    Array.from(files).forEach(file => {
+      if (!file.type.startsWith("image/") && file.type !== "application/pdf") return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        pendingImages.push({ dataUri: reader.result, name: file.name });
+        renderImagePreview();
+        updateSendButtonState();
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  function initImageUpload() {
+    const imageButton = document.getElementById("imageButton");
+    const imageInput = document.getElementById("imageInput");
+    if (!imageButton || !imageInput) return;
+
+    imageButton.addEventListener("click", () => imageInput.click());
+
+    imageInput.addEventListener("change", () => {
+      addImageFiles(imageInput.files);
+      imageInput.value = "";
+    });
+
+    // Drag-and-drop on the chat area and input container
+    const dropTargets = [
+      document.getElementById("chatContent"),
+      document.querySelector(".input-container.fixed"),
+    ].filter(Boolean);
+
+    dropTargets.forEach(el => {
+      el.addEventListener("dragover", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        el.classList.add("drag-over");
+      });
+      el.addEventListener("dragleave", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        el.classList.remove("drag-over");
+      });
+      el.addEventListener("drop", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        el.classList.remove("drag-over");
+        if (e.dataTransfer && e.dataTransfer.files.length > 0) {
+          addImageFiles(e.dataTransfer.files);
+        }
+      });
+    });
+
+    // Also support pasting images from clipboard
+    document.addEventListener("paste", (e) => {
+      if (!location.pathname.startsWith("/chat/")) return;
+      const items = e.clipboardData && e.clipboardData.items;
+      if (!items) return;
+      const imageFiles = [];
+      for (const item of items) {
+        if (item.type.startsWith("image/") || item.type === "application/pdf") {
+          const file = item.getAsFile();
+          if (file) imageFiles.push(file);
+        }
+      }
+      if (imageFiles.length > 0) {
+        addImageFiles(imageFiles);
+      }
+    });
+  }
+
+  function renderImagePreview() {
+    const preview = document.getElementById("imagePreview");
+    if (!preview) return;
+    if (pendingImages.length === 0) {
+      preview.hidden = true;
+      preview.innerHTML = "";
+      return;
+    }
+    preview.hidden = false;
+    preview.innerHTML = "";
+    pendingImages.forEach((file, idx) => {
+      const item = document.createElement("div");
+      item.className = "image-preview-item";
+
+      if (file.dataUri.startsWith("data:application/pdf")) {
+        const icon = document.createElement("div");
+        icon.className = "file-icon";
+        icon.innerHTML = '<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm-1 2l5 5h-5V4zM6 20V4h5v7h7v9H6z" fill="currentColor"/></svg>';
+        const nameEl = document.createElement("span");
+        nameEl.className = "file-name";
+        nameEl.textContent = file.name || "PDF";
+        icon.appendChild(nameEl);
+        item.appendChild(icon);
+      } else {
+        const img = document.createElement("img");
+        img.src = file.dataUri;
+        item.appendChild(img);
+      }
+
+      const btn = document.createElement("button");
+      btn.className = "remove-image";
+      btn.textContent = "\u00d7";
+      btn.addEventListener("click", () => {
+        pendingImages.splice(idx, 1);
+        renderImagePreview();
+        updateSendButtonState();
+      });
+      item.appendChild(btn);
+      preview.appendChild(item);
+    });
+  }
+
+  function updateSendButtonState() {
+    const messageInput = document.getElementById("messageInput");
+    const sendButton = document.getElementById("sendButton");
+    if (!messageInput || !sendButton) return;
+    const hasText = messageInput.value.trim().length > 0;
+    const hasImages = pendingImages.length > 0;
+    sendButton.disabled = !hasText && !hasImages;
+  }
+
+  function takePendingImages() {
+    const uris = pendingImages.map(f => f.dataUri);
+    pendingImages = [];
+    renderImagePreview();
+    return uris;
+  }
+
+  /* ==================================================== */
   /*  Input box functionality for welcome page            */
   /* ==================================================== */
-  
+
   // Initialize input box functionality if on welcome page
   if (location.pathname === "/" || location.pathname === "/new") {
     const messageInput = document.getElementById("messageInput");
     const sendButton = document.getElementById("sendButton");
-    
+
     if (messageInput && sendButton) {
       // Auto-resize functionality
       function autoResize() {
         // Reset height to auto to get the natural height
         messageInput.style.height = 'auto';
-        
+
         // Calculate the natural scroll height
         const scrollHeight = messageInput.scrollHeight;
-        
+
         // Calculate max height for 8 rows (8 * 1.5rem = 12rem = 192px at 16px base font size)
         const lineHeight = parseFloat(getComputedStyle(messageInput).lineHeight) || 24; // 1.5rem = 24px
         const maxHeight = lineHeight * 8; // 8 rows maximum
-        
+
         // Set the new height, limited to max height
         const newHeight = Math.min(scrollHeight, maxHeight);
         messageInput.style.height = newHeight + 'px';
-        
+
         // Show scrollbar if content exceeds max height
         if (scrollHeight > maxHeight) {
           messageInput.style.overflowY = 'auto';
         } else {
           messageInput.style.overflowY = 'hidden';
         }
-        
+
       }
-      
+
       // Handle send button click
       sendButton.addEventListener('click', handleSendMessage);
-      
+
       // Handle Enter key (Shift+Enter for new line)
       messageInput.addEventListener('keydown', (e) => {
         if (e.key === 'Enter' && !e.shiftKey) {
@@ -569,40 +718,99 @@ document.addEventListener("DOMContentLoaded", () => {
           handleSendMessage();
         }
       });
-      
+
       // Update send button state and auto-resize based on input
       messageInput.addEventListener('input', () => {
-        const hasText = messageInput.value.trim().length > 0;
-        sendButton.disabled = !hasText;
+        updateSendButtonState();
         autoResize();
       });
-      
+
       // Also trigger auto-resize on keyup to handle paste events
       messageInput.addEventListener('keyup', autoResize);
       messageInput.addEventListener('paste', () => {
         setTimeout(autoResize, 10); // Small delay to allow paste to complete
       });
-      
+
       // Initial state and setup
       sendButton.disabled = true;
       autoResize(); // Set initial height
+      initWelcomeImageUpload();
     }
   }
   
+  function initWelcomeImageUpload() {
+    const imageButton = document.getElementById("imageButton");
+    const imageInput = document.getElementById("imageInput");
+    if (!imageButton || !imageInput) return;
+
+    imageButton.addEventListener("click", () => imageInput.click());
+
+    imageInput.addEventListener("change", () => {
+      addImageFiles(imageInput.files);
+      imageInput.value = "";
+    });
+
+    // Drag-and-drop on the welcome input container
+    const dropTarget = document.querySelector(".input-container");
+    if (dropTarget) {
+      dropTarget.addEventListener("dragover", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        dropTarget.classList.add("drag-over");
+      });
+      dropTarget.addEventListener("dragleave", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        dropTarget.classList.remove("drag-over");
+      });
+      dropTarget.addEventListener("drop", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        dropTarget.classList.remove("drag-over");
+        if (e.dataTransfer && e.dataTransfer.files.length > 0) {
+          addImageFiles(e.dataTransfer.files);
+        }
+      });
+    }
+
+    // Support pasting images from clipboard
+    document.addEventListener("paste", (e) => {
+      if (location.pathname !== "/" && location.pathname !== "/new") return;
+      const items = e.clipboardData && e.clipboardData.items;
+      if (!items) return;
+      const imageFiles = [];
+      for (const item of items) {
+        if (item.type.startsWith("image/") || item.type === "application/pdf") {
+          const file = item.getAsFile();
+          if (file) imageFiles.push(file);
+        }
+      }
+      if (imageFiles.length > 0) {
+        addImageFiles(imageFiles);
+      }
+    });
+  }
+
   function handleSendMessage() {
     const messageInput = document.getElementById("messageInput");
     const sendButton = document.getElementById("sendButton");
-    
+
     if (!messageInput || !sendButton) return;
-    
+
     const message = messageInput.value.trim();
-    if (!message) return;
-    
+    const images = takePendingImages();
+    if (!message && images.length === 0) return;
+
     // Disable input while processing
     messageInput.disabled = true;
     sendButton.disabled = true;
     messageInput.style.height = 'auto'; // Reset height
-    
+
+    // Store file data URIs in sessionStorage so the chat page can pick them up
+    if (images.length > 0) {
+      sessionStorage.setItem("welcomeImages", JSON.stringify(images));
+    }
+
     // Create new session and immediately redirect with message
     fetch("/api/new_session", {
       method: "POST",
@@ -613,7 +821,7 @@ document.addEventListener("DOMContentLoaded", () => {
     .then(d => {
       if (!d || !d.success) throw new Error(d && d.message || "Failed to start session");
       const sessionId = d.session_id;
-      
+
       // Immediately redirect to chat page with the message as URL parameter
       const encodedMessage = encodeURIComponent(message);
       window.location.href = `/chat/${sessionId}?message=${encodedMessage}`;
@@ -621,10 +829,17 @@ document.addEventListener("DOMContentLoaded", () => {
     .catch(err => {
       console.error(err);
       alert("Failed to start new chat: " + err.message);
-      
+
       // Re-enable input
       messageInput.disabled = false;
       sendButton.disabled = false;
+      // Restore files back to pending
+      if (images.length > 0) {
+        images.forEach(uri => pendingImages.push({ dataUri: uri, name: "" }));
+        renderImagePreview();
+        updateSendButtonState();
+        sessionStorage.removeItem("welcomeImages");
+      }
     });
   }
 
@@ -680,62 +895,70 @@ document.addEventListener("DOMContentLoaded", () => {
           handleChatMessage(session_id);
         }
       });
-      
+
       // Update send button state and auto-resize based on input
       messageInput.addEventListener('input', () => {
-        const hasText = messageInput.value.trim().length > 0;
-        sendButton.disabled = !hasText;
+        updateSendButtonState();
         autoResize();
       });
-      
+
       // Also trigger auto-resize on keyup to handle paste events
       messageInput.addEventListener('keyup', autoResize);
       messageInput.addEventListener('paste', () => {
         setTimeout(autoResize, 10); // Small delay to allow paste to complete
       });
-      
+
       // Initial state and setup
       sendButton.disabled = true;
       autoResize(); // Set initial height
+      initImageUpload();
     }
-    
+
     fetch(`/api/session/${session_id}`)
       .then(r => r.json())
       .then(data => {
         const box = document.getElementById("chatContent");
         box.innerHTML = "";
-        data.conversation.forEach(m => appendMsg(m.content, m.role));
+        data.conversation.forEach(m => appendMsg(m.content, m.role, m.images, m.exercise_images));
         logoutBtn.hidden = loginBtn.textContent.trim() === "Login";
         
         // If there's an initial message from welcome page, send it automatically
-        if (initialMessage) {
+        const hasWelcomeImages = sessionStorage.getItem("welcomeImages") !== null;
+        if (initialMessage || hasWelcomeImages) {
           // Clear the URL parameter to avoid resending on refresh
           window.history.replaceState({}, document.title, window.location.pathname);
-          
-          // Add user message to chat immediately
-          appendMsg(initialMessage, "user");
-          
+
+          // Retrieve images passed from welcome page
+          let initialImages = [];
+          const storedImages = sessionStorage.getItem("welcomeImages");
+          if (storedImages) {
+            try { initialImages = JSON.parse(storedImages); } catch (e) { /* ignore */ }
+            sessionStorage.removeItem("welcomeImages");
+          }
+
+          // Add user message to chat immediately (with image thumbnails)
+          appendMsg(initialMessage, "user", initialImages.length > 0 ? initialImages : undefined);
+
           // Show thinking animation
           startThinking();
-          
+
+          // Build request payload
+          const payload = { session_id: session_id, message: initialMessage };
+          if (initialImages.length > 0) payload.images = initialImages;
+
           // Send message to server
           fetch("/api/message", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              session_id: session_id,
-              message: initialMessage
-            })
+            body: JSON.stringify(payload)
           })
           .then(r => r.json())
           .then(d => {
             stopThinking();
-            
+
             if (d.success) {
-              // Add assistant response
-              appendMsg(d.assistant_message, "assistant");
+              appendMsg(d.assistant_message, "assistant", undefined, d.exercise_images);
             } else {
-              // Show error message
               appendMsg(d.assistant_message || "Sorry, there was an error processing your message.", "assistant");
             }
           })
@@ -754,42 +977,42 @@ document.addEventListener("DOMContentLoaded", () => {
   function handleChatMessage(sessionId) {
     const messageInput = document.getElementById("messageInput");
     const sendButton = document.getElementById("sendButton");
-    
+
     if (!messageInput || !sendButton) return;
-    
+
     const message = messageInput.value.trim();
-    if (!message) return;
-    
-    // Add user message to chat immediately
-    appendMsg(message, "user");
-    
+    const images = takePendingImages();
+    if (!message && images.length === 0) return;
+
+    // Add user message to chat immediately (with image thumbnails)
+    appendMsg(message, "user", images);
+
     // Clear input and disable
     messageInput.value = "";
     messageInput.style.height = 'auto';
     messageInput.disabled = true;
     sendButton.disabled = true;
-    
+
     // Show thinking animation
     startThinking();
-    
+
+    // Build request payload
+    const payload = { session_id: sessionId, message: message };
+    if (images.length > 0) payload.images = images;
+
     // Send message to server
     fetch("/api/message", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        session_id: sessionId,
-        message: message
-      })
+      body: JSON.stringify(payload)
     })
     .then(r => r.json())
     .then(d => {
       stopThinking();
       
       if (d.success) {
-        // Add assistant response
-        appendMsg(d.assistant_message, "assistant");
+        appendMsg(d.assistant_message, "assistant", undefined, d.exercise_images);
       } else {
-        // Show error message
         appendMsg(d.assistant_message || "Sorry, there was an error processing your message.", "assistant");
       }
     })
@@ -1285,11 +1508,40 @@ document.addEventListener("DOMContentLoaded", () => {
   /* ==================================================== */
   /*  Helper: render a bubble                              */
   /* ==================================================== */
-  function appendMsg(text, role) {
-    if (!text || !text.trim()) return;
+  function appendMsg(text, role, images, exerciseImages) {
+    if ((!text || !text.trim()) && (!images || images.length === 0)) return;
     const box = document.getElementById("chatContent");
     const div = document.createElement("div");
     div.className = "message" + (role === "user" ? " user" : "");
+
+    // Render attached images / files
+    if (images && images.length > 0) {
+      const imgContainer = document.createElement("div");
+      imgContainer.className = "message-images";
+      images.forEach(src => {
+        if (src.startsWith("data:application/pdf")) {
+          const icon = document.createElement("div");
+          icon.className = "file-icon";
+          icon.innerHTML = '<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm-1 2l5 5h-5V4zM6 20V4h5v7h7v9H6z" fill="currentColor"/></svg><span>PDF</span>';
+          icon.style.cursor = "pointer";
+          icon.addEventListener("click", () => window.open(src, "_blank"));
+          imgContainer.appendChild(icon);
+        } else {
+          const img = document.createElement("img");
+          img.src = src;
+          img.addEventListener("click", () => window.open(src, "_blank"));
+          imgContainer.appendChild(img);
+        }
+      });
+      div.appendChild(imgContainer);
+    }
+
+    if (!text || !text.trim()) {
+      box.appendChild(div);
+      div.offsetHeight;
+      box.scrollTop = box.scrollHeight;
+      return;
+    }
     
     // Configure marked for better security and formatting
     if (typeof marked !== 'undefined') {
@@ -1299,32 +1551,33 @@ document.addEventListener("DOMContentLoaded", () => {
       const renderer = new marked.Renderer();
       
       // Override link renderer to add target="_blank" and detect citations
+      // marked v12: renderer.link(href, title, text)
       renderer.link = function(href, title, text) {
         const titleAttr = title ? ` title="${title}"` : '';
-        
+
         // Check if this looks like a citation link (domain name as text, external URL)
-        const linkText = text.trim();
+        const linkText = (text || '').replace(/<[^>]*>/g, '').trim();
         let citationClass = '';
-        
-        // Improved citation detection logic
-        if (href && href.startsWith('http') && 
-            linkText.includes('.') && 
-            !linkText.includes(' ') && 
-            linkText.length > 3 && 
-            linkText.length < 100 && 
-            // More comprehensive domain-like patterns
-            (linkText.match(/^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/) || // Standard domain
-             linkText.match(/^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}\/[a-zA-Z0-9.-]*$/) || // Domain with path
-             linkText.match(/^[a-zA-Z0-9.-]+\.(com|org|net|edu|gov|io|co|uk|de|fr|jp|cn|au|ca|us|mil|int|info|biz|name|pro|aero|coop|museum)$/i) || // Extended TLDs
-             linkText.match(/^[a-zA-Z0-9.-]+\.(ac|ad|ae|af|ag|ai|al|am|ao|aq|ar|as|at|aw|ax|az|ba|bb|bd|be|bf|bg|bh|bi|bj|bm|bn|bo|br|bs|bt|bv|bw|by|bz|cc|cd|cf|cg|ch|ci|ck|cl|cm|cn|cr|cu|cv|cx|cy|cz|dj|dk|dm|do|dz|ec|ee|eg|eh|er|es|et|fi|fj|fk|fm|fo|fr|ga|gb|gd|ge|gf|gg|gh|gi|gl|gm|gn|gp|gq|gr|gs|gt|gu|gw|gy|hk|hm|hn|hr|ht|hu|id|ie|il|im|in|io|iq|ir|is|it|je|jm|jo|ke|kg|kh|ki|km|kn|kp|kr|kw|ky|kz|la|lb|lc|li|lk|lr|ls|lt|lu|lv|ly|ma|mc|md|me|mg|mh|mk|ml|mm|mn|mo|mp|mq|mr|ms|mt|mu|mv|mw|mx|my|mz|na|nc|ne|nf|ng|ni|nl|no|np|nr|nu|nz|om|pa|pe|pf|pg|ph|pk|pl|pm|pn|pr|ps|pt|pw|py|qa|re|ro|rs|ru|rw|sa|sb|sc|sd|se|sg|sh|si|sj|sk|sl|sm|sn|so|sr|st|sv|sy|sz|tc|td|tf|tg|th|tj|tk|tl|tm|tn|to|tr|tt|tv|tw|tz|ua|ug|um|us|uy|uz|va|vc|ve|vg|vi|vn|vu|wf|ws|ye|yt|za|zm|zw)$/i))) { // All country codes
+
+        if (href && href.startsWith('http') &&
+            linkText.includes('.') &&
+            !linkText.includes(' ') &&
+            linkText.length > 3 &&
+            linkText.length < 100 &&
+            linkText.match(/^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}(\/[a-zA-Z0-9.-]*)?$/)) {
           citationClass = ' class="citation-badge"';
-          console.log('Detected citation in renderer:', linkText);
         }
-        
+
         return `<a href="${href}"${titleAttr}${citationClass} target="_blank" rel="noopener noreferrer">${text}</a>`;
       };
-      
-      
+
+      // Override image renderer
+      // marked v12: renderer.image(href, title, text)
+      renderer.image = function(href, title, text) {
+        const titleAttr = title ? ` title="${title}"` : '';
+        return `<img src="${href}" alt="${text || ''}"${titleAttr} loading="lazy" />`;
+      };
+
       marked.setOptions({
         breaks: true,       // Convert \n to <br> for proper line break handling
         gfm: true,          // GitHub Flavored Markdown
@@ -1429,6 +1682,27 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     }
     
+    // Render exercise image gallery below the text
+    if (exerciseImages && exerciseImages.length > 0) {
+      const gallery = document.createElement("div");
+      gallery.className = "exercise-gallery";
+      exerciseImages.forEach(item => {
+        const card = document.createElement("div");
+        card.className = "exercise-card";
+        const img = document.createElement("img");
+        img.src = item.url;
+        img.alt = item.name;
+        img.loading = "lazy";
+        const label = document.createElement("span");
+        label.className = "exercise-label";
+        label.textContent = item.name;
+        card.appendChild(img);
+        card.appendChild(label);
+        gallery.appendChild(card);
+      });
+      div.appendChild(gallery);
+    }
+
     // Add Sources button for assistant messages with citations
     if (role === "assistant") {
       const sources = extractSourcesFromMessage(div);
@@ -1437,7 +1711,7 @@ document.addEventListener("DOMContentLoaded", () => {
         div.appendChild(sourcesBtn);
       }
     }
-    
+
     box.appendChild(div);
     
     // Force a reflow to ensure the message is immediately visible and positioned correctly

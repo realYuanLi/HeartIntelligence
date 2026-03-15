@@ -674,8 +674,8 @@ body.sources-sidebar-open .message {
   margin: 1rem auto 0;
   padding: 0;
   display: flex;
-  justify-content: center;
-  align-items: center;
+  flex-direction: column;
+  align-items: stretch;
 }
 
 /* Auto-resize for welcome page input - flexible height */
@@ -798,7 +798,7 @@ body.sources-sidebar-open .message {
   align-items: center;
   justify-content: center;
   padding: 0.375rem;
-  margin-right: 0.5rem;
+  margin-right: 0.125rem;
   transition: all 0.2s ease;
   min-width: 2rem;
   height: 2rem;
@@ -816,6 +816,194 @@ body.sources-sidebar-open .message {
 }
 
 /* Recording state */
+/* ===================== Attach File Button ===================== */
+.attach-button {
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.375rem;
+  margin-right: 0.125rem;
+  border-radius: 0.5rem;
+  transition: color 0.2s ease, background 0.2s ease;
+  min-width: 2rem;
+  height: 2rem;
+  flex-shrink: 0;
+}
+
+.attach-button:hover {
+  background: var(--card);
+  color: var(--text);
+}
+
+.attach-button:active {
+  transform: scale(0.95);
+}
+
+/* Drag-over visual feedback */
+.drag-over {
+  background: rgba(255, 104, 80, 0.04) !important;
+}
+
+/* ===================== Image Preview ===================== */
+.image-preview {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  overflow-x: auto;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.image-preview-item {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.image-preview-item img {
+  width: 4rem;
+  height: 4rem;
+  object-fit: cover;
+  border-radius: 0.5rem;
+  border: 1px solid var(--border);
+}
+
+.image-preview-item .file-icon {
+  height: 4rem;
+  min-width: 4rem;
+  max-width: 10rem;
+  border-radius: 0.5rem;
+  border: 1px solid var(--border);
+  background: var(--card);
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0 0.6rem;
+  color: var(--muted);
+  font-size: 0.65rem;
+  box-sizing: border-box;
+}
+
+.image-preview-item .file-icon svg {
+  width: 1.5rem;
+  height: 1.5rem;
+  flex-shrink: 0;
+}
+
+.image-preview-item .file-icon .file-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 7rem;
+}
+
+.image-preview-item .remove-image {
+  position: absolute;
+  top: -0.35rem;
+  right: -0.35rem;
+  width: 1.25rem;
+  height: 1.25rem;
+  border-radius: 50%;
+  background: var(--text);
+  color: var(--bg);
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
+  line-height: 1;
+  padding: 0;
+}
+
+/* ===================== Chat Message Images ===================== */
+.message-images {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.message-images img {
+  max-width: 16rem;
+  max-height: 16rem;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition: opacity 0.2s ease;
+}
+
+.message-images .file-icon {
+  height: 3rem;
+  padding: 0 0.75rem;
+  border-radius: 0.5rem;
+  border: 1px solid var(--border);
+  background: var(--card);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 500;
+  text-transform: uppercase;
+}
+
+.message-images .file-icon svg {
+  width: 1.25rem;
+  height: 1.25rem;
+  flex-shrink: 0;
+}
+
+.message-images .file-icon:hover {
+  background: var(--border);
+}
+
+.message-images img:hover {
+  opacity: 0.85;
+}
+
+/* ===================== Exercise Image Gallery ===================== */
+.exercise-gallery {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 1rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border);
+}
+
+.exercise-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 8rem;
+}
+
+.exercise-card img {
+  width: 8rem;
+  height: 8rem;
+  object-fit: cover;
+  border-radius: 0.5rem;
+  border: 1px solid var(--border);
+}
+
+.exercise-label {
+  margin-top: 0.25rem;
+  font-size: 0.7rem;
+  color: var(--muted);
+  text-align: center;
+  line-height: 1.2;
+  max-width: 8rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
 .mic-button.recording {
   background: var(--accent);
   color: white;
@@ -4284,6 +4472,34 @@ body.sources-sidebar-open .input-container.fixed {
   font-size: 0.95rem;
 }
 
+.settings-subnav {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.settings-subnav-link {
+  display: inline-block;
+  padding: 0.35rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  color: var(--muted);
+  text-decoration: none;
+  font-size: 0.9rem;
+}
+
+.settings-subnav-link.active {
+  color: var(--text);
+  border-color: var(--accent);
+  background: rgba(255, 104, 80, 0.1);
+}
+
+/* Skills page: enabled label uses neutral gray style */
+.job-status.active {
+  background: #e5e7eb;
+  color: #111111;
+}
+
 .cron-jobs-content {
   max-width: 900px;
   margin: 0 auto;
@@ -4434,6 +4650,14 @@ body.sources-sidebar-open .input-container.fixed {
   opacity: 0.6;
 }
 
+.settings-skill-card {
+  padding: 0.7rem 0.85rem;
+}
+
+.settings-skill-card .job-message {
+  margin-bottom: 0.2rem;
+}
+
 .job-card-header {
   display: flex;
   justify-content: space-between;
@@ -4517,8 +4741,8 @@ body.sources-sidebar-open .input-container.fixed {
 }
 
 .job-status.active {
-  background: #d1fae5;
-  color: #065f46;
+  background: #e5e7eb;
+  color: #111111;
 }
 
 .job-status.inactive {
@@ -4662,5 +4886,799 @@ body.sources-sidebar-open .input-container.fixed {
   }
   .job-actions {
     align-self: flex-end;
+  }
+}
+
+
+/* ===================== Workout Calendar ===================== */
+.calendar-page {
+  flex: 1;
+  overflow-y: auto;
+  padding-bottom: 4rem;
+}
+.calendar-header {
+  padding: 1.25rem 2rem 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--bg);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+.calendar-header h1 {
+  margin: 0;
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: -0.02em;
+}
+.calendar-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+.cal-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.85rem;
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  background: var(--bg);
+  color: var(--muted-2);
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.cal-action-btn:hover {
+  background: var(--card);
+  color: var(--text);
+  border-color: var(--muted);
+}
+
+/* Plan title strip */
+.plan-strip {
+  padding: 0.5rem 2rem 0.25rem;
+}
+.plan-title-text {
+  display: inline-block;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--accent);
+  background: rgba(255, 104, 80, 0.08);
+  padding: 0.25rem 0.75rem;
+  border-radius: 2rem;
+  letter-spacing: 0.01em;
+}
+
+/* Month navigation */
+.cal-nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1.25rem;
+  padding: 0.75rem 2rem 1rem;
+}
+.cal-nav-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: var(--bg);
+  cursor: pointer;
+  color: var(--muted-2);
+  transition: all 0.15s ease;
+}
+.cal-nav-btn:hover {
+  background: var(--card);
+  border-color: var(--muted);
+  color: var(--text);
+}
+.cal-month-label {
+  font-size: 1.15rem;
+  font-weight: 600;
+  min-width: 200px;
+  text-align: center;
+  letter-spacing: -0.01em;
+}
+
+/* Calendar grid */
+.cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  margin: 0 1.5rem;
+  border-radius: 0.75rem;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+}
+.cal-day-header {
+  background: var(--card);
+  padding: 0.6rem 0.25rem;
+  text-align: center;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  border-bottom: 1px solid var(--border);
+}
+#calCells {
+  display: contents;
+}
+
+/* Individual cells */
+.cal-cell {
+  background: var(--bg);
+  min-height: 76px;
+  padding: 0.4rem;
+  position: relative;
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  transition: background 0.15s ease;
+}
+.cal-cell:nth-child(7n) {
+  border-right: none;
+}
+.cal-cell.blank {
+  background: var(--card);
+  opacity: 0.35;
+}
+.cal-cell.today {
+  box-shadow: inset 0 0 0 2px var(--accent);
+  z-index: 1;
+}
+.cal-cell.today .cal-date-num {
+  background: var(--accent);
+  color: #fff;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.cal-cell.has-workout {
+  cursor: pointer;
+}
+.cal-cell.has-workout:hover {
+  background: #fef7f5;
+}
+.cal-cell.completed {
+  background: #f0fdf4;
+}
+.cal-cell.completed:hover {
+  background: #dcfce7;
+}
+.cal-date-num {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--muted-2);
+  line-height: 1;
+}
+.cal-workout-label {
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--accent);
+  margin-top: 0.35rem;
+  line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cal-exercise-count {
+  font-size: 0.62rem;
+  color: var(--muted);
+  margin-top: 0.15rem;
+}
+.cal-check-badge {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  background: #dcfce7;
+  border-radius: 50%;
+}
+
+/* ---- Today's workout panel ---- */
+.today-panel {
+  margin: 1.75rem 1.5rem 0;
+  padding: 1.5rem;
+  background: var(--card);
+  border-radius: 0.75rem;
+  border: 1px solid var(--border);
+}
+.today-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+.today-panel h3 {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+.today-complete-btn {
+  padding: 0.35rem 0.9rem;
+  font-size: 0.82rem;
+  font-weight: 500;
+  border: none;
+  border-radius: 2rem;
+  background: var(--accent);
+  color: #fff;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.today-complete-btn:hover {
+  background: var(--accent-hover);
+}
+.today-exercises {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 0.75rem;
+}
+.exercise-card {
+  display: flex;
+  gap: 0.85rem;
+  background: var(--bg);
+  border-radius: 0.6rem;
+  padding: 0.75rem;
+  border: 1px solid var(--border);
+  transition: box-shadow 0.15s ease, transform 0.15s ease;
+}
+.exercise-card:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  transform: translateY(-1px);
+}
+.exercise-thumb {
+  width: 72px;
+  height: 72px;
+  object-fit: cover;
+  border-radius: 0.5rem;
+  flex-shrink: 0;
+  background: var(--card);
+}
+.exercise-thumb-placeholder {
+  width: 72px;
+  height: 72px;
+  border-radius: 0.5rem;
+  flex-shrink: 0;
+  background: var(--card);
+  border: 1px dashed var(--border);
+}
+.exercise-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.exercise-name {
+  font-weight: 600;
+  font-size: 0.9rem;
+  line-height: 1.3;
+  margin-bottom: 0.3rem;
+}
+.exercise-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin-bottom: 0.35rem;
+}
+.meta-pill {
+  font-size: 0.72rem;
+  font-weight: 500;
+  padding: 0.15rem 0.5rem;
+  border-radius: 2rem;
+  background: var(--card);
+  color: var(--muted-2);
+  border: 1px solid var(--border);
+}
+.meta-pill.equip {
+  background: rgba(255, 104, 80, 0.07);
+  color: var(--accent);
+  border-color: rgba(255, 104, 80, 0.2);
+}
+.details-btn {
+  margin-top: auto;
+  padding: 0.2rem 0;
+  font-size: 0.78rem;
+  font-weight: 500;
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: var(--accent);
+  text-align: left;
+  transition: opacity 0.15s;
+}
+.details-btn:hover {
+  opacity: 0.7;
+}
+.details-btn.open {
+  color: var(--muted);
+}
+.exercise-details {
+  margin-top: 0.5rem;
+  font-size: 0.82rem;
+  color: var(--muted-2);
+  line-height: 1.55;
+  border-top: 1px solid var(--border);
+  padding-top: 0.5rem;
+}
+.detail-row {
+  margin-bottom: 0.2rem;
+}
+.exercise-steps {
+  margin: 0.35rem 0 0 1.2rem;
+  padding: 0;
+}
+.exercise-steps li {
+  margin-bottom: 0.25rem;
+}
+
+/* Calendar responsive */
+@media (max-width: 768px) {
+  .calendar-header {
+    padding: 1rem 1rem 0.5rem;
+  }
+  .calendar-header h1 {
+    font-size: 1.3rem;
+  }
+  .cal-grid {
+    margin: 0 0.75rem;
+  }
+  .cal-cell {
+    min-height: 55px;
+    padding: 0.3rem;
+  }
+  .cal-workout-label {
+    font-size: 0.58rem;
+  }
+  .cal-exercise-count {
+    display: none;
+  }
+  .today-panel {
+    margin: 1.25rem 0.75rem 0;
+    padding: 1rem;
+  }
+  .today-exercises {
+    grid-template-columns: 1fr;
+  }
+  .exercise-card {
+    flex-direction: column;
+  }
+  .exercise-thumb {
+    width: 100%;
+    height: 140px;
+  }
+  .exercise-thumb-placeholder {
+    width: 100%;
+    height: 100px;
+  }
+  .plan-strip {
+    padding: 0.5rem 1rem 0.25rem;
+  }
+}
+
+/* ================================================================
+   Nutrition Planner
+   ================================================================ */
+
+.nutrition-page {
+  flex: 1;
+  overflow-y: auto;
+  padding-bottom: 4rem;
+}
+.nutrition-header {
+  padding: 1.25rem 2rem 0.5rem;
+  background: var(--bg);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+.nutrition-header h1 {
+  margin: 0;
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: -0.02em;
+}
+
+/* Tabs */
+.nutrition-tabs {
+  display: flex;
+  gap: 0;
+  padding: 0 2rem;
+  border-bottom: 1px solid var(--border, #e5e7eb);
+  background: var(--bg);
+  position: sticky;
+  top: 3.5rem;
+  z-index: 9;
+}
+.nutrition-tab {
+  background: none;
+  border: none;
+  padding: 0.6rem 1.2rem;
+  font-size: 0.9rem;
+  cursor: pointer;
+  color: var(--text-secondary, #6b7280);
+  border-bottom: 2px solid transparent;
+  transition: color 0.2s, border-color 0.2s;
+}
+.nutrition-tab:hover {
+  color: var(--text);
+}
+.nutrition-tab.active {
+  color: var(--accent, #2563eb);
+  border-bottom-color: var(--accent, #2563eb);
+  font-weight: 600;
+}
+
+/* Panels */
+.nutrition-panel {
+  padding: 1.5rem 2rem;
+}
+.nutrition-panel h2 {
+  margin: 0 0 1rem;
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: var(--text);
+}
+.nutrition-panel h3 {
+  margin: 1rem 0 0.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+/* Forms */
+.nutrition-form .form-row {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+}
+.nutrition-form .form-row.full {
+  flex-direction: column;
+}
+.nutrition-form label {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  font-size: 0.85rem;
+  color: var(--text-secondary, #6b7280);
+  gap: 0.25rem;
+}
+.nutrition-form input,
+.nutrition-form select {
+  padding: 0.5rem 0.6rem;
+  border: 1px solid var(--border, #d1d5db);
+  border-radius: 6px;
+  font-size: 0.9rem;
+  background: var(--bg);
+  color: var(--text);
+}
+.nutrition-form input:focus,
+.nutrition-form select:focus {
+  outline: none;
+  border-color: var(--accent, #2563eb);
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
+}
+
+/* Buttons */
+.nutrition-btn {
+  padding: 0.55rem 1.2rem;
+  border: 1px solid var(--border, #d1d5db);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.nutrition-btn:hover {
+  background: var(--bg-hover, #f3f4f6);
+}
+.nutrition-btn.primary {
+  background: var(--accent, #2563eb);
+  color: #fff;
+  border-color: var(--accent, #2563eb);
+}
+.nutrition-btn.primary:hover {
+  opacity: 0.9;
+}
+.nutrition-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Status */
+.nutrition-status {
+  margin-top: 0.5rem;
+  font-size: 0.85rem;
+  min-height: 1.2em;
+}
+.nutrition-status.success { color: #16a34a; }
+.nutrition-status.error { color: #dc2626; }
+
+/* Loading */
+.nutrition-loading {
+  padding: 1rem 0;
+  color: var(--text-secondary, #6b7280);
+  font-style: italic;
+}
+
+/* Textarea */
+.nutrition-textarea {
+  width: 100%;
+  min-height: 3rem;
+  padding: 0.6rem;
+  border: 1px solid var(--border, #d1d5db);
+  border-radius: 6px;
+  font-size: 0.9rem;
+  resize: vertical;
+  background: var(--bg);
+  color: var(--text);
+  font-family: inherit;
+}
+.nutrition-textarea:focus {
+  outline: none;
+  border-color: var(--accent, #2563eb);
+}
+
+/* Plan display */
+.plan-btn-row {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+.plan-create-section {
+  margin-top: 1.5rem;
+}
+.plan-title-bar {
+  font-size: 1.1rem;
+  margin-bottom: 0.5rem;
+}
+.plan-targets {
+  font-size: 0.85rem;
+  color: var(--text-secondary, #6b7280);
+  margin-bottom: 1rem;
+  padding: 0.5rem 0.75rem;
+  background: var(--bg-hover, #f3f4f6);
+  border-radius: 6px;
+}
+.plan-day {
+  margin-bottom: 1rem;
+  border-bottom: 1px solid var(--border, #e5e7eb);
+  padding-bottom: 0.75rem;
+}
+.plan-day h3 {
+  margin: 0 0 0.5rem;
+}
+.plan-meal {
+  margin-bottom: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  background: var(--bg-hover, #f9fafb);
+  border-radius: 6px;
+}
+.meal-header {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  margin-bottom: 0.25rem;
+}
+.meal-type {
+  text-transform: capitalize;
+  font-size: 0.75rem;
+  padding: 0.15rem 0.4rem;
+  background: var(--accent, #2563eb);
+  color: #fff;
+  border-radius: 4px;
+  font-weight: 500;
+}
+.meal-macros {
+  font-size: 0.8rem;
+  color: var(--text-secondary, #6b7280);
+}
+.meal-prep {
+  font-size: 0.8rem;
+  color: var(--text-secondary, #6b7280);
+}
+.meal-ingredients {
+  font-size: 0.8rem;
+  margin-top: 0.25rem;
+  color: var(--text-secondary, #6b7280);
+}
+.meal-recipe {
+  margin-top: 0.35rem;
+  font-size: 0.8rem;
+}
+.meal-recipe summary {
+  cursor: pointer;
+  color: var(--accent, #2563eb);
+  font-weight: 500;
+}
+.meal-recipe ol {
+  margin: 0.25rem 0 0 1.2rem;
+  padding: 0;
+}
+.meal-recipe li {
+  margin-bottom: 0.2rem;
+}
+.plan-alerts {
+  margin-top: 1rem;
+  padding: 0.75rem;
+  background: #fef3c7;
+  border-radius: 6px;
+}
+.plan-alerts h3 {
+  margin: 0 0 0.5rem;
+  color: #92400e;
+}
+.plan-alerts ul {
+  margin: 0;
+  padding: 0 0 0 1.2rem;
+}
+.plan-alerts li {
+  margin-bottom: 0.35rem;
+  font-size: 0.85rem;
+}
+
+/* Pantry */
+.pantry-list {
+  margin-bottom: 1rem;
+}
+.pantry-items {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+.pantry-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.4rem 0.6rem;
+  background: var(--bg-hover, #f9fafb);
+  border-radius: 6px;
+}
+.pantry-item-name {
+  flex: 2;
+  font-weight: 500;
+  text-transform: capitalize;
+}
+.pantry-item-qty {
+  flex: 1;
+  font-size: 0.85rem;
+  color: var(--text-secondary, #6b7280);
+}
+.pantry-item-cat {
+  flex: 1;
+  font-size: 0.8rem;
+  color: var(--text-secondary, #6b7280);
+  text-transform: capitalize;
+}
+.pantry-remove-btn {
+  background: none;
+  border: none;
+  color: #dc2626;
+  cursor: pointer;
+  font-size: 0.9rem;
+  padding: 0.2rem 0.4rem;
+  border-radius: 4px;
+}
+.pantry-remove-btn:hover {
+  background: #fee2e2;
+}
+.pantry-add-section .form-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: end;
+}
+.pantry-add-section input,
+.pantry-add-section select {
+  padding: 0.5rem 0.6rem;
+  border: 1px solid var(--border, #d1d5db);
+  border-radius: 6px;
+  font-size: 0.9rem;
+  background: var(--bg);
+  color: var(--text);
+}
+.pantry-add-section input:first-child {
+  flex: 2;
+}
+.pantry-add-section input:nth-child(2) {
+  flex: 1;
+}
+.pantry-add-section select {
+  flex: 1;
+}
+
+/* Grocery list */
+.grocery-category {
+  margin-bottom: 0.75rem;
+}
+.grocery-category h3 {
+  margin: 0 0 0.25rem;
+  font-size: 0.95rem;
+}
+.grocery-category ul {
+  margin: 0;
+  padding: 0 0 0 1.2rem;
+}
+.grocery-category li {
+  font-size: 0.85rem;
+  margin-bottom: 0.15rem;
+}
+.grocery-total {
+  margin-top: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  background: var(--bg-hover, #f3f4f6);
+  border-radius: 6px;
+  font-size: 0.9rem;
+}
+
+/* Nutrient check */
+.nutrient-gaps {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.nutrient-gap {
+  padding: 0.6rem 0.75rem;
+  border-radius: 6px;
+  font-size: 0.85rem;
+}
+.nutrient-gap.gap-low {
+  background: #fef3c7;
+  border-left: 3px solid #f59e0b;
+}
+.nutrient-gap.gap-high {
+  background: #fee2e2;
+  border-left: 3px solid #dc2626;
+}
+.nutrient-gap.gap-unknown {
+  background: var(--bg-hover, #f3f4f6);
+  border-left: 3px solid #9ca3af;
+}
+.gap-suggestions {
+  margin-top: 0.25rem;
+  font-size: 0.8rem;
+  color: var(--text-secondary, #6b7280);
+  font-style: italic;
+}
+
+/* Empty state */
+.empty-state {
+  color: var(--text-secondary, #6b7280);
+  font-style: italic;
+  padding: 1rem 0;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .nutrition-tabs {
+    padding: 0 1rem;
+    overflow-x: auto;
+  }
+  .nutrition-tab {
+    font-size: 0.8rem;
+    padding: 0.5rem 0.75rem;
+    white-space: nowrap;
+  }
+  .nutrition-panel {
+    padding: 1rem;
+  }
+  .nutrition-form .form-row {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  .pantry-add-section .form-row {
+    flex-wrap: wrap;
   }
 }

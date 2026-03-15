@@ -4,7 +4,7 @@
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <title>HeartIntelligence</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=2"/>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?t={{ cache_bust }}"/>
 </head>
 <body>
 
@@ -20,8 +20,10 @@
     <div class="nav-section">
       <div class="nav-item" id="newChatBtn">+  New Chat</div>
       <div class="nav-item" id="dashboardBtn">☰  Dashboard</div>
-      <div class="nav-item" id="cronJobsBtn">⏰  Cron Jobs</div>
+      <div class="nav-item" id="settingsBtn">⚙  Settings</div>
       <div class="nav-item" id="digitalTwinBtn">◑  My Body</div>
+      <div class="nav-item" id="calendarBtn">📅  Calendar</div>
+      <div class="nav-item" id="nutritionBtn">🥗  Nutrition</div>
       <div class="nav-item" id="pdfFormsBtn">📄  PDF Forms</div>
     </div>
     <div class="recents-title">Recents</div>
@@ -46,7 +48,7 @@
   </div>
   <!-- Markdown parser -->
   <script src="https://cdn.jsdelivr.net/npm/marked@12.0.0/marked.min.js"></script>
-  <script src="{{ url_for('static', filename='script.js') }}"></script>
+  <script src="{{ url_for('static', filename='script.js') }}?t={{ cache_bust }}"></script>
   {% block scripts %}{% endblock %}
 </body>
 </html>

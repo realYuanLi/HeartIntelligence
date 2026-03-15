@@ -1,0 +1,139 @@
+{% extends "base.html" %}
+{% block main %}
+  <div class="nutrition-page">
+    <div class="nutrition-header">
+      <h1>Nutrition Planner</h1>
+    </div>
+
+    <!-- Tab navigation -->
+    <div class="nutrition-tabs">
+      <button class="nutrition-tab active" data-tab="profile">Profile</button>
+      <button class="nutrition-tab" data-tab="plan">Meal Plan</button>
+      <button class="nutrition-tab" data-tab="pantry">Pantry</button>
+      <button class="nutrition-tab" data-tab="grocery">Grocery List</button>
+      <button class="nutrition-tab" data-tab="nutrients">Nutrient Check</button>
+    </div>
+
+    <!-- Profile Tab -->
+    <div class="nutrition-panel" id="panel-profile">
+      <h2>Nutrition Profile</h2>
+      <form id="profileForm" class="nutrition-form">
+        <div class="form-row">
+          <label>Age<input type="number" name="age" min="1" max="120" /></label>
+          <label>Sex
+            <select name="sex">
+              <option value="male">Male</option>
+              <option value="female">Female</option>
+            </select>
+          </label>
+        </div>
+        <div class="form-row">
+          <label>Weight (kg)<input type="number" name="weight_kg" step="0.1" min="20" max="300" /></label>
+          <label>Height (cm)<input type="number" name="height_cm" step="0.1" min="100" max="250" /></label>
+        </div>
+        <div class="form-row">
+          <label>Activity Level
+            <select name="activity_level">
+              <option value="sedentary">Sedentary</option>
+              <option value="light">Light</option>
+              <option value="moderate">Moderate</option>
+              <option value="active">Active</option>
+              <option value="very_active">Very Active</option>
+            </select>
+          </label>
+          <label>Weekly Budget (USD)<input type="number" name="weekly_budget_usd" step="1" min="0" placeholder="Optional" /></label>
+        </div>
+        <div class="form-row full">
+          <label>Allergies (comma-separated)<input type="text" name="allergies" placeholder="e.g. peanuts, shellfish" /></label>
+        </div>
+        <div class="form-row full">
+          <label>Dietary Preferences (comma-separated)<input type="text" name="dietary_preferences" placeholder="e.g. mediterranean, vegetarian" /></label>
+        </div>
+        <div class="form-row full">
+          <label>Health Goals (comma-separated)<input type="text" name="health_goals" placeholder="e.g. weight_loss, muscle_gain" /></label>
+        </div>
+
+        <h3>Lab Values (optional)</h3>
+        <div class="form-row">
+          <label>Vitamin D (ng/mL)<input type="number" name="vitamin_d_ng_ml" step="0.1" placeholder="--" /></label>
+          <label>Iron (ug/dL)<input type="number" name="iron_ug_dl" step="0.1" placeholder="--" /></label>
+        </div>
+        <div class="form-row">
+          <label>Total Cholesterol (mg/dL)<input type="number" name="cholesterol_total_mg_dl" step="1" placeholder="--" /></label>
+          <label>LDL (mg/dL)<input type="number" name="ldl_mg_dl" step="1" placeholder="--" /></label>
+        </div>
+        <div class="form-row">
+          <label>HDL (mg/dL)<input type="number" name="hdl_mg_dl" step="1" placeholder="--" /></label>
+          <label>B12 (pg/mL)<input type="number" name="b12_pg_ml" step="0.1" placeholder="--" /></label>
+        </div>
+        <div class="form-row">
+          <label>HbA1c (%)<input type="number" name="hba1c_pct" step="0.1" placeholder="--" /></label>
+        </div>
+        <button type="submit" class="nutrition-btn primary">Save Profile</button>
+      </form>
+      <div id="profileStatus" class="nutrition-status"></div>
+    </div>
+
+    <!-- Meal Plan Tab -->
+    <div class="nutrition-panel" id="panel-plan" hidden>
+      <h2>Meal Plan</h2>
+      <div id="planInfo" class="plan-info">
+        <p class="empty-state">No meal plan yet. Create one below or ask in chat.</p>
+      </div>
+      <div class="plan-create-section">
+        <textarea id="planDetails" class="nutrition-textarea" placeholder="Describe your ideal meal plan, e.g. 'High protein Mediterranean diet for weight loss'"></textarea>
+        <div class="plan-btn-row">
+          <button id="createPlanBtn" class="nutrition-btn primary">Create Plan</button>
+          <button id="modifyPlanBtn" class="nutrition-btn" hidden>Modify Plan</button>
+        </div>
+      </div>
+      <div id="planLoading" class="nutrition-loading" hidden>Generating meal plan...</div>
+    </div>
+
+    <!-- Pantry Tab -->
+    <div class="nutrition-panel" id="panel-pantry" hidden>
+      <h2>My Pantry</h2>
+      <div id="pantryList" class="pantry-list"></div>
+      <div class="pantry-add-section">
+        <div class="form-row">
+          <input type="text" id="pantryItemName" placeholder="Item name" />
+          <input type="text" id="pantryItemQty" placeholder="Quantity" />
+          <select id="pantryItemCat">
+            <option value="protein">Protein</option>
+            <option value="dairy">Dairy</option>
+            <option value="grains">Grains</option>
+            <option value="vegetables">Vegetables</option>
+            <option value="fruits">Fruits</option>
+            <option value="nuts_seeds">Nuts/Seeds</option>
+            <option value="legumes">Legumes</option>
+            <option value="fats_oils">Fats/Oils</option>
+            <option value="condiments">Condiments</option>
+            <option value="other">Other</option>
+          </select>
+          <button id="addPantryBtn" class="nutrition-btn">Add</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Grocery List Tab -->
+    <div class="nutrition-panel" id="panel-grocery" hidden>
+      <h2>Grocery List</h2>
+      <div id="groceryList" class="grocery-list">
+        <p class="empty-state">Create a meal plan first to generate a grocery list.</p>
+      </div>
+    </div>
+
+    <!-- Nutrient Check Tab -->
+    <div class="nutrition-panel" id="panel-nutrients" hidden>
+      <h2>Nutrient Check</h2>
+      <div id="nutrientInfo" class="nutrient-info">
+        <p class="empty-state">Set up your profile with lab values to check for nutrient gaps.</p>
+      </div>
+      <button id="checkNutrientsBtn" class="nutrition-btn primary">Run Nutrient Check</button>
+    </div>
+  </div>
+{% endblock %}
+
+{% block scripts %}
+  <script src="{{ url_for('static', filename='nutrition.js') }}?t={{ cache_bust }}"></script>
+{% endblock %}

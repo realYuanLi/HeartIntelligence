@@ -145,34 +145,39 @@ export class FlaskBridge {
     senderJid: string,
     senderName: string,
     text: string,
-  ): Promise<string> {
+    images?: string[],
+  ): Promise<{ reply: string; exerciseImages: Array<{ name: string; url: string }> }> {
     await this.ensureSession();
-    return this.doSendWhatsAppMessage(senderJid, senderName, text);
+    return this.doSendWhatsAppMessage(senderJid, senderName, text, images);
   }
 
   private async doSendWhatsAppMessage(
     senderJid: string,
     senderName: string,
     text: string,
+    images?: string[],
     retried = false,
-  ): Promise<string> {
+  ): Promise<{ reply: string; exerciseImages: Array<{ name: string; url: string }> }> {
+    const payload: Record<string, unknown> = {
+      sender_jid: senderJid,
+      sender_name: senderName,
+      message: text,
+    };
+    if (images && images.length > 0) payload.images = images;
+
     const res = await fetch(`${FLASK_BASE_URL}/api/whatsapp/message`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         Cookie: this.sessionCookie!,
       },
-      body: JSON.stringify({
-        sender_jid: senderJid,
-        sender_name: senderName,
-        message: text,
-      }),
+      body: JSON.stringify(payload),
     });
 
     if (res.status === 401 && !retried) {
       this.sessionCookie = null;
       await this.login();
-      return this.doSendWhatsAppMessage(senderJid, senderName, text, true);
+      return this.doSendWhatsAppMessage(senderJid, senderName, text, images, true);
     }
 
     if (!res.ok) {
@@ -191,13 +196,36 @@ export class FlaskBridge {
       success: boolean;
       assistant_message?: string;
       session_id?: string;
+      exercise_images?: Array<{ name: string; url: string }>;
     };
 
     if (!body.assistant_message) {
       throw new Error('Flask returned no assistant_message');
     }
 
-    return body.assistant_message;
+    return {
+      reply: body.assistant_message,
+      exerciseImages: body.exercise_images ?? [],
+    };
+  }
+
+  /**
+   * Fetch an exercise image from the Flask server and return it as a Buffer.
+   */
+  async fetchExerciseImage(imageUrl: string): Promise<Buffer> {
+    await this.ensureSession();
+
+    const url = imageUrl.startsWith('http') ? imageUrl : `${FLASK_BASE_URL}${imageUrl}`;
+    const res = await fetch(url, {
+      headers: { Cookie: this.sessionCookie! },
+    });
+
+    if (!res.ok) {
+      throw new Error(`Failed to fetch exercise image: HTTP ${res.status}`);
+    }
+
+    const arrayBuffer = await res.arrayBuffer();
+    return Buffer.from(arrayBuffer);
   }
 
   /**
@@ -205,7 +233,7 @@ export class FlaskBridge {
    * Returns an array of messages to send, each with msg_id, target_jid, and message.
    */
   async pollOutbound(): Promise<
-    Array<{ msg_id: string; target_jid: string; message: string }>
+    Array<{ msg_id: string; target_jid: string; message: string; skip_prefix?: boolean }>
   > {
     await this.ensureSession();
     return this.doPollOutbound();
@@ -213,7 +241,7 @@ export class FlaskBridge {
 
   private async doPollOutbound(
     retried = false,
-  ): Promise<Array<{ msg_id: string; target_jid: string; message: string }>> {
+  ): Promise<Array<{ msg_id: string; target_jid: string; message: string; skip_prefix?: boolean }>> {
     const res = await fetch(`${FLASK_BASE_URL}/api/whatsapp/outbound`, {
       headers: {
         Cookie: this.sessionCookie!,
@@ -230,7 +258,7 @@ export class FlaskBridge {
 
     const body = (await res.json()) as {
       success: boolean;
-      messages?: Array<{ msg_id: string; target_jid: string; message: string }>;
+      messages?: Array<{ msg_id: string; target_jid: string; message: string; skip_prefix?: boolean }>;
     };
 
     return body.messages ?? [];

@@ -20,7 +20,7 @@ async function handleMessage(
   msg: InboundMessage,
   wa: WhatsAppClient,
 ): Promise<void> {
-  const { senderJid, senderName, content } = msg;
+  const { senderJid, senderName, content, images } = msg;
 
   // Serialize per-sender to avoid interleaved replies
   if (inFlight.has(senderJid)) {
@@ -30,13 +30,13 @@ async function handleMessage(
   inFlight.add(senderJid);
 
   try {
-    logger.info({ senderJid, senderName, content }, 'Received message');
+    logger.info({ senderJid, senderName, content, hasImages: !!(images && images.length) }, 'Received message');
     logMessage(senderJid, 'user', content);
 
     await wa.setTyping(senderJid, true);
 
     // Flask manages the sender_jid → session_id mapping and runs the LLM
-    const reply = await bridge.sendWhatsAppMessage(senderJid, senderName, content);
+    const { reply, exerciseImages } = await bridge.sendWhatsAppMessage(senderJid, senderName, content, images);
 
     // In personal-number mode, prefix replies so they're distinguishable from
     // your own messages in the same chat thread.
@@ -46,7 +46,18 @@ async function handleMessage(
     await wa.setTyping(senderJid, false);
     await wa.sendMessage(senderJid, outgoing);
 
-    logger.info({ senderJid, replyLength: reply.length }, 'Reply sent');
+    // Send exercise images as separate image messages (cap at 5)
+    const imagesToSend = exerciseImages.slice(0, 5);
+    for (const img of imagesToSend) {
+      try {
+        const imageBuffer = await bridge.fetchExerciseImage(img.url);
+        await wa.sendImage(senderJid, imageBuffer, img.name);
+      } catch (imgErr) {
+        logger.warn({ senderJid, imageUrl: img.url, err: imgErr }, 'Failed to send exercise image');
+      }
+    }
+
+    logger.info({ senderJid, replyLength: reply.length, exerciseImageCount: imagesToSend.length }, 'Reply sent');
   } catch (err) {
     logger.error({ senderJid, err }, 'Failed to handle message');
     await wa.setTyping(senderJid, false);
@@ -68,7 +79,7 @@ async function pollOutboundMessages(wa: WhatsAppClient): Promise<void> {
     const messages = await bridge.pollOutbound();
     for (const msg of messages) {
       try {
-        const prefix = ASSISTANT_HAS_OWN_NUMBER ? '' : `${ASSISTANT_NAME}: `;
+        const prefix = msg.skip_prefix || ASSISTANT_HAS_OWN_NUMBER ? '' : `${ASSISTANT_NAME}: `;
         await wa.sendMessage(msg.target_jid, `${prefix}${msg.message}`);
         await bridge.ackOutbound(msg.msg_id);
         logger.info(

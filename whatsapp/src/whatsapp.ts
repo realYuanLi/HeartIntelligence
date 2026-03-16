@@ -3,6 +3,7 @@ import path from 'path';
 
 import makeWASocket, {
   DisconnectReason,
+  downloadMediaMessage,
   proto,
   WASocket,
   WAVersion,
@@ -76,6 +77,8 @@ export interface InboundMessage {
   senderName: string;
   content: string;
   timestamp: string;
+  /** Base64 data URIs of attached images. */
+  images?: string[];
 }
 
 export type OnMessageCallback = (msg: InboundMessage) => void;
@@ -287,9 +290,22 @@ export class WhatsAppClient {
         const content =
           normalized.conversation ||
           normalized.extendedTextMessage?.text ||
+          normalized.imageMessage?.caption ||
           '';
 
-        if (!content.trim()) continue;
+        // Download image if present
+        const images: string[] = [];
+        if (normalized.imageMessage) {
+          try {
+            const buffer = await downloadMediaMessage(msg, 'buffer', {});
+            const mimetype = normalized.imageMessage.mimetype || 'image/jpeg';
+            images.push(`data:${mimetype};base64,${(buffer as Buffer).toString('base64')}`);
+          } catch (err) {
+            logger.warn({ err, msgId: msg.key.id }, 'Failed to download image');
+          }
+        }
+
+        if (!content.trim() && images.length === 0) continue;
 
         // In personal-number mode, bot replies are prefixed with ASSISTANT_NAME.
         // When WhatsApp echoes the sent message back, drop it to break the loop.
@@ -321,6 +337,7 @@ export class WhatsAppClient {
           senderName,
           content,
           timestamp,
+          ...(images.length > 0 ? { images } : {}),
         });
       }
     });
@@ -347,6 +364,28 @@ export class WhatsAppClient {
     } catch (err) {
       this.outgoingQueue.push({ jid, text });
       logger.warn({ jid, err, queueSize: this.outgoingQueue.length }, 'Send failed, message queued');
+    }
+  }
+
+  async sendImage(jid: string, imageBuffer: Buffer, caption?: string): Promise<void> {
+    if (!this.connected) {
+      logger.warn({ jid }, 'WA disconnected, cannot send image');
+      return;
+    }
+
+    try {
+      const payload: { image: Buffer; caption?: string } = { image: imageBuffer };
+      if (caption) payload.caption = caption;
+      const result = await this.sock.sendMessage(jid, payload);
+      logger.info(
+        { jid, msgId: result?.key?.id, caption: caption ?? '' },
+        'Image sent',
+      );
+      if (result?.key?.id && result.message) {
+        this.storeSentMessage(result.key.id, result.message);
+      }
+    } catch (err) {
+      logger.warn({ jid, err }, 'Failed to send image');
     }
   }
 

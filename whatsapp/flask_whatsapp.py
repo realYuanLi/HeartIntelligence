@@ -120,11 +120,16 @@ def _get_or_create_session(sender_jid: str, sender_name: str) -> str:
 
 # ── Message handling (mirrors app.api_message) ──────────────────────────────
 
-def handle_message(sender_jid: str, sender_name: str, content: str) -> tuple[str, str]:
-    """Process one inbound WhatsApp message and return (reply, session_id)."""
+def handle_message(
+    sender_jid: str,
+    sender_name: str,
+    content: str,
+    images: list[str] | None = None,
+) -> tuple[str, str, list]:
+    """Process one inbound WhatsApp message and return (reply, session_id, exercise_images)."""
     if sender_jid in _in_flight:
         logger.debug("Message from %s already in-flight, dropping", sender_jid)
-        return "", ""
+        return "", "", []
     _in_flight.add(sender_jid)
 
     try:
@@ -132,9 +137,12 @@ def handle_message(sender_jid: str, sender_name: str, content: str) -> tuple[str
         d = _load_chat(session_id)
         if not d:
             logger.error("Session %s not found on disk", session_id)
-            return "Internal error — session lost.", session_id
+            return "Internal error — session lost.", session_id, []
 
-        d["conversation"].append({"role": "user", "content": content})
+        user_msg: dict = {"role": "user", "content": content}
+        if images:
+            user_msg["images"] = images
+        d["conversation"].append(user_msg)
 
         from app import Chatbot, PATIENT_DATA, system_prompt
 
@@ -149,7 +157,7 @@ def handle_message(sender_jid: str, sender_name: str, content: str) -> tuple[str
 
         # Check for reminder intent via LLM
         try:
-            from cron_jobs import create_reminder_from_chat
+            from functions.cron_jobs import create_reminder_from_chat
             reminder_job = create_reminder_from_chat(
                 user_message=content,
                 user="whatsapp_bot",
@@ -175,8 +183,12 @@ def handle_message(sender_jid: str, sender_name: str, content: str) -> tuple[str
 
         resp = Chatbot.llm_reply(messages)
         reply = resp.content if hasattr(resp, "content") else str(resp)
+        exercise_images = getattr(resp, "exercise_images", []) or []
 
-        d["conversation"].append({"role": "assistant", "content": reply})
+        assistant_entry = {"role": "assistant", "content": reply}
+        if exercise_images:
+            assistant_entry["exercise_images"] = exercise_images
+        d["conversation"].append(assistant_entry)
         d["updated_at"] = _now_iso()
         _save_chat(d)
 
@@ -187,7 +199,7 @@ def handle_message(sender_jid: str, sender_name: str, content: str) -> tuple[str
             _generate_summary_async("whatsapp_bot", session_id, d["conversation"])
 
         logger.info("Reply to WhatsApp user %s (len=%d)", sender_jid, len(reply))
-        return reply, session_id
+        return reply, session_id, exercise_images
     except Exception as e:
         logger.error(
             "Failed to handle message from %s: %s", sender_jid, e, exc_info=True,
@@ -195,7 +207,7 @@ def handle_message(sender_jid: str, sender_name: str, content: str) -> tuple[str
         return (
             "Sorry, I'm having trouble responding right now. "
             "Please try again in a moment."
-        ), ""
+        ), "", []
     finally:
         _in_flight.discard(sender_jid)
 
@@ -224,18 +236,22 @@ def api_whatsapp_message():
     sender_jid = (data.get("sender_jid") or "").strip()
     sender_name = (data.get("sender_name") or "").strip()
     text = (data.get("message") or "").strip()
+    images = data.get("images") or []
 
     if not sender_jid:
         return jsonify(success=False, message="sender_jid is required"), 400
-    if not text:
+    if not text and not images:
         return jsonify(success=False, message="message is required"), 400
 
-    reply, session_id = handle_message(sender_jid, sender_name, text)
+    reply, session_id, exercise_images = handle_message(sender_jid, sender_name, text, images or None)
 
     if not reply:
         return jsonify(success=False, message="Message dropped (in-flight)"), 429
 
-    return jsonify(success=True, assistant_message=reply, session_id=session_id)
+    result = {"success": True, "assistant_message": reply, "session_id": session_id}
+    if exercise_images:
+        result["exercise_images"] = exercise_images
+    return jsonify(result)
 
 
 @whatsapp_bp.route("/api/whatsapp/sessions")
@@ -286,11 +302,13 @@ def api_whatsapp_session(session_id: str):
     if not d:
         return jsonify(success=False, message="Session not found"), 404
 
-    convo = [
-        {"role": m["role"], "content": m["content"]}
-        for m in d.get("conversation", [])
-        if m.get("role") in ("user", "assistant") and m.get("content")
-    ]
+    convo = []
+    for m in d.get("conversation", []):
+        if m.get("role") in ("user", "assistant") and (m.get("content") or m.get("images")):
+            entry = {"role": m["role"], "content": m.get("content", "")}
+            if m.get("images"):
+                entry["images"] = m["images"]
+            convo.append(entry)
 
     return jsonify(
         success=True,

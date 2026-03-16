@@ -16,61 +16,78 @@
 
     <!-- Profile Tab -->
     <div class="nutrition-panel" id="panel-profile">
-      <h2>Nutrition Profile</h2>
-      <form id="profileForm" class="nutrition-form">
-        <div class="form-row">
-          <label>Age<input type="number" name="age" min="1" max="120" /></label>
-          <label>Sex
-            <select name="sex">
-              <option value="male">Male</option>
-              <option value="female">Female</option>
-            </select>
-          </label>
+      <div class="profile-header-row">
+        <h2>What I Know About You</h2>
+        <div class="completeness-ring">
+          <svg viewBox="0 0 36 36" class="circular-chart">
+            <path class="circle-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+            <path class="circle" id="completenessCircle" stroke-dasharray="0, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+            <text x="18" y="20.35" class="percentage" id="completenessText">0%</text>
+          </svg>
         </div>
-        <div class="form-row">
-          <label>Weight (kg)<input type="number" name="weight_kg" step="0.1" min="20" max="300" /></label>
-          <label>Height (cm)<input type="number" name="height_cm" step="0.1" min="100" max="250" /></label>
-        </div>
-        <div class="form-row">
-          <label>Activity Level
-            <select name="activity_level">
-              <option value="sedentary">Sedentary</option>
-              <option value="light">Light</option>
-              <option value="moderate">Moderate</option>
-              <option value="active">Active</option>
-              <option value="very_active">Very Active</option>
-            </select>
-          </label>
-          <label>Weekly Budget (USD)<input type="number" name="weekly_budget_usd" step="1" min="0" placeholder="Optional" /></label>
-        </div>
-        <div class="form-row full">
-          <label>Allergies (comma-separated)<input type="text" name="allergies" placeholder="e.g. peanuts, shellfish" /></label>
-        </div>
-        <div class="form-row full">
-          <label>Dietary Preferences (comma-separated)<input type="text" name="dietary_preferences" placeholder="e.g. mediterranean, vegetarian" /></label>
-        </div>
-        <div class="form-row full">
-          <label>Health Goals (comma-separated)<input type="text" name="health_goals" placeholder="e.g. weight_loss, muscle_gain" /></label>
-        </div>
+      </div>
 
-        <h3>Lab Values (optional)</h3>
-        <div class="form-row">
-          <label>Vitamin D (ng/mL)<input type="number" name="vitamin_d_ng_ml" step="0.1" placeholder="--" /></label>
-          <label>Iron (ug/dL)<input type="number" name="iron_ug_dl" step="0.1" placeholder="--" /></label>
-        </div>
-        <div class="form-row">
-          <label>Total Cholesterol (mg/dL)<input type="number" name="cholesterol_total_mg_dl" step="1" placeholder="--" /></label>
-          <label>LDL (mg/dL)<input type="number" name="ldl_mg_dl" step="1" placeholder="--" /></label>
-        </div>
-        <div class="form-row">
-          <label>HDL (mg/dL)<input type="number" name="hdl_mg_dl" step="1" placeholder="--" /></label>
-          <label>B12 (pg/mL)<input type="number" name="b12_pg_ml" step="0.1" placeholder="--" /></label>
-        </div>
-        <div class="form-row">
-          <label>HbA1c (%)<input type="number" name="hba1c_pct" step="0.1" placeholder="--" /></label>
-        </div>
-        <button type="submit" class="nutrition-btn primary">Save Profile</button>
-      </form>
+      <div id="profileCards" class="profile-cards-grid"></div>
+      <div id="profileMissing" class="profile-missing-hints"></div>
+
+      <button id="editDetailsBtn" class="nutrition-btn" type="button">Edit Details</button>
+
+      <div id="profileFormWrapper" hidden>
+        <form id="profileForm" class="nutrition-form">
+          <div class="form-row">
+            <label>Age<input type="number" name="age" min="1" max="120" /></label>
+            <label>Sex
+              <select name="sex">
+                <option value="male">Male</option>
+                <option value="female">Female</option>
+              </select>
+            </label>
+          </div>
+          <div class="form-row">
+            <label>Weight (kg)<input type="number" name="weight_kg" step="0.1" min="20" max="300" /></label>
+            <label>Height (cm)<input type="number" name="height_cm" step="0.1" min="100" max="250" /></label>
+          </div>
+          <div class="form-row">
+            <label>Activity Level
+              <select name="activity_level">
+                <option value="sedentary">Sedentary</option>
+                <option value="light">Light</option>
+                <option value="moderate">Moderate</option>
+                <option value="active">Active</option>
+                <option value="very_active">Very Active</option>
+              </select>
+            </label>
+            <label>Weekly Budget (USD)<input type="number" name="weekly_budget_usd" step="1" min="0" placeholder="Optional" /></label>
+          </div>
+          <div class="form-row full">
+            <label>Allergies (comma-separated)<input type="text" name="allergies" placeholder="e.g. peanuts, shellfish" /></label>
+          </div>
+          <div class="form-row full">
+            <label>Dietary Preferences (comma-separated)<input type="text" name="dietary_preferences" placeholder="e.g. mediterranean, vegetarian" /></label>
+          </div>
+          <div class="form-row full">
+            <label>Health Goals (comma-separated)<input type="text" name="health_goals" placeholder="e.g. weight_loss, muscle_gain" /></label>
+          </div>
+
+          <h3>Lab Values (optional)</h3>
+          <div class="form-row">
+            <label>Vitamin D (ng/mL)<input type="number" name="vitamin_d_ng_ml" step="0.1" placeholder="--" /></label>
+            <label>Iron (ug/dL)<input type="number" name="iron_ug_dl" step="0.1" placeholder="--" /></label>
+          </div>
+          <div class="form-row">
+            <label>Total Cholesterol (mg/dL)<input type="number" name="cholesterol_total_mg_dl" step="1" placeholder="--" /></label>
+            <label>LDL (mg/dL)<input type="number" name="ldl_mg_dl" step="1" placeholder="--" /></label>
+          </div>
+          <div class="form-row">
+            <label>HDL (mg/dL)<input type="number" name="hdl_mg_dl" step="1" placeholder="--" /></label>
+            <label>B12 (pg/mL)<input type="number" name="b12_pg_ml" step="0.1" placeholder="--" /></label>
+          </div>
+          <div class="form-row">
+            <label>HbA1c (%)<input type="number" name="hba1c_pct" step="0.1" placeholder="--" /></label>
+          </div>
+          <button type="submit" class="nutrition-btn primary">Save Profile</button>
+        </form>
+      </div>
       <div id="profileStatus" class="nutrition-status"></div>
     </div>
 

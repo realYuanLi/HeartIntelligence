@@ -1004,7 +1004,7 @@ body.sources-sidebar-open .message {
   -webkit-box-orient: vertical;
 }
 
-/* ===================== Exercise Image Panel ===================== */
+/* ===================== Exercise Image Panel (side panel — kept for full-view) ===================== */
 .exercise-image-panel {
   position: fixed;
   top: 0;
@@ -1081,24 +1081,6 @@ body.sources-sidebar-open .message {
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
 }
-.view-exercises-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  margin-top: 0.6rem;
-  padding: 0.3rem 0.7rem;
-  font-size: 0.78rem;
-  color: var(--accent);
-  background: none;
-  border: 1px solid var(--accent);
-  border-radius: 1rem;
-  cursor: pointer;
-  transition: background 0.15s, color 0.15s;
-}
-.view-exercises-btn:hover {
-  background: var(--accent);
-  color: #fff;
-}
 
 @media (max-width: 768px) {
   .exercise-image-panel {
@@ -1117,6 +1099,186 @@ body.sources-sidebar-open .message {
   }
   .exercise-image-panel.open {
     transform: translateY(0);
+  }
+}
+
+/* ===================== Inline Exercise Image Strip (in chat bubble) ===================== */
+.inline-exercise-strip {
+  margin-top: 0.75rem;
+  border-top: 1px solid var(--border);
+  padding-top: 0.6rem;
+}
+.inline-exercise-strip-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+}
+.inline-exercise-strip-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+.inline-exercise-expand-btn {
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: var(--accent);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.15rem 0.4rem;
+  border-radius: 0.3rem;
+  transition: background 0.15s;
+}
+.inline-exercise-expand-btn:hover {
+  background: rgba(255, 104, 80, 0.08);
+}
+.inline-exercise-scroll {
+  display: flex;
+  gap: 0.6rem;
+  overflow-x: auto;
+  padding-bottom: 0.35rem;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+.inline-exercise-scroll::-webkit-scrollbar {
+  height: 4px;
+}
+.inline-exercise-scroll::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 2px;
+}
+.inline-exercise-item {
+  flex-shrink: 0;
+  width: 80px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+}
+.inline-exercise-item img {
+  width: 80px;
+  height: 80px;
+  object-fit: cover;
+  border-radius: 0.5rem;
+  border: 1px solid var(--border);
+  transition: transform 0.15s, box-shadow 0.15s;
+  cursor: pointer;
+}
+.inline-exercise-item img:hover {
+  transform: scale(1.04);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+.inline-exercise-item span {
+  font-size: 0.65rem;
+  color: var(--muted);
+  text-align: center;
+  line-height: 1.2;
+  max-width: 80px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+/* ===================== Inline Chat Workout Widget ===================== */
+.inline-workout-widget {
+  margin-top: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 0.65rem;
+  background: var(--card);
+  overflow: hidden;
+}
+.inline-workout-widget-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem 0.7rem;
+  background: rgba(255, 104, 80, 0.05);
+  border-bottom: 1px solid var(--border);
+}
+.inline-workout-widget-title {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+.inline-workout-widget-title svg {
+  width: 14px;
+  height: 14px;
+  color: var(--accent);
+}
+.inline-workout-widget-link {
+  font-size: 0.7rem;
+  color: var(--accent);
+  text-decoration: none;
+  font-weight: 500;
+}
+.inline-workout-widget-link:hover {
+  text-decoration: underline;
+}
+.inline-workout-widget-body {
+  padding: 0.5rem 0.7rem;
+  max-height: 220px;
+  overflow-y: auto;
+}
+.inline-workout-exercise {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.35rem 0;
+}
+.inline-workout-exercise + .inline-workout-exercise {
+  border-top: 1px solid var(--border);
+}
+.inline-workout-exercise img {
+  width: 40px;
+  height: 40px;
+  object-fit: cover;
+  border-radius: 0.35rem;
+  flex-shrink: 0;
+}
+.inline-workout-exercise-placeholder {
+  width: 40px;
+  height: 40px;
+  border-radius: 0.35rem;
+  flex-shrink: 0;
+  background: var(--bg);
+  border: 1px dashed var(--border);
+}
+.inline-workout-exercise-info {
+  flex: 1;
+  min-width: 0;
+}
+.inline-workout-exercise-name {
+  font-size: 0.78rem;
+  font-weight: 600;
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.inline-workout-exercise-meta {
+  font-size: 0.68rem;
+  color: var(--muted);
+}
+
+@media (max-width: 768px) {
+  .inline-exercise-item {
+    width: 68px;
+  }
+  .inline-exercise-item img {
+    width: 68px;
+    height: 68px;
+  }
+  .inline-exercise-item span {
+    max-width: 68px;
+    font-size: 0.6rem;
   }
 }
 
@@ -5203,9 +5365,102 @@ body.sources-sidebar-open .input-container.fixed {
   border-radius: 50%;
 }
 
+/* ---- Selected cell highlight ---- */
+.cal-cell.selected {
+  box-shadow: inset 0 0 0 2px var(--accent);
+  background: rgba(255, 104, 80, 0.04);
+}
+
+/* ---- Week strip ---- */
+.week-strip {
+  margin: 0.75rem 1.5rem 0;
+  background: var(--card);
+  border-radius: 0.75rem;
+  border: 1px solid var(--border);
+  padding: 0.75rem;
+}
+.week-strip-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  margin-bottom: 0.6rem;
+}
+.week-label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text);
+  min-width: 120px;
+  text-align: center;
+}
+.week-days {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 0.35rem;
+}
+.week-day-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0.4rem 0.25rem;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.week-day-cell:hover {
+  background: var(--bg);
+}
+.week-day-cell.selected {
+  background: rgba(255, 104, 80, 0.08);
+  box-shadow: inset 0 0 0 1.5px var(--accent);
+}
+.week-day-cell.today .week-day-num {
+  background: var(--accent);
+  color: #fff;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.week-day-cell.completed {
+  background: #f0fdf4;
+}
+.week-day-cell.missed {
+  opacity: 0.5;
+}
+.week-day-label {
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  margin-bottom: 0.15rem;
+}
+.week-day-num {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 0.2rem;
+}
+.week-day-indicator {
+  font-size: 0.6rem;
+  font-weight: 600;
+  color: var(--accent);
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+}
+.week-day-indicator.has-workout {
+  background: rgba(255, 104, 80, 0.1);
+}
+
 /* ---- Today's workout panel ---- */
 .today-panel {
-  margin: 1.75rem 1.5rem 0;
+  margin: 0.75rem 1.5rem 0;
   padding: 1.5rem;
   background: var(--card);
   border-radius: 0.75rem;
@@ -5276,11 +5531,45 @@ body.sources-sidebar-open .input-container.fixed {
   display: flex;
   flex-direction: column;
 }
+.exercise-name-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.35rem;
+  margin-bottom: 0.3rem;
+}
 .exercise-name {
   font-weight: 600;
   font-size: 0.9rem;
   line-height: 1.3;
-  margin-bottom: 0.3rem;
+  flex: 1;
+  min-width: 0;
+}
+.exercise-delete-btn {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: none;
+  color: var(--muted);
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+  border-radius: 50%;
+  transition: background 0.15s, color 0.15s;
+  padding: 0;
+}
+.exercise-delete-btn:hover {
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+}
+.today-complete-btn.done {
+  background: #dcfce7;
+  color: #16a34a;
+  cursor: default;
 }
 .exercise-meta {
   display: flex;
@@ -5303,22 +5592,30 @@ body.sources-sidebar-open .input-container.fixed {
   border-color: rgba(255, 104, 80, 0.2);
 }
 .details-btn {
-  margin-top: auto;
-  padding: 0.2rem 0;
-  font-size: 0.78rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin-top: 0.25rem;
+  padding: 0.2rem 0.55rem;
+  font-size: 0.7rem;
   font-weight: 500;
-  border: none;
-  background: none;
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  background: var(--card);
   cursor: pointer;
   color: var(--accent);
-  text-align: left;
-  transition: opacity 0.15s;
+  transition: background 0.15s, border-color 0.15s;
+  width: auto;
+  align-self: flex-start;
 }
 .details-btn:hover {
-  opacity: 0.7;
+  background: rgba(255, 104, 80, 0.06);
+  border-color: rgba(255, 104, 80, 0.3);
 }
 .details-btn.open {
   color: var(--muted);
+  border-color: var(--border);
+  background: var(--bg);
 }
 .exercise-details {
   margin-top: 0.5rem;
@@ -5380,6 +5677,19 @@ body.sources-sidebar-open .input-container.fixed {
   }
   .plan-strip {
     padding: 0.5rem 1rem 0.25rem;
+  }
+  .week-strip {
+    margin: 0.5rem 0.75rem 0;
+    padding: 0.5rem;
+  }
+  .week-day-cell {
+    padding: 0.3rem 0.15rem;
+  }
+  .week-day-label {
+    font-size: 0.55rem;
+  }
+  .week-day-num {
+    font-size: 0.75rem;
   }
 }
 
@@ -5797,4 +6107,136 @@ body.sources-sidebar-open .input-container.fixed {
   .pantry-add-section .form-row {
     flex-wrap: wrap;
   }
+}
+
+/* ===================== Profile Cards & Completeness Ring ===================== */
+
+.profile-header-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+.profile-header-row h2 {
+  margin: 0;
+}
+
+.completeness-ring {
+  flex-shrink: 0;
+  width: 52px;
+  height: 52px;
+}
+.circular-chart {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.circle-bg {
+  fill: none;
+  stroke: var(--border);
+  stroke-width: 3.8;
+}
+.circle {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 3.8;
+  stroke-linecap: round;
+  transition: stroke-dasharray 0.4s ease;
+}
+.percentage {
+  fill: var(--text);
+  font-size: 0.45em;
+  text-anchor: middle;
+  font-weight: 600;
+}
+
+.profile-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+.card-group {
+  background: var(--card);
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+}
+.card-group h4 {
+  margin: 0 0 0.5rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+.card-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+.profile-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 0.25rem 0.6rem;
+  font-size: 0.85rem;
+  line-height: 1.3;
+}
+.chip-label {
+  font-weight: 600;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+.chip-value {
+  color: var(--text);
+}
+.chip-source {
+  font-size: 0.75rem;
+  cursor: help;
+}
+.chip-delete {
+  background: none;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 0.9rem;
+  padding: 0 0.15rem;
+  line-height: 1;
+  border-radius: 50%;
+  transition: color 0.15s, background 0.15s;
+}
+.chip-delete:hover {
+  color: #d00;
+  background: rgba(200,0,0,0.08);
+}
+
+.profile-missing-hints {
+  margin: 0.75rem 0 1rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.85rem;
+}
+.hint-label {
+  font-weight: 600;
+  color: var(--muted);
+}
+.hint-chip {
+  display: inline-block;
+  background: var(--card);
+  border: 1px dashed var(--border);
+  border-radius: 16px;
+  padding: 0.2rem 0.6rem;
+  color: var(--muted-2);
+  font-size: 0.8rem;
+}
+
+.empty-state {
+  color: var(--muted);
+  text-align: center;
+  padding: 2rem 1rem;
+  font-style: italic;
 }

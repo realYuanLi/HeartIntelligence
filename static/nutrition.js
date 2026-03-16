@@ -13,6 +13,10 @@
   const panels = document.querySelectorAll(".nutrition-panel");
   const profileForm = document.getElementById("profileForm");
   const profileStatus = document.getElementById("profileStatus");
+  const profileCards = document.getElementById("profileCards");
+  const profileMissing = document.getElementById("profileMissing");
+  const editDetailsBtn = document.getElementById("editDetailsBtn");
+  const profileFormWrapper = document.getElementById("profileFormWrapper");
   const planInfo = document.getElementById("planInfo");
   const planDetails = document.getElementById("planDetails");
   const createPlanBtn = document.getElementById("createPlanBtn");
@@ -57,7 +61,11 @@
     fetch("/api/nutrition-profile")
       .then(r => r.json())
       .then(data => {
-        if (!data.success || !data.profile) return;
+        if (!data.success || !data.profile) {
+          renderProfileCards(null);
+          loadCompleteness();
+          return;
+        }
         const p = data.profile;
         setVal("age", p.age);
         setVal("sex", p.sex);
@@ -76,6 +84,8 @@
         setVal("hdl_mg_dl", lab.hdl_mg_dl);
         setVal("b12_pg_ml", lab.b12_pg_ml);
         setVal("hba1c_pct", lab.hba1c_pct);
+        renderProfileCards(p);
+        loadCompleteness();
       })
       .catch(() => {});
   }
@@ -200,7 +210,7 @@
       realAlerts.forEach(a => {
         html += `<li><strong>${escapeHtml(a.nutrient)}:</strong> ${escapeHtml(a.message)}`;
         if (a.food_suggestions && a.food_suggestions.length) {
-          html += ` <em>(Try: ${a.food_suggestions.slice(0, 4).join(", ")})</em>`;
+          html += ` <em>(Try: ${a.food_suggestions.slice(0, 4).map(escapeHtml).join(", ")})</em>`;
         }
         html += `</li>`;
       });
@@ -420,6 +430,144 @@
   }
 
   checkNutrientsBtn.addEventListener("click", loadNutrients);
+
+  /* ================================================================ */
+  /*  Profile Cards & Completeness                                    */
+  /* ================================================================ */
+
+  function loadCompleteness() {
+    fetch("/api/nutrition-profile/completeness")
+      .then(r => r.json())
+      .then(data => {
+        if (!data.success) return;
+        const circle = document.getElementById("completenessCircle");
+        const text = document.getElementById("completenessText");
+        if (circle) circle.setAttribute("stroke-dasharray", data.score + ", 100");
+        if (text) text.textContent = data.score + "%";
+
+        if (profileMissing && data.missing_suggestions && data.missing_suggestions.length) {
+          let html = '<span class="hint-label">Help me learn more:</span> ';
+          data.missing_suggestions.forEach(s => {
+            html += '<span class="hint-chip">' + escapeHtml(s) + '</span>';
+          });
+          profileMissing.innerHTML = html;
+        } else if (profileMissing) {
+          profileMissing.innerHTML = "";
+        }
+      })
+      .catch(() => {});
+  }
+
+  const _fieldLabels = {
+    age: "Age", weight_kg: "Weight", height_cm: "Height", sex: "Sex",
+    activity_level: "Activity", allergies: "Allergies",
+    dietary_preferences: "Diet Preferences", health_goals: "Health Goals",
+    weekly_budget_usd: "Budget", lab_values: "Lab Values"
+  };
+
+  const _fieldGroups = {
+    "Body Stats": ["age", "weight_kg", "height_cm", "sex"],
+    "Lifestyle": ["activity_level", "weekly_budget_usd"],
+    "Preferences & Goals": ["dietary_preferences", "allergies", "health_goals"],
+    "Lab Values": ["lab_values"]
+  };
+
+  const _defaults = {
+    age: 30, weight_kg: 70.0, height_cm: 170.0, sex: "male",
+    activity_level: "moderate", allergies: [], dietary_preferences: [],
+    health_goals: [], weekly_budget_usd: null, lab_values: {}
+  };
+
+  function renderProfileCards(profile) {
+    if (!profileCards) return;
+    if (!profile) {
+      profileCards.innerHTML = '<div class="empty-state">No profile data yet. Chat with the assistant or click Edit Details to get started.</div>';
+      return;
+    }
+    const meta = profile.insight_meta || {};
+    let html = "";
+
+    for (const [groupName, fields] of Object.entries(_fieldGroups)) {
+      let chips = "";
+      fields.forEach(key => {
+        const val = profile[key];
+        const def = _defaults[key];
+        let display = "";
+        let filled = false;
+
+        if (key === "lab_values" && typeof val === "object" && val) {
+          const filledLabs = Object.entries(val).filter(([, v]) => v !== null);
+          if (filledLabs.length) {
+            filled = true;
+            display = filledLabs.map(([k, v]) => k.replace(/_/g, " ") + ": " + v).join(", ");
+          }
+        } else if (Array.isArray(val)) {
+          if (val.length > 0) { filled = true; display = val.join(", "); }
+        } else if (val !== null && val !== undefined && val !== def) {
+          filled = true;
+          display = key === "weekly_budget_usd" ? "$" + val : String(val);
+        }
+
+        if (filled) {
+          const source = meta[key] && meta[key].source === "chat" ? ' <span class="chip-source" title="Learned from conversation">&#x1f4ac;</span>' : "";
+          chips += '<div class="profile-chip">'
+            + '<span class="chip-label">' + escapeHtml(_fieldLabels[key] || key) + '</span> '
+            + '<span class="chip-value">' + escapeHtml(display) + '</span>'
+            + source
+            + ' <button class="chip-delete" data-field="' + key + '" title="Remove">&times;</button>'
+            + '</div>';
+        }
+      });
+
+      if (chips) {
+        html += '<div class="card-group"><h4>' + escapeHtml(groupName) + '</h4><div class="card-chips">' + chips + '</div></div>';
+      }
+    }
+
+    if (!html) {
+      profileCards.innerHTML = '<div class="empty-state">No profile data yet. Chat with the assistant or click Edit Details to get started.</div>';
+    } else {
+      profileCards.innerHTML = html;
+    }
+
+    // Wire delete buttons
+    profileCards.querySelectorAll(".chip-delete").forEach(btn => {
+      btn.addEventListener("click", () => deleteProfileField(btn.dataset.field));
+    });
+  }
+
+  function deleteProfileField(fieldName) {
+    const resetData = {};
+    if (fieldName === "lab_values") {
+      resetData.lab_values = {
+        vitamin_d_ng_ml: null, iron_ug_dl: null,
+        cholesterol_total_mg_dl: null, ldl_mg_dl: null,
+        hdl_mg_dl: null, b12_pg_ml: null, hba1c_pct: null
+      };
+    } else if (Array.isArray(_defaults[fieldName])) {
+      resetData[fieldName] = [];
+    } else {
+      resetData[fieldName] = _defaults[fieldName];
+    }
+    resetData.insight_meta = { [fieldName]: null };
+    fetch("/api/nutrition-profile", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(resetData),
+    })
+      .then(r => r.json())
+      .then(() => loadProfile())
+      .catch(() => {});
+  }
+
+  // Edit Details toggle
+  if (editDetailsBtn && profileFormWrapper) {
+    editDetailsBtn.addEventListener("click", () => {
+      const hidden = profileFormWrapper.hidden;
+      profileFormWrapper.hidden = !hidden;
+      editDetailsBtn.textContent = hidden ? "Hide Form" : "Edit Details";
+    });
+  }
 
   /* ---- Utility ---- */
   function escapeHtml(str) {

@@ -1682,25 +1682,13 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     }
     
-    // Render exercise image gallery below the text
+    // Show a button to view exercise images in the side panel
     if (exerciseImages && exerciseImages.length > 0) {
-      const gallery = document.createElement("div");
-      gallery.className = "exercise-gallery";
-      exerciseImages.forEach(item => {
-        const card = document.createElement("div");
-        card.className = "exercise-card";
-        const img = document.createElement("img");
-        img.src = item.url;
-        img.alt = item.name;
-        img.loading = "lazy";
-        const label = document.createElement("span");
-        label.className = "exercise-label";
-        label.textContent = item.name;
-        card.appendChild(img);
-        card.appendChild(label);
-        gallery.appendChild(card);
-      });
-      div.appendChild(gallery);
+      const btn = document.createElement("button");
+      btn.className = "view-exercises-btn";
+      btn.textContent = `View exercise images (${exerciseImages.length})`;
+      btn.addEventListener("click", () => showExercisePanel(exerciseImages));
+      div.appendChild(btn);
     }
 
     // Add Sources button for assistant messages with citations
@@ -1713,11 +1701,57 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     box.appendChild(div);
-    
+
     // Force a reflow to ensure the message is immediately visible and positioned correctly
     div.offsetHeight;
-    
+
     // Scroll to bottom after positioning is applied
     box.scrollTop = box.scrollHeight;
+  }
+
+  /* ==================================================== */
+  /*  Exercise image panel                                 */
+  /* ==================================================== */
+  function showExercisePanel(images) {
+    const panel = document.getElementById("exerciseImagePanel");
+    const grid = document.getElementById("exercisePanelGrid");
+    if (!panel || !grid) return;
+
+    grid.innerHTML = "";
+    images.forEach(item => {
+      const card = document.createElement("div");
+      card.className = "exercise-panel-card";
+      const img = document.createElement("img");
+      img.src = item.url;
+      img.alt = item.name;
+      img.loading = "lazy";
+      img.onerror = () => { card.remove(); };
+      const label = document.createElement("span");
+      label.textContent = item.name;
+      card.appendChild(img);
+      card.appendChild(label);
+      grid.appendChild(card);
+    });
+
+    panel.hidden = false;
+    // Trigger reflow before adding open class for transition
+    panel.offsetHeight;
+    panel.classList.add("open");
+  }
+
+  function hideExercisePanel() {
+    const panel = document.getElementById("exerciseImagePanel");
+    if (!panel) return;
+    if (!panel.classList.contains("open")) return;
+    panel.classList.remove("open");
+    panel.addEventListener("transitionend", function onEnd() {
+      panel.removeEventListener("transitionend", onEnd);
+      panel.hidden = true;
+    });
+  }
+
+  const exerciseCloseBtn = document.getElementById("exercisePanelClose");
+  if (exerciseCloseBtn) {
+    exerciseCloseBtn.addEventListener("click", hideExercisePanel);
   }
 });

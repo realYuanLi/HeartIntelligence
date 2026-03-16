@@ -99,18 +99,28 @@ class Agent:
         "type": "function",
         "function": {
             "name": "manage_nutrition",
-            "description": "Create, modify, or view the user's meal plan, grocery list, nutrition profile, or nutrient gaps.",
+            "description": (
+                "Create, modify, or view the user's meal plan, grocery list, nutrition profile, or nutrient gaps. "
+                "IMPORTANT: When the user reveals personal nutrition-relevant facts in conversation "
+                "(weight, height, age, sex, allergies, dietary preferences like vegetarian/vegan/keto, "
+                "health goals like weight loss, activity level, budget), call this tool with action "
+                "'extract_insights' and details as a JSON object of the extracted fields. Field names: "
+                "age, weight_kg, height_cm, sex, activity_level, allergies (array), dietary_preferences "
+                "(array), health_goals (array), weekly_budget_usd. Include a _snippets object mapping "
+                "field names to the exact user quote. You may call extract_insights alongside your "
+                "normal response."
+            ),
             "parameters": {
                 "type": "object",
                 "properties": {
                     "action": {
                         "type": "string",
-                        "enum": ["create_plan", "modify_plan", "view_plan", "grocery_list", "update_profile", "nutrient_check"],
+                        "enum": ["create_plan", "modify_plan", "view_plan", "grocery_list", "update_profile", "nutrient_check", "extract_insights"],
                         "description": "The action to perform on the nutrition plan or profile"
                     },
                     "details": {
                         "type": "string",
-                        "description": "Plan description, modification request, or profile fields as JSON"
+                        "description": "Plan description, modification request, profile fields as JSON, or for extract_insights a JSON object with extracted fields and optional _snippets mapping"
                     }
                 },
                 "required": ["action"]
@@ -226,6 +236,12 @@ class Agent:
                     context_sections.append(f"CURRENT INFORMATION:\n{web_output['web_summary']}")
                 if health_output.get("activated") and health_output.get("health_summary"):
                     context_sections.append(f"PERSONAL HEALTH DATA:\n{health_output['health_summary']}")
+
+                exam_output = skill_results.get("physical_exam_interpreter", {})
+                if exam_output.get("activated") and exam_output.get("exam_summary"):
+                    exam_context = "PHYSICAL EXAM FINDINGS REFERENCE (use ONLY this data — do not add outside associations):\n"
+                    exam_context += exam_output["exam_summary"]
+                    context_sections.append(exam_context)
 
                 if context_sections:
                     combined = "\n\n".join(context_sections)

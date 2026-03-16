@@ -1,5 +1,6 @@
 """Nutrition plan persistence, CRUD API, LLM plan generation, and Flask Blueprint."""
 
+import copy
 import json
 import logging
 import uuid
@@ -72,6 +73,7 @@ _DEFAULT_PROFILE = {
         "hba1c_pct": None,
     },
     "updated_at": None,
+    "insight_meta": {},
 }
 
 
@@ -92,6 +94,132 @@ def _save_profile(username: str, profile: dict):
     profile["updated_at"] = datetime.now().isoformat(timespec="seconds")
     with p.open("w", encoding="utf-8") as f:
         json.dump(profile, f, indent=2, ensure_ascii=False)
+
+
+def merge_extracted_insights(username: str, insights: dict) -> str:
+    """Merge chat-extracted insights into the user's nutrition profile.
+
+    *insights* is a dict like ``{"weight_kg": 80, "allergies": ["nuts"],
+    "_snippets": {"weight_kg": "I weigh 80 kg"}}``.  Returns a confirmation
+    string listing what was learned.
+    """
+    profile = _load_profile(username) or copy.deepcopy(_DEFAULT_PROFILE)
+    snippets = insights.pop("_snippets", {}) or {}
+    meta = profile.get("insight_meta", {})
+    learned: list[str] = []
+    now_iso = datetime.now().isoformat(timespec="seconds")
+    list_fields = {"allergies", "dietary_preferences", "health_goals"}
+
+    for key, value in insights.items():
+        if key == "lab_values" and isinstance(value, dict):
+            existing_labs = profile.get("lab_values", copy.deepcopy(_DEFAULT_PROFILE["lab_values"]))
+            for lab_key, lab_val in value.items():
+                if lab_val is not None:
+                    try:
+                        existing_labs[lab_key] = float(lab_val)
+                    except (TypeError, ValueError):
+                        continue
+                    meta[f"lab_values.{lab_key}"] = {
+                        "source": "chat",
+                        "extracted_at": now_iso,
+                        "snippet": snippets.get("lab_values", snippets.get(lab_key)),
+                    }
+                    learned.append(f"lab_values.{lab_key}")
+            profile["lab_values"] = existing_labs
+            continue
+
+        if key not in _DEFAULT_PROFILE or key in ("updated_at", "insight_meta"):
+            continue
+
+        if key in list_fields:
+            existing = profile.get(key, [])
+            if not isinstance(existing, list):
+                existing = []
+            new_items = value if isinstance(value, list) else [value]
+            combined = existing + [str(item) for item in new_items]
+            profile[key] = list(dict.fromkeys(combined))  # deduplicate, preserve order
+        else:
+            # scalar — validate via _validate_profile_fields
+            validated = _validate_profile_fields({key: value})
+            if key in validated:
+                profile[key] = validated[key]
+            else:
+                continue
+
+        meta[key] = {
+            "source": "chat",
+            "extracted_at": now_iso,
+            "snippet": snippets.get(key),
+        }
+        learned.append(key)
+
+    profile["insight_meta"] = meta
+    _save_profile(username, profile)
+
+    if not learned:
+        return "No new profile information was extracted."
+    return "Profile updated with: " + ", ".join(learned) + "."
+
+
+def compute_profile_completeness(profile: dict) -> dict:
+    """Return a completeness assessment of the nutrition profile.
+
+    Returns ``{"score": 0-100, "filled": [...], "missing": [...],
+    "missing_suggestions": [...]}``.
+    """
+    weights = {
+        "age": 7.5, "weight_kg": 7.5, "height_cm": 7.5, "sex": 7.5,
+        "activity_level": 10,
+        "dietary_preferences": 15,
+        "allergies": 10,
+        "health_goals": 15,
+        "weekly_budget_usd": 5,
+        "lab_values": 15,
+    }
+    defaults = _DEFAULT_PROFILE
+    meta = profile.get("insight_meta", {})
+    filled: list[str] = []
+    missing: list[str] = []
+
+    def _is_filled(key: str) -> bool:
+        val = profile.get(key)
+        default_val = defaults.get(key)
+        if val is None:
+            return False
+        if isinstance(default_val, list) and isinstance(val, list):
+            return len(val) > 0
+        if isinstance(default_val, dict) and isinstance(val, dict):
+            return any(v is not None for v in val.values())
+        return val != default_val or key in meta
+
+    score = 0.0
+    for key, pts in weights.items():
+        if _is_filled(key):
+            score += pts
+            filled.append(key)
+        else:
+            missing.append(key)
+
+    suggestion_map = {
+        "age": "How old are you?",
+        "weight_kg": "What is your current weight?",
+        "height_cm": "How tall are you?",
+        "sex": "What is your biological sex?",
+        "activity_level": "How active are you day to day?",
+        "dietary_preferences": "Any dietary style you follow (vegetarian, keto, etc.)?",
+        "allergies": "Do you have any food allergies?",
+        "health_goals": "What are your health or nutrition goals?",
+        "weekly_budget_usd": "Do you have a weekly grocery budget?",
+        "lab_values": "Do you have any recent blood test results?",
+    }
+    missing_suggestions = [suggestion_map[k] for k in missing if k in suggestion_map]
+
+    return {
+        "score": min(100, round(score)),
+        "filled": filled,
+        "missing": missing,
+        "missing_suggestions": missing_suggestions,
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -568,10 +696,14 @@ def handle_nutrition_tool(action: str, details: str = "", username: str = "") ->
         plan = _get_active_plan(username)
         return get_plan_summary(plan)
 
+    elif action == "extract_insights":
+        try:
+            insights = json.loads(details) if isinstance(details, str) else (details or {})
+        except json.JSONDecodeError:
+            return "Could not parse insights."
+        return merge_extracted_insights(username, insights)
+
     elif action == "create_plan":
-        profile = _load_profile(username)
-        if not profile:
-            return "Please set up your nutrition profile first. Tell me your age, weight, height, sex, activity level, any allergies, dietary preferences, and health goals."
         plan = generate_nutrition_plan(details or "Create a balanced 7-day meal plan", username)
         _set_active_plan(username, plan)
         return f"Meal plan created: **{plan['title']}**\n\n{get_plan_summary(plan)}"
@@ -591,7 +723,7 @@ def handle_nutrition_tool(action: str, details: str = "", username: str = "") ->
         return get_grocery_summary(plan)
 
     elif action == "update_profile":
-        profile = _load_profile(username) or dict(_DEFAULT_PROFILE)
+        profile = _load_profile(username) or copy.deepcopy(_DEFAULT_PROFILE)
         try:
             updates = json.loads(details) if details else {}
         except json.JSONDecodeError:
@@ -600,7 +732,7 @@ def handle_nutrition_tool(action: str, details: str = "", username: str = "") ->
         for key in _DEFAULT_PROFILE:
             if key in updates:
                 if key == "lab_values" and isinstance(updates[key], dict):
-                    existing_labs = profile.get("lab_values", dict(_DEFAULT_PROFILE["lab_values"]))
+                    existing_labs = profile.get("lab_values", copy.deepcopy(_DEFAULT_PROFILE["lab_values"]))
                     existing_labs.update(updates[key])
                     profile["lab_values"] = existing_labs
                 else:
@@ -747,12 +879,12 @@ def api_save_profile():
     if not _require_login():
         return jsonify(success=False, message="Login required"), 401
     data = request.get_json(force=True)
-    profile = _load_profile(_username()) or dict(_DEFAULT_PROFILE)
+    profile = _load_profile(_username()) or copy.deepcopy(_DEFAULT_PROFILE)
 
     validated = _validate_profile_fields(data)
     for key, value in validated.items():
         if key == "lab_values" and isinstance(value, dict):
-            existing_labs = profile.get("lab_values", dict(_DEFAULT_PROFILE["lab_values"]))
+            existing_labs = profile.get("lab_values", copy.deepcopy(_DEFAULT_PROFILE["lab_values"]))
             existing_labs.update(value)
             profile["lab_values"] = existing_labs
         else:
@@ -780,6 +912,18 @@ def api_save_pantry():
     return jsonify(success=True, pantry=pantry)
 
 
+@nutrition_bp.route("/api/nutrition-profile/completeness")
+def api_profile_completeness():
+    if not _require_login():
+        return jsonify(success=False, message="Login required"), 401
+    username = _username()
+    profile = _load_profile(username)
+    if not profile:
+        profile = copy.deepcopy(_DEFAULT_PROFILE)
+    result = compute_profile_completeness(profile)
+    return jsonify(success=True, **result)
+
+
 @nutrition_bp.route("/api/nutrition-plan")
 def api_get_plan():
     if not _require_login():
@@ -794,9 +938,6 @@ def api_get_plan():
 def api_create_plan():
     if not _require_login():
         return jsonify(success=False, message="Login required"), 401
-    profile = _load_profile(_username())
-    if not profile:
-        return jsonify(success=False, message="Please set up your nutrition profile first."), 400
     data = request.get_json(force=True)
     details = data.get("details", "Create a balanced 7-day meal plan")
     try:

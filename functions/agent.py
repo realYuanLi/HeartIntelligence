@@ -1,11 +1,15 @@
 import json
+import logging
 import os
 import openai
 import asyncio
 import threading
 import tiktoken
 from dotenv import load_dotenv
+
+logger = logging.getLogger(__name__)
 from .skills_runtime import SkillRuntime
+from .agentic_loop import LoopState, classify_query, generate_plan, summarize_tool_result, should_continue
 load_dotenv()
 
 openai.api_key = os.getenv("OPENAI_API_KEY")
@@ -25,7 +29,7 @@ def get_status():
         return current_status["status"]
 
 class Agent:
-    
+
     def __init__(self, role, llm="",sys_message="",tool="",temperature=0.5,response_schema=None,ehr_data=None,mobile_data=None):
         self.role = role
         self.llm = llm
@@ -35,7 +39,7 @@ class Agent:
         self.ehr_data = ehr_data
         self.mobile_data = mobile_data
         self.skill_runtime = SkillRuntime(ehr_data=ehr_data, mobile_data=mobile_data)
-        
+
         # Define available LLM functions
         self.llm_name_list = {
             "gpt-5": self.openai_reply,
@@ -50,7 +54,7 @@ class Agent:
             self.llm_reply = self.llm_name_list[self.llm]
         else:
             raise ValueError(f"Unknown LLM: {self.llm}")
-    
+
     # Tool definition for workout plan management
     WORKOUT_PLAN_TOOL = {
         "type": "function",
@@ -94,6 +98,28 @@ class Agent:
         }
     }
 
+    # Tool definition for user memory management
+    MEMORY_TOOL = {
+        "type": "function",
+        "function": {
+            "name": "manage_memory",
+            "description": "Remember or forget user preferences, facts, and goals. Call 'remember' when the user reveals a preference, allergy, personal fact, or goal. Call 'forget' when the user asks to remove a stored fact. Call 'recall' to check what is remembered.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "action": {"type": "string", "enum": ["remember", "forget", "recall"]},
+                    "category": {"type": "string", "enum": ["preference", "fact", "saved", "goal"], "description": "Memory category (required for remember)"},
+                    "value": {"type": "string", "description": "The fact or preference to remember"},
+                    "key": {"type": "string", "description": "Key of memory entry to forget"},
+                    "notes": {"type": "string", "description": "Optional additional context or nuance"},
+                    "context": {"type": "string", "description": "Why this memory matters and when to apply it, e.g. 'Important for meal planning — user avoids all animal products'"},
+                    "evergreen": {"type": "boolean", "description": "Set true for core identity facts that should always be surfaced: allergies, chronic conditions, dietary restrictions, name. Default false."}
+                },
+                "required": ["action"]
+            }
+        }
+    }
+
     # Tool definition for nutrition management
     NUTRITION_TOOL = {
         "type": "function",
@@ -127,6 +153,8 @@ class Agent:
             }
         }
     }
+
+    TOOLS = [EXERCISE_TOOL, WORKOUT_PLAN_TOOL, NUTRITION_TOOL, MEMORY_TOOL]
 
     def _get_username_from_messages(self, messages):
         """Extract username from system message metadata if available."""
@@ -182,6 +210,120 @@ class Agent:
         text_summary = f"**Exercise Database — {len(exercises)} results:**\n\n"
         text_summary += "\n---\n\n".join(sections)
         return text_summary, image_lines
+
+    def _execute_tool_call(self, tool_call, openai_messages):
+        """Execute a single tool call and return (result_text, exercise_images).
+
+        Handles: exercise_search, manage_workout_plan, manage_nutrition, manage_memory.
+        """
+        exercise_images = []
+        func_name = tool_call.function.name
+        try:
+            args = json.loads(tool_call.function.arguments)
+        except (json.JSONDecodeError, TypeError) as e:
+            logger.warning("Invalid JSON in tool call arguments for %s: %s", func_name, e)
+            return f"Tool error: invalid arguments JSON — {e}", exercise_images
+
+        if func_name == "exercise_search":
+            query = args.get("query", "")
+            update_status("searching_exercises")
+            text_summary, exercise_images = self._execute_exercise_search(query)
+            tool_result = text_summary or "No exercises found for that query."
+            tool_result += "\n\n[Present concisely — name, sets/reps, schedule only. No full instructions unless asked.]"
+
+        elif func_name == "manage_workout_plan":
+            action = args.get("action", "view")
+            details = args.get("details", "")
+            update_status("processing")
+            username = self._get_username_from_messages(openai_messages)
+            from .workout_plans import handle_workout_plan_tool
+            tool_result = handle_workout_plan_tool(action, details, username)
+
+        elif func_name == "manage_nutrition":
+            action = args.get("action", "view_plan")
+            details = args.get("details", "")
+            update_status("processing")
+            username = self._get_username_from_messages(openai_messages)
+            from .nutrition_plans import handle_nutrition_tool
+            tool_result = handle_nutrition_tool(action, details, username)
+
+        elif func_name == "manage_memory":
+            action = args.get("action", "recall")
+            update_status("processing")
+            username = self._get_username_from_messages(openai_messages)
+            from .user_memory import UserMemory
+            try:
+                mem = UserMemory(username)
+                if action == "remember":
+                    category = args.get("category", "fact")
+                    value = args.get("value", "")
+                    key = args.get("key")
+                    notes = args.get("notes")
+                    context = args.get("context")
+                    evergreen = args.get("evergreen", False)
+                    if not value:
+                        tool_result = "Error: value is required to remember something."
+                    else:
+                        entry = mem.remember(category, value, key=key, notes=notes,
+                                             context=context, evergreen=evergreen)
+                        tool_result = f"Remembered: [{category}] {value} (key: {entry['key']})"
+                elif action == "forget":
+                    key = args.get("key", "")
+                    found = mem.forget(key)
+                    tool_result = f"Forgotten: {key}" if found else f"No memory found with key: {key}"
+                else:  # recall
+                    summary = mem.get_summary(max_items=15)
+                    tool_result = summary if summary else "No memories stored for this user yet."
+            except Exception as e:
+                tool_result = f"Memory error: {e}"
+
+        else:
+            tool_result = f"Unknown tool: {func_name}"
+
+        return tool_result, exercise_images
+
+    def _make_llm_call(self, final_model, openai_messages, include_tools=True):
+        """Make a single OpenAI chat completion call."""
+        api_params = {
+            "model": final_model,
+            "messages": openai_messages,
+        }
+        if include_tools:
+            api_params["tools"] = self.TOOLS
+        if final_model != "gpt-5":
+            api_params["temperature"] = self.temperature
+        return openai.chat.completions.create(**api_params)
+
+    def _drop_old_tool_messages(self, openai_messages, keep_iterations):
+        """Remove tool role messages older than keep_iterations iterations back.
+
+        Each iteration boundary is an assistant message with tool_calls followed
+        by one or more tool messages.  We keep the last *keep_iterations* such
+        groups and all non-tool messages.
+        """
+        # Identify iteration boundaries: indices of assistant messages that have tool_calls
+        boundaries = []
+        for idx, msg in enumerate(openai_messages):
+            role = msg.get("role") if isinstance(msg, dict) else getattr(msg, "role", None)
+            tool_calls = msg.get("tool_calls") if isinstance(msg, dict) else getattr(msg, "tool_calls", None)
+            if role == "assistant" and tool_calls:
+                boundaries.append(idx)
+
+        if len(boundaries) <= keep_iterations:
+            return openai_messages
+
+        # Determine the cut-off: keep from boundaries[-keep_iterations] onward
+        cutoff = boundaries[-keep_iterations]
+
+        # Keep everything before the first boundary (system/user/context messages)
+        # plus everything from cutoff onward
+        preserved = []
+        for idx, msg in enumerate(openai_messages):
+            if idx < boundaries[0]:
+                preserved.append(msg)
+            elif idx >= cutoff:
+                preserved.append(msg)
+        return preserved
 
     def openai_reply(self, messages):
         class Response:
@@ -253,85 +395,123 @@ class Agent:
             # Use the configured model
             final_model = self.llm
 
-            api_params = {
-                "model": final_model,
-                "messages": openai_messages,
-                "tools": [self.EXERCISE_TOOL, self.WORKOUT_PLAN_TOOL, self.NUTRITION_TOOL],
-            }
-
-            # GPT-5 only supports temperature=1
-            if final_model != "gpt-5":
-                api_params["temperature"] = self.temperature
-
-            response = openai.chat.completions.create(**api_params)
+            # First LLM call
+            response = self._make_llm_call(final_model, openai_messages)
             message = response.choices[0].message
 
             # Handle tool calls
             exercise_images = []
             if message.tool_calls:
-                # Append the assistant message with tool calls
-                openai_messages.append(message)
+                query_type = classify_query(latest_user_message or "")
 
-                for tool_call in message.tool_calls:
-                    if tool_call.function.name == "exercise_search":
-                        args = json.loads(tool_call.function.arguments)
-                        query = args.get("query", latest_user_message or "")
-                        update_status("searching_exercises")
+                if query_type == "complex":
+                    # --- Agentic loop for complex queries ---
+                    plan = generate_plan(latest_user_message or "", openai, model="gpt-4o-mini")
+                    state = LoopState(plan=plan, max_iterations=5)
 
-                        text_summary, exercise_images = self._execute_exercise_search(query)
+                    while True:
+                        # Append the assistant message with tool calls
+                        openai_messages.append(message)
 
-                        tool_result = text_summary or "No exercises found for that query."
-                        tool_result += "\n\n[Present concisely — name, sets/reps, schedule only. No full instructions unless asked.]"
+                        # Execute all pending tool calls
+                        iteration_summaries = []
+                        for tool_call in message.tool_calls:
+                            try:
+                                tool_result, tc_images = self._execute_tool_call(tool_call, openai_messages)
+                            except Exception as e:
+                                logger.warning("Tool call %s failed: %s", tool_call.function.name, e, exc_info=True)
+                                tool_result = f"Tool error: {str(e)}"
+                                tc_images = []
+                            if tc_images:
+                                exercise_images.extend(tc_images)
+                            summarized = summarize_tool_result(tool_result)
+                            iteration_summaries.append(summarized)
+                            openai_messages.append({
+                                "role": "tool",
+                                "tool_call_id": tool_call.id,
+                                "content": summarized,
+                            })
+
+                        state.iteration += 1
+
+                        # Advance current_step if we haven't exhausted the plan
+                        if state.current_step < len(state.plan) - 1:
+                            state.current_step += 1
+
+                        # Drop old tool messages to save tokens (keep last 2 iterations)
+                        openai_messages = self._drop_old_tool_messages(openai_messages, keep_iterations=2)
+
+                        # Inject progress hint as system message
+                        step_text = state.plan[state.current_step] if state.current_step < len(state.plan) else "Finalize the answer"
                         openai_messages.append({
-                            "role": "tool",
-                            "tool_call_id": tool_call.id,
-                            "content": tool_result,
+                            "role": "system",
+                            "content": f"[Agentic step {state.iteration}/{state.max_iterations}] Current objective: {step_text}",
                         })
 
-                    elif tool_call.function.name == "manage_workout_plan":
-                        args = json.loads(tool_call.function.arguments)
-                        action = args.get("action", "view")
-                        details = args.get("details", "")
+                        # Check whether to continue before making next call
+                        if not should_continue(state, has_tool_calls=True, has_content=False):
+                            # Max iterations reached — final call without tools
+                            update_status("processing")
+                            response = self._make_llm_call(final_model, openai_messages, include_tools=False)
+                            message = response.choices[0].message
+                            break
+
+                        # Next LLM call
                         update_status("processing")
+                        response = self._make_llm_call(final_model, openai_messages)
+                        message = response.choices[0].message
 
-                        # Get username from conversation metadata or system context
-                        username = self._get_username_from_messages(openai_messages)
+                        has_tool_calls = bool(message.tool_calls)
+                        has_content = bool(message.content)
 
-                        from .workout_plans import handle_workout_plan_tool
-                        tool_result = handle_workout_plan_tool(action, details, username)
+                        if not should_continue(state, has_tool_calls=has_tool_calls, has_content=has_content):
+                            if has_tool_calls and not has_content:
+                                # LLM wants more tools but we must stop — do one final call without tools
+                                openai_messages.append(message)
+                                for tool_call in message.tool_calls:
+                                    try:
+                                        tool_result, tc_images = self._execute_tool_call(tool_call, openai_messages)
+                                    except Exception as e:
+                                        logger.warning("Tool call %s failed: %s", tool_call.function.name, e, exc_info=True)
+                                        tool_result = f"Tool error: {str(e)}"
+                                        tc_images = []
+                                    if tc_images:
+                                        exercise_images.extend(tc_images)
+                                    openai_messages.append({
+                                        "role": "tool",
+                                        "tool_call_id": tool_call.id,
+                                        "content": summarize_tool_result(tool_result),
+                                    })
+                                response = self._make_llm_call(final_model, openai_messages, include_tools=False)
+                                message = response.choices[0].message
+                            break
+
+                        # Continue loop — message has tool_calls
+                else:
+                    # --- Simple path: single round of tool calls (existing behavior) ---
+                    openai_messages.append(message)
+
+                    for tool_call in message.tool_calls:
+                        tool_result, tc_images = self._execute_tool_call(tool_call, openai_messages)
+                        if tc_images:
+                            exercise_images = tc_images
                         openai_messages.append({
                             "role": "tool",
                             "tool_call_id": tool_call.id,
                             "content": tool_result,
                         })
 
-                    elif tool_call.function.name == "manage_nutrition":
-                        args = json.loads(tool_call.function.arguments)
-                        action = args.get("action", "view_plan")
-                        details = args.get("details", "")
-                        update_status("processing")
+                    # Second LLM call with tool results
+                    update_status("processing")
+                    followup_params = {
+                        "model": final_model,
+                        "messages": openai_messages,
+                    }
+                    if final_model != "gpt-5":
+                        followup_params["temperature"] = self.temperature
 
-                        username = self._get_username_from_messages(openai_messages)
-
-                        from .nutrition_plans import handle_nutrition_tool
-                        tool_result = handle_nutrition_tool(action, details, username)
-                        openai_messages.append({
-                            "role": "tool",
-                            "tool_call_id": tool_call.id,
-                            "content": tool_result,
-                        })
-
-                # Second LLM call with tool results
-                update_status("processing")
-                followup_params = {
-                    "model": final_model,
-                    "messages": openai_messages,
-                }
-                if final_model != "gpt-5":
-                    followup_params["temperature"] = self.temperature
-
-                response = openai.chat.completions.create(**followup_params)
-                message = response.choices[0].message
+                    response = openai.chat.completions.create(**followup_params)
+                    message = response.choices[0].message
 
             reply_text = message.content or ""
 
@@ -349,7 +529,6 @@ class Agent:
                 return Response("The AI service is currently experiencing high demand. Please try again in a moment.")
             else:
                 return Response(f"I encountered an error while processing your request: {error_msg}. Please try again or contact support if the issue persists.")
-    
-    def llama_api_reply(self, messages):  
+
+    def llama_api_reply(self, messages):
         return self.openai_reply(messages)
-    

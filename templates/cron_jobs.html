@@ -2,14 +2,19 @@
 {% block main %}
   <div class="cron-jobs-page">
     <div class="cron-jobs-header">
-      <h1>Cron Jobs</h1>
-      <p class="subtitle">Schedule proactive messages via WhatsApp or web chat</p>
+      <h1>Settings</h1>
+      <p class="subtitle">Manage cron jobs and skills</p>
+      <div class="settings-subnav">
+        <a href="/settings/cron-jobs" class="settings-subnav-link {% if settings_section == 'cron-jobs' %}active{% endif %}">Cron Jobs</a>
+        <a href="/settings/skills" class="settings-subnav-link {% if settings_section == 'skills' %}active{% endif %}">Skills</a>
+        <a href="/settings/memory" class="settings-subnav-link {% if settings_section == 'memory' %}active{% endif %}">Memory</a>
+      </div>
     </div>
 
     <div class="cron-jobs-content">
       <!-- Create new job form -->
       <div class="cron-job-form-card">
-        <h2>Create New Job</h2>
+        <h2>Cron Jobs - Create New Job</h2>
         <form id="createJobForm">
           <div class="form-group">
             <label for="targetContact">WhatsApp Contact</label>
@@ -77,7 +82,7 @@
 
       <!-- Existing jobs list -->
       <div class="cron-jobs-list-card">
-        <h2>Scheduled Jobs</h2>
+        <h2>Cron Jobs - Scheduled Jobs</h2>
         <div id="jobsList" class="jobs-list">
           <div class="loading">Loading jobs...</div>
         </div>

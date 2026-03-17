@@ -506,6 +506,26 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
+  const memoryBtn = document.getElementById("memoryBtn");
+  if (memoryBtn) {
+    memoryBtn.addEventListener("click", () => {
+      window.location.href = "/settings/memory";
+    });
+  }
+
+  /* ---- Page visit tracking (fire-and-forget) ---- */
+  function trackPageVisit(pageName) {
+    fetch('/api/memory/track', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({category: 'page_visits', value: pageName})
+    }).catch(() => {}); // fire-and-forget
+  }
+
+  // Derive page name from URL path
+  const pagePath = location.pathname.replace(/^\/+/, '').split('/')[0] || 'home';
+  trackPageVisit(pagePath);
+
   /* ==================================================== */
   /*  Welcome page functionality                           */
   /* ==================================================== */
@@ -1682,13 +1702,53 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     }
     
-    // Show a button to view exercise images in the side panel
+    // Show inline exercise image strip below the message
     if (exerciseImages && exerciseImages.length > 0) {
-      const btn = document.createElement("button");
-      btn.className = "view-exercises-btn";
-      btn.textContent = `View exercise images (${exerciseImages.length})`;
-      btn.addEventListener("click", () => showExercisePanel(exerciseImages));
-      div.appendChild(btn);
+      const strip = document.createElement("div");
+      strip.className = "inline-exercise-strip";
+
+      const header = document.createElement("div");
+      header.className = "inline-exercise-strip-header";
+
+      const label = document.createElement("span");
+      label.className = "inline-exercise-strip-label";
+      label.textContent = `${exerciseImages.length} exercises`;
+
+      const expandBtn = document.createElement("button");
+      expandBtn.className = "inline-exercise-expand-btn";
+      expandBtn.textContent = "Open full view";
+      expandBtn.addEventListener("click", () => showExercisePanel(exerciseImages));
+
+      header.appendChild(label);
+      header.appendChild(expandBtn);
+      strip.appendChild(header);
+
+      const scroll = document.createElement("div");
+      scroll.className = "inline-exercise-scroll";
+
+      exerciseImages.forEach(item => {
+        const el = document.createElement("div");
+        el.className = "inline-exercise-item";
+        const img = document.createElement("img");
+        img.src = item.url;
+        img.alt = item.name;
+        img.loading = "lazy";
+        img.onerror = () => { el.remove(); };
+        img.addEventListener("click", () => showExercisePanel(exerciseImages));
+        const nameSpan = document.createElement("span");
+        nameSpan.textContent = item.name;
+        el.appendChild(img);
+        el.appendChild(nameSpan);
+        scroll.appendChild(el);
+      });
+
+      strip.appendChild(scroll);
+      div.appendChild(strip);
+    }
+
+    // Show inline workout widget if assistant discusses a workout plan
+    if (role === "assistant" && text) {
+      maybeAttachWorkoutWidget(div, text);
     }
 
     // Add Sources button for assistant messages with citations
@@ -1710,7 +1770,109 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   /* ==================================================== */
-  /*  Exercise image panel                                 */
+  /*  Inline workout widget (embedded in chat bubble)      */
+  /* ==================================================== */
+  const _PLAN_KEYWORDS = /\b(workout plan|training plan|exercise plan|weekly plan|your plan|created a plan|here'?s your plan|updated your plan|modified your plan)\b/i;
+
+  function maybeAttachWorkoutWidget(msgDiv, text) {
+    if (!_PLAN_KEYWORDS.test(text)) return;
+
+    // Fetch today's workout from the API
+    fetch("/api/workout-plan")
+      .then(r => r.json())
+      .then(data => {
+        const plan = (data.success && data.plan) ? data.plan : null;
+        if (!plan || !plan.schedule) return;
+
+        const dayNames = ["monday","tuesday","wednesday","thursday","friday","saturday","sunday"];
+        const wd = new Date().getDay();
+        const todayName = dayNames[wd === 0 ? 6 : wd - 1];
+        const todaySchedule = plan.schedule[todayName];
+        if (!todaySchedule || !todaySchedule.exercises || todaySchedule.exercises.length === 0) return;
+
+        const widget = document.createElement("div");
+        widget.className = "inline-workout-widget";
+
+        // Header
+        const header = document.createElement("div");
+        header.className = "inline-workout-widget-header";
+
+        const title = document.createElement("span");
+        title.className = "inline-workout-widget-title";
+        title.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>`;
+        title.appendChild(document.createTextNode(
+          todaySchedule.label
+            ? `Today — ${todaySchedule.label}`
+            : `Today — ${todayName.charAt(0).toUpperCase() + todayName.slice(1)}`
+        ));
+
+        const link = document.createElement("a");
+        link.className = "inline-workout-widget-link";
+        link.href = "/calendar";
+        link.textContent = "Full calendar →";
+
+        header.appendChild(title);
+        header.appendChild(link);
+        widget.appendChild(header);
+
+        // Body — exercise list
+        const body = document.createElement("div");
+        body.className = "inline-workout-widget-body";
+
+        todaySchedule.exercises.forEach(ex => {
+          const row = document.createElement("div");
+          row.className = "inline-workout-exercise";
+
+          if (ex.image_path) {
+            const img = document.createElement("img");
+            img.src = `/exercises/images/${ex.image_path}`;
+            img.alt = ex.name;
+            img.loading = "lazy";
+            img.onerror = () => { img.replaceWith(makePlaceholder()); };
+            row.appendChild(img);
+          } else {
+            row.appendChild(makePlaceholder());
+          }
+
+          const info = document.createElement("div");
+          info.className = "inline-workout-exercise-info";
+
+          const name = document.createElement("div");
+          name.className = "inline-workout-exercise-name";
+          name.textContent = ex.name;
+
+          const meta = document.createElement("div");
+          meta.className = "inline-workout-exercise-meta";
+          const parts = [];
+          if (ex.sets) parts.push(`${ex.sets} sets`);
+          if (ex.reps) parts.push(`${ex.reps} reps`);
+          if (ex.equipment) parts.push(ex.equipment);
+          meta.textContent = parts.join(" · ");
+
+          info.appendChild(name);
+          info.appendChild(meta);
+          row.appendChild(info);
+          body.appendChild(row);
+        });
+
+        widget.appendChild(body);
+        msgDiv.appendChild(widget);
+
+        // Scroll chat to bottom so widget is visible
+        const box = document.getElementById("chatContent");
+        if (box) box.scrollTop = box.scrollHeight;
+      })
+      .catch(() => {});  // silent — widget is optional enhancement
+
+    function makePlaceholder() {
+      const ph = document.createElement("div");
+      ph.className = "inline-workout-exercise-placeholder";
+      return ph;
+    }
+  }
+
+  /* ==================================================== */
+  /*  Exercise image panel (full view — side panel)        */
   /* ==================================================== */
   function showExercisePanel(images) {
     const panel = document.getElementById("exerciseImagePanel");

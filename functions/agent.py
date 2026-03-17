@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 
 logger = logging.getLogger(__name__)
 from .skills_runtime import SkillRuntime
-from .agentic_loop import LoopState, classify_query, generate_plan, summarize_tool_result, should_continue
+from .agentic_loop import LoopState, make_reflection_message, summarize_tool_result
 load_dotenv()
 
 openai.api_key = os.getenv("OPENAI_API_KEY")
@@ -399,118 +399,57 @@ class Agent:
             response = self._make_llm_call(final_model, openai_messages)
             message = response.choices[0].message
 
-            # Handle tool calls
+            # After first LLM call, if tool_calls present, enter reactive loop
             exercise_images = []
             if message.tool_calls:
-                query_type = classify_query(latest_user_message or "")
+                state = LoopState(max_iterations=8)
 
-                if query_type == "complex":
-                    # --- Agentic loop for complex queries ---
-                    plan = generate_plan(latest_user_message or "", openai, model="gpt-4o-mini")
-                    state = LoopState(plan=plan, max_iterations=5)
-
-                    while True:
-                        # Append the assistant message with tool calls
-                        openai_messages.append(message)
-
-                        # Execute all pending tool calls
-                        iteration_summaries = []
-                        for tool_call in message.tool_calls:
-                            try:
-                                tool_result, tc_images = self._execute_tool_call(tool_call, openai_messages)
-                            except Exception as e:
-                                logger.warning("Tool call %s failed: %s", tool_call.function.name, e, exc_info=True)
-                                tool_result = f"Tool error: {str(e)}"
-                                tc_images = []
-                            if tc_images:
-                                exercise_images.extend(tc_images)
-                            summarized = summarize_tool_result(tool_result)
-                            iteration_summaries.append(summarized)
-                            openai_messages.append({
-                                "role": "tool",
-                                "tool_call_id": tool_call.id,
-                                "content": summarized,
-                            })
-
-                        state.iteration += 1
-
-                        # Advance current_step if we haven't exhausted the plan
-                        if state.current_step < len(state.plan) - 1:
-                            state.current_step += 1
-
-                        # Drop old tool messages to save tokens (keep last 2 iterations)
-                        openai_messages = self._drop_old_tool_messages(openai_messages, keep_iterations=2)
-
-                        # Inject progress hint as system message
-                        step_text = state.plan[state.current_step] if state.current_step < len(state.plan) else "Finalize the answer"
-                        openai_messages.append({
-                            "role": "system",
-                            "content": f"[Agentic step {state.iteration}/{state.max_iterations}] Current objective: {step_text}",
-                        })
-
-                        # Check whether to continue before making next call
-                        if not should_continue(state, has_tool_calls=True, has_content=False):
-                            # Max iterations reached — final call without tools
-                            update_status("processing")
-                            response = self._make_llm_call(final_model, openai_messages, include_tools=False)
-                            message = response.choices[0].message
-                            break
-
-                        # Next LLM call
-                        update_status("processing")
-                        response = self._make_llm_call(final_model, openai_messages)
-                        message = response.choices[0].message
-
-                        has_tool_calls = bool(message.tool_calls)
-                        has_content = bool(message.content)
-
-                        if not should_continue(state, has_tool_calls=has_tool_calls, has_content=has_content):
-                            if has_tool_calls and not has_content:
-                                # LLM wants more tools but we must stop — do one final call without tools
-                                openai_messages.append(message)
-                                for tool_call in message.tool_calls:
-                                    try:
-                                        tool_result, tc_images = self._execute_tool_call(tool_call, openai_messages)
-                                    except Exception as e:
-                                        logger.warning("Tool call %s failed: %s", tool_call.function.name, e, exc_info=True)
-                                        tool_result = f"Tool error: {str(e)}"
-                                        tc_images = []
-                                    if tc_images:
-                                        exercise_images.extend(tc_images)
-                                    openai_messages.append({
-                                        "role": "tool",
-                                        "tool_call_id": tool_call.id,
-                                        "content": summarize_tool_result(tool_result),
-                                    })
-                                response = self._make_llm_call(final_model, openai_messages, include_tools=False)
-                                message = response.choices[0].message
-                            break
-
-                        # Continue loop — message has tool_calls
-                else:
-                    # --- Simple path: single round of tool calls (existing behavior) ---
+                while message.tool_calls:
+                    # Append assistant message
                     openai_messages.append(message)
 
+                    # Execute all tool calls
                     for tool_call in message.tool_calls:
-                        tool_result, tc_images = self._execute_tool_call(tool_call, openai_messages)
-                        if tc_images:
-                            exercise_images = tc_images
+                        try:
+                            tool_result, tc_images = self._execute_tool_call(tool_call, openai_messages)
+                        except Exception as e:
+                            logger.warning("Tool call %s failed: %s", tool_call.function.name, e, exc_info=True)
+                            tool_result = f"Tool error: {str(e)}"
+                            tc_images = []
+
+                        exercise_images.extend(tc_images)
+
+                        # Progressive summarization (iteration 2+)
+                        if state.iteration >= 2:
+                            tool_result = summarize_tool_result(tool_result)
+
                         openai_messages.append({
                             "role": "tool",
                             "tool_call_id": tool_call.id,
                             "content": tool_result,
                         })
 
-                    # Second LLM call with tool results
-                    update_status("processing")
-                    followup_params = {
-                        "model": final_model,
-                        "messages": openai_messages,
-                    }
-                    if final_model != "gpt-5":
-                        followup_params["temperature"] = self.temperature
+                    state.iteration += 1
 
-                    response = openai.chat.completions.create(**followup_params)
+                    # Progressive pruning (iteration 2+)
+                    if state.iteration >= 2:
+                        openai_messages = self._drop_old_tool_messages(openai_messages, keep_iterations=2)
+
+                    # Reflection nudge (iteration 1+)
+                    reflection = make_reflection_message(state.iteration)
+                    if reflection:
+                        openai_messages.append(reflection)
+
+                    # Max iterations — force final answer
+                    if state.iteration >= state.max_iterations:
+                        update_status("processing")
+                        response = self._make_llm_call(final_model, openai_messages, include_tools=False)
+                        message = response.choices[0].message
+                        break
+
+                    # Next LLM call
+                    update_status("processing")
+                    response = self._make_llm_call(final_model, openai_messages)
                     message = response.choices[0].message
 
             reply_text = message.content or ""

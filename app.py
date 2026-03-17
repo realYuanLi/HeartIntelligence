@@ -604,6 +604,14 @@ def api_message():
             extras = f"\n\nUsername: {user}"
             if PATIENT_DATA:
                 extras += f"\n\nPatient Information:\n{json.dumps(PATIENT_DATA, indent=2)}"
+            # Inject user memory summary
+            try:
+                from functions.user_memory import UserMemory
+                mem_summary = UserMemory(user).get_summary()
+                if mem_summary:
+                    extras += f"\n\nUser Memory:\n{mem_summary}"
+            except Exception as e:
+                print(f"Memory injection failed: {e}")
             messages[i] = {"role": "system", "content": original_system + extras}
             break
 
@@ -1386,6 +1394,13 @@ print("✓ Workout calendar blueprint registered")
 from functions.nutrition_plans import nutrition_bp
 app.register_blueprint(nutrition_bp)
 print("✓ Nutrition planner blueprint registered")
+
+# --------------------------------------------------------------------------------
+# User Memory
+# --------------------------------------------------------------------------------
+from functions.user_memory import memory_bp
+app.register_blueprint(memory_bp)
+print("✓ User memory blueprint registered")
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8000)), debug=False)

@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 
 logger = logging.getLogger(__name__)
 from .skills_runtime import SkillRuntime
-from .agentic_loop import LoopState, make_reflection_message, summarize_tool_result
+from .agentic_loop import LoopState, make_reflection_message, summarize_tool_result, REFLECTION_CONTENT
 load_dotenv()
 
 openai.api_key = os.getenv("OPENAI_API_KEY")
@@ -435,9 +435,13 @@ class Agent:
                     if state.iteration >= 2:
                         openai_messages = self._drop_old_tool_messages(openai_messages, keep_iterations=2)
 
-                    # Reflection nudge (iteration 1+)
+                    # Reflection nudge (iteration 1+) — deduplicate
                     reflection = make_reflection_message(state.iteration)
                     if reflection:
+                        openai_messages = [
+                            m for m in openai_messages
+                            if not (isinstance(m, dict) and m.get("content") == REFLECTION_CONTENT)
+                        ]
                         openai_messages.append(reflection)
 
                     # Max iterations — force final answer

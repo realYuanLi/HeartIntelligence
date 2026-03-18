@@ -31,8 +31,66 @@ def _normalize(text: str) -> str:
 
 
 def _strip_html(text: str) -> str:
-    """Remove HTML tags from a string."""
-    return re.sub(r"<[^>]+>", "", text or "").strip()
+    """Remove HTML tags from a string, preserving readable structure.
+
+    Converts <p>, <li>, and <br> into line breaks so the result reads as
+    structured text rather than a wall of words.
+    """
+    if not text:
+        return ""
+    # Insert newlines before structural tags so content stays readable
+    result = re.sub(r"<br\s*/?>", "\n", text)
+    result = re.sub(r"</p>", "\n\n", result)
+    result = re.sub(r"</li>", "\n", result)
+    result = re.sub(r"<li>", "- ", result)
+    # Strip all remaining tags
+    result = re.sub(r"<[^>]+>", "", result)
+    # Collapse excessive blank lines but keep paragraph breaks
+    result = re.sub(r"\n{3,}", "\n\n", result)
+    return result.strip()
+
+
+# ---------- search term extraction ----------
+
+def _extract_medical_terms(query: str) -> str:
+    """Use a lightweight LLM call to extract 1-3 medical keywords from a
+    conversational query, so MedlinePlus returns relevant results.
+
+    Falls back to the original query (normalized) on any error.
+    """
+    try:
+        client = openai.OpenAI()
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        "Extract 1-3 concise medical search terms from the user's query. "
+                        "Return ONLY the keywords, nothing else. Use standard medical topic "
+                        "names that would appear in a health encyclopedia.\n\n"
+                        "Examples:\n"
+                        '- "What are the symptoms of strep throat?" -> strep throat\n'
+                        '- "my head hurts really bad and I see spots" -> headache visual disturbances\n'
+                        '- "How do I manage type 2 diabetes?" -> type 2 diabetes management\n'
+                        '- "what are side effects of ibuprofen?" -> ibuprofen side effects\n'
+                        '- "I feel anxious all the time and can\'t sleep" -> anxiety insomnia\n'
+                        '- "how to treat a burn at home" -> burns first aid\n'
+                        '- "what is melatonin used for?" -> melatonin\n'
+                        '- "what causes high blood pressure" -> high blood pressure\n'
+                    ),
+                },
+                {"role": "user", "content": query},
+            ],
+            temperature=0,
+            max_tokens=20,
+        )
+        terms = response.choices[0].message.content.strip()
+        if terms:
+            return terms
+    except Exception as exc:
+        logger.warning("Medical term extraction failed, using raw query: %s", exc)
+    return _normalize(query)
 
 
 # ---------- gate function ----------
@@ -55,27 +113,30 @@ Return ONLY "YES" for:
 - Mental health questions (e.g., "what are signs of anxiety?")
 - First aid questions (e.g., "how to treat a burn?")
 - Questions about medical procedures or tests
-- Nutrition and dietary health questions (e.g., "what foods help lower cholesterol?")
 - Questions about wellness and healthy living
 
 Return ONLY "NO" for:
 - Exercise or workout requests (handled by workout skill)
+- Nutrition, diet, or meal planning queries (handled by nutrition skill)
 - Physical exam finding interpretation (handled by physical exam skill)
-- Personal health data queries (handled by personal health context)
+- Personal health data queries like "show me my lab results" (handled by personal health context)
 - Simple greetings or casual conversation
 - Questions unrelated to health
 - Requests to set reminders or manage plans
 
 Examples:
-- "What causes high blood pressure?" → YES
-- "What are the symptoms of strep throat?" → YES
-- "How do I manage type 2 diabetes?" → YES
-- "What is melatonin used for?" → YES
-- "What should I do for a sprained ankle?" → YES
-- "What are good chest exercises?" → NO
-- "What does an S3 gallop mean?" → NO
-- "Show me my lab results" → NO
-- "Hello, how are you?" → NO""",
+- "What causes high blood pressure?" -> YES
+- "What are the symptoms of strep throat?" -> YES
+- "How do I manage type 2 diabetes?" -> YES
+- "What is melatonin used for?" -> YES
+- "What should I do for a sprained ankle?" -> YES
+- "What are signs of depression?" -> YES
+- "What are good chest exercises?" -> NO
+- "What does an S3 gallop mean?" -> NO
+- "Show me my lab results" -> NO
+- "What foods are high in iron?" -> NO
+- "Create a meal plan for weight loss" -> NO
+- "Hello, how are you?" -> NO""",
                 },
                 {"role": "user", "content": f"Query: {query}"},
             ],
@@ -94,14 +155,18 @@ Examples:
 def search_health_topics(query: str, max_results: int = 3) -> list[dict]:
     """Search MedlinePlus health topics for the given query.
 
-    Calls the NLM MedlinePlus web service, parses the XML response, and
+    First extracts focused medical keywords from the conversational query,
+    then calls the NLM MedlinePlus web service, parses the XML response, and
     returns a list of dicts with keys: title, url, summary, source,
     also_called, category.
     """
     if not query or not query.strip():
         return []
 
-    search_term = _normalize(query)
+    max_results = max(1, max_results)
+
+    # Extract focused medical terms instead of sending raw conversational query
+    search_term = _extract_medical_terms(query)
     if not search_term:
         return []
 
@@ -125,6 +190,9 @@ def search_health_topics(query: str, max_results: int = 3) -> list[dict]:
 
 def _parse_medlineplus_xml(raw_xml: bytes, max_results: int) -> list[dict]:
     """Parse MedlinePlus XML response into a list of topic dicts."""
+    if not raw_xml:
+        return []
+
     try:
         root = ET.fromstring(raw_xml)
     except ET.ParseError as exc:
@@ -140,8 +208,8 @@ def _parse_medlineplus_xml(raw_xml: bytes, max_results: int) -> list[dict]:
         title = ""
         summary = ""
         doc_url = doc.get("url", "")
-        also_called = ""
-        category = ""
+        also_called: list[str] = []
+        categories: list[str] = []
 
         for content in doc.iter("content"):
             name = content.get("name", "")
@@ -154,24 +222,26 @@ def _parse_medlineplus_xml(raw_xml: bytes, max_results: int) -> list[dict]:
                 if not summary:
                     summary = text
             elif name == "altTitle":
-                also_called = text
+                if text and text not in also_called:
+                    also_called.append(text)
             elif name == "groupName":
-                category = text
+                if text and text not in categories:
+                    categories.append(text)
 
         if not title:
             continue
 
         # Truncate long summaries for context window efficiency
-        if len(summary) > 800:
-            summary = summary[:800].rsplit(" ", 1)[0] + "..."
+        if len(summary) > 1200:
+            summary = summary[:1200].rsplit(" ", 1)[0] + "..."
 
         results.append({
             "title": title,
             "url": doc_url,
             "summary": summary,
             "source": "MedlinePlus (U.S. National Library of Medicine)",
-            "also_called": also_called,
-            "category": category,
+            "also_called": ", ".join(also_called) if also_called else "",
+            "category": ", ".join(categories) if categories else "",
         })
 
     return results
@@ -216,7 +286,7 @@ def format_health_results(results: list[dict]) -> str:
 
         sections.append(section)
 
-    header = f"**Health Reference — {len(results)} topics found:**\n\n"
+    header = f"**Health Reference -- {len(results)} topic(s) found:**\n\n"
     footer = f"\n\n---\n{_DISCLAIMER}"
 
     return header + "\n---\n\n".join(sections) + footer

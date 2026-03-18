@@ -44,4 +44,4 @@ diabetes hypertension blood pressure cholesterol heart disease stroke cancer
 arthritis migraine headache pain chronic acute diagnosis prognosis recovery
 vitamin supplement mineral deficiency anemia fatigue nausea dizziness rash
 eczema psoriasis COPD pneumonia bronchitis sinusitis UTI kidney liver thyroid
-osteoporosis obesity weight management BMI calories nutrition diet dietary
+osteoporosis obesity BMI pregnancy contraception STI sexually transmitted

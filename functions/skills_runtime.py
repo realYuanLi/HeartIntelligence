@@ -13,6 +13,8 @@ from .md_utils import _parse_bool, _parse_frontmatter
 from .web_search import format_search_results, needs_web_search, web_search
 from .workout_search import needs_workout_data, search_exercises, format_exercise_results
 from .nutrition_search import needs_nutrition_data, search_foods, format_food_results
+from .physical_exam_search import needs_physical_exam_data, search_findings, format_finding_results
+from .health_qa_search import needs_health_qa, search_health_topics, format_health_results
 
 logger = logging.getLogger(__name__)
 SKILL_STATE_PATH = Path(__file__).resolve().parent.parent / "config" / "skills_settings.json"
@@ -101,6 +103,8 @@ class SkillRuntime:
             "workout_guidance": self._run_workout_guidance,
             "workout_calendar": self._run_workout_calendar,
             "nutrition_guidance": self._run_nutrition_guidance,
+            "physical_exam_interpreter": self._run_physical_exam_interpreter,
+            "health_qa": self._run_health_qa,
         }
 
     def _load_skills(self) -> dict[str, SkillDefinition]:
@@ -207,6 +211,10 @@ class SkillRuntime:
             return self._needs_workout_completion(query)
         if executor == "nutrition_guidance":
             return needs_nutrition_data(query)
+        if executor == "physical_exam_interpreter":
+            return needs_physical_exam_data(query)
+        if executor == "health_qa":
+            return needs_health_qa(query)
         return False
 
     def _is_skill_enabled(self, skill: SkillDefinition, overrides: dict[str, bool]) -> bool:
@@ -460,6 +468,48 @@ class SkillRuntime:
             "activated": True,
             "foods": foods,
             "nutrition_summary": nutrition_summary,
+        }
+
+    def _run_physical_exam_interpreter(
+        self,
+        query: str,
+        _runtime_context: dict,
+        status_updater: Optional[Callable[[str], None]],
+        _skill: SkillDefinition,
+    ) -> dict:
+        if status_updater:
+            status_updater("interpreting_exam_findings")
+        findings = search_findings(query)
+        if not findings:
+            return {"activated": False}
+        if status_updater:
+            status_updater("formatting_exam_findings")
+        exam_summary = format_finding_results(findings)
+        return {
+            "activated": True,
+            "findings": findings,
+            "exam_summary": exam_summary,
+        }
+
+    def _run_health_qa(
+        self,
+        query: str,
+        _runtime_context: dict,
+        status_updater: Optional[Callable[[str], None]],
+        _skill: SkillDefinition,
+    ) -> dict:
+        if status_updater:
+            status_updater("searching_health_topics")
+        topics = search_health_topics(query)
+        if not topics:
+            return {"activated": False}
+        if status_updater:
+            status_updater("formatting_health_topics")
+        health_qa_summary = format_health_results(topics)
+        return {
+            "activated": True,
+            "topics": topics,
+            "health_qa_summary": health_qa_summary,
         }
 
     _COMPLETION_PATTERNS = re.compile(

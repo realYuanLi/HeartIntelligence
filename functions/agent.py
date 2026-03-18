@@ -379,6 +379,12 @@ class Agent:
                 if health_output.get("activated") and health_output.get("health_summary"):
                     context_sections.append(f"PERSONAL HEALTH DATA:\n{health_output['health_summary']}")
 
+                health_qa_output = skill_results.get("health_qa", {})
+                if health_qa_output.get("activated") and health_qa_output.get("health_qa_summary"):
+                    health_qa_context = "HEALTH REFERENCE INFORMATION (use this data — include the medical disclaimer in your response):\n"
+                    health_qa_context += health_qa_output["health_qa_summary"]
+                    context_sections.append(health_qa_context)
+
                 exam_output = skill_results.get("physical_exam_interpreter", {})
                 if exam_output.get("activated") and exam_output.get("exam_summary"):
                     exam_context = "PHYSICAL EXAM FINDINGS REFERENCE (use ONLY this data — do not add outside associations):\n"

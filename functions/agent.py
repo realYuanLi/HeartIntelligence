@@ -381,7 +381,14 @@ class Agent:
 
                 health_qa_output = skill_results.get("health_qa", {})
                 if health_qa_output.get("activated") and health_qa_output.get("health_qa_summary"):
-                    health_qa_context = "HEALTH REFERENCE INFORMATION (use this data — include the medical disclaimer in your response):\n"
+                    health_qa_context = (
+                        "HEALTH REFERENCE INFORMATION (from MedlinePlus/NIH):\n"
+                        "Instructions: Use this reference data to give a warm, clear answer. "
+                        "Structure your response with brief sections. Lead with the key takeaway. "
+                        "Include the medical disclaimer naturally at the end. "
+                        "If follow-up questions are suggested below, present 2-3 of them at the end "
+                        "so the user can keep exploring. Cite the MedlinePlus source link.\n\n"
+                    )
                     health_qa_context += health_qa_output["health_qa_summary"]
                     context_sections.append(health_qa_context)
 

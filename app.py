@@ -373,6 +373,10 @@ def api_status():
         "summarizing_health_data": "Summarizing health data",
         "searching_exercises": "Searching exercises",
         "formatting_exercises": "Preparing exercise results",
+        "searching_health_topics": "Looking up health information",
+        "formatting_health_topics": "Preparing health reference",
+        "interpreting_exam_findings": "Interpreting exam findings",
+        "formatting_exam_findings": "Preparing exam reference",
     }
     
     label = status_labels.get(status, "Processing...")

@@ -734,3 +734,114 @@ class TestSecurityInputValidation:
         results = hqs.search_health_topics(long_query)
         # Should not raise; returns whatever API returns
         assert isinstance(results, list)
+
+
+# ---------------------------------------------------------------------------
+# Emergency/urgency detection
+# ---------------------------------------------------------------------------
+
+class TestUrgencyDetection:
+    """Test emergency and urgency keyword detection."""
+
+    def test_detects_emergency_chest_pain(self):
+        assert hqs._detect_urgency("I'm having chest pain") == "emergency"
+
+    def test_detects_emergency_cant_breathe(self):
+        assert hqs._detect_urgency("I can't breathe") == "emergency"
+
+    def test_detects_emergency_stroke(self):
+        assert hqs._detect_urgency("Is this a stroke?") == "emergency"
+
+    def test_detects_emergency_suicide(self):
+        assert hqs._detect_urgency("having suicidal thoughts") == "emergency"
+
+    def test_detects_urgent_high_fever(self):
+        assert hqs._detect_urgency("I have a high fever") == "urgent"
+
+    def test_detects_urgent_severe_pain(self):
+        assert hqs._detect_urgency("severe pain in my side") == "urgent"
+
+    def test_returns_none_for_normal_query(self):
+        assert hqs._detect_urgency("what is diabetes") is None
+
+    def test_returns_none_for_empty(self):
+        assert hqs._detect_urgency("") is None
+
+    def test_emergency_overrides_urgent(self):
+        # "chest pain" is emergency, should take priority
+        assert hqs._detect_urgency("chest pain with high fever") == "emergency"
+
+
+# ---------------------------------------------------------------------------
+# Follow-up suggestions
+# ---------------------------------------------------------------------------
+
+class TestFollowUpSuggestions:
+    """Test follow-up question generation."""
+
+    def test_generates_suggestions_for_symptom_topic(self):
+        results = [{"title": "Diabetes", "summary": "Symptoms include excessive thirst and fatigue.", "category": ""}]
+        suggestions = hqs._generate_follow_ups(results, "what is diabetes")
+        assert len(suggestions) >= 2
+        assert any("doctor" in s.lower() or "see" in s.lower() for s in suggestions)
+
+    def test_generates_suggestions_for_treatment_topic(self):
+        results = [{"title": "Hypertension", "summary": "Treatment includes medication and lifestyle changes.", "category": ""}]
+        suggestions = hqs._generate_follow_ups(results, "high blood pressure")
+        assert len(suggestions) >= 2
+        assert any("treatment" in s.lower() for s in suggestions)
+
+    def test_returns_empty_for_empty_results(self):
+        assert hqs._generate_follow_ups([], "query") == []
+
+    def test_max_three_suggestions(self):
+        results = [{"title": "Cold", "summary": "Symptoms include cough. Treatment is rest. Prevention by hand washing. Risk factors include age. Causes are viral.", "category": ""}]
+        suggestions = hqs._generate_follow_ups(results, "common cold")
+        assert len(suggestions) <= 3
+
+    def test_suggestions_include_topic_name(self):
+        results = [{"title": "Asthma", "summary": "A chronic condition with symptoms like wheezing.", "category": ""}]
+        suggestions = hqs._generate_follow_ups(results, "asthma")
+        assert all("asthma" in s.lower() for s in suggestions)
+
+
+# ---------------------------------------------------------------------------
+# Formatted output with new features
+# ---------------------------------------------------------------------------
+
+class TestFormattingWithQuery:
+    """Test format_health_results with query parameter for urgency and follow-ups."""
+
+    def test_emergency_query_includes_911_banner(self):
+        results = [{"title": "Heart Attack", "summary": "A serious condition.", "url": "https://medlineplus.gov/heartattack.html", "source": "MedlinePlus"}]
+        formatted = hqs.format_health_results(results, query="I'm having chest pain")
+        assert "911" in formatted
+        assert "emergency" in formatted.lower()
+
+    def test_urgent_query_includes_attention_banner(self):
+        results = [{"title": "Fever", "summary": "Elevated body temperature.", "url": "https://medlineplus.gov/fever.html", "source": "MedlinePlus"}]
+        formatted = hqs.format_health_results(results, query="I have a high fever")
+        assert "medical attention" in formatted.lower() or "urgent" in formatted.lower()
+
+    def test_normal_query_no_urgency_banner(self):
+        results = hqs._parse_medlineplus_xml(SAMPLE_XML, max_results=3)
+        formatted = hqs.format_health_results(results, query="what is diabetes")
+        assert "911" not in formatted
+        assert "emergency room" not in formatted.lower()
+
+    def test_follow_up_suggestions_included(self):
+        results = [{"title": "Diabetes", "summary": "Symptoms include excessive thirst.", "url": "https://medlineplus.gov/diabetes.html", "source": "MedlinePlus"}]
+        formatted = hqs.format_health_results(results, query="what is diabetes")
+        assert "follow-up" in formatted.lower() or "also want to ask" in formatted.lower()
+
+    def test_learn_more_link_present(self):
+        results = [{"title": "Test", "summary": "Info.", "url": "https://medlineplus.gov/test.html", "source": "MedlinePlus (NLM)"}]
+        formatted = hqs.format_health_results(results)
+        assert "Learn more" in formatted
+
+    def test_format_backward_compatible_no_query(self):
+        """Calling without query still works (backward compatible)."""
+        results = hqs._parse_medlineplus_xml(SAMPLE_XML, max_results=3)
+        formatted = hqs.format_health_results(results)
+        assert "Diabetes" in formatted
+        assert "not a substitute for professional medical advice" in formatted

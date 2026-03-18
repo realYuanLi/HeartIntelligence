@@ -505,7 +505,7 @@ class SkillRuntime:
             return {"activated": False}
         if status_updater:
             status_updater("formatting_health_topics")
-        health_qa_summary = format_health_results(topics)
+        health_qa_summary = format_health_results(topics, query=query)
         return {
             "activated": True,
             "topics": topics,

@@ -247,20 +247,105 @@ def _parse_medlineplus_xml(raw_xml: bytes, max_results: int) -> list[dict]:
     return results
 
 
+# ---------- emergency keywords ----------
+
+_EMERGENCY_KEYWORDS = frozenset({
+    "chest pain", "can't breathe", "difficulty breathing", "shortness of breath",
+    "heart attack", "stroke", "seizure", "unconscious", "unresponsive",
+    "severe bleeding", "choking", "overdose", "poisoning", "suicide",
+    "suicidal", "self harm", "anaphylaxis", "allergic reaction severe",
+})
+
+_URGENT_KEYWORDS = frozenset({
+    "high fever", "severe pain", "blood in stool", "blood in urine",
+    "sudden vision loss", "severe headache worst", "confusion sudden",
+    "numbness one side", "slurred speech", "swelling throat",
+})
+
+
+def _detect_urgency(query: str) -> str | None:
+    """Return 'emergency' or 'urgent' if query contains crisis language."""
+    q = _normalize(query)
+    for phrase in _EMERGENCY_KEYWORDS:
+        if phrase in q:
+            return "emergency"
+    for phrase in _URGENT_KEYWORDS:
+        if phrase in q:
+            return "urgent"
+    return None
+
+
+# ---------- follow-up suggestions ----------
+
+def _generate_follow_ups(results: list[dict], query: str) -> list[str]:
+    """Generate 2-3 natural follow-up questions based on the topic results."""
+    if not results:
+        return []
+
+    primary = results[0]
+    title = primary.get("title", "")
+    category = primary.get("category", "")
+    summary_lower = primary.get("summary", "").lower()
+
+    suggestions = []
+
+    # Pattern-based follow-up generation (no LLM call needed)
+    if any(w in summary_lower for w in ("symptom", "sign")):
+        suggestions.append(f"When should I see a doctor about {title.lower()}?")
+    if any(w in summary_lower for w in ("treatment", "medicine", "medication", "drug")):
+        suggestions.append(f"What are the treatment options for {title.lower()}?")
+    if any(w in summary_lower for w in ("cause", "risk factor", "risk")):
+        suggestions.append(f"How can I reduce my risk of {title.lower()}?")
+    if any(w in summary_lower for w in ("prevent", "vaccine", "screening")):
+        suggestions.append(f"What preventive steps can I take for {title.lower()}?")
+    if any(w in summary_lower for w in ("child", "infant", "baby", "pediatric")):
+        suggestions.append(f"How does {title.lower()} affect children differently?")
+
+    # Always offer a "tell me more" option if we don't have enough
+    if len(suggestions) < 2:
+        suggestions.append(f"What should I know about living with {title.lower()}?")
+    if len(suggestions) < 2:
+        suggestions.append(f"What are common misconceptions about {title.lower()}?")
+
+    return suggestions[:3]
+
+
 # ---------- formatting ----------
 
 _DISCLAIMER = (
-    "_This information is from MedlinePlus, a service of the U.S. National Library of Medicine. "
-    "It is for informational purposes only and is not a substitute for professional medical advice, "
-    "diagnosis, or treatment. Always consult a qualified healthcare provider with questions about "
-    "a medical condition._"
+    "This information is from MedlinePlus, a service of the U.S. National "
+    "Library of Medicine. It is for informational purposes only and is not a "
+    "substitute for professional medical advice, diagnosis, or treatment. "
+    "Always consult a qualified healthcare provider with questions about "
+    "a medical condition."
 )
 
 
-def format_health_results(results: list[dict]) -> str:
-    """Format health topic results as structured markdown for LLM context injection."""
+def format_health_results(results: list[dict], query: str = "") -> str:
+    """Format health topic results as structured markdown for LLM context injection.
+
+    Includes urgency warnings, follow-up suggestions, and medical disclaimer.
+    """
     if not results:
         return ""
+
+    parts = []
+
+    # Emergency/urgency banner
+    if query:
+        urgency = _detect_urgency(query)
+        if urgency == "emergency":
+            parts.append(
+                "**IMPORTANT: If this is a medical emergency, call 911 (or your "
+                "local emergency number) or go to the nearest emergency room "
+                "immediately. Do not wait.**\n"
+            )
+        elif urgency == "urgent":
+            parts.append(
+                "**Note: The symptoms described may need prompt medical attention. "
+                "Consider contacting your healthcare provider or visiting an urgent "
+                "care clinic today.**\n"
+            )
 
     sections = []
     for i, topic in enumerate(results, 1):
@@ -282,11 +367,21 @@ def format_health_results(results: list[dict]) -> str:
             section += f"{summary}\n\n"
 
         if url:
-            section += f"**Source:** [{source}]({url})\n"
+            section += f"**Learn more:** [{source}]({url})\n"
 
         sections.append(section)
 
     header = f"**Health Reference -- {len(results)} topic(s) found:**\n\n"
-    footer = f"\n\n---\n{_DISCLAIMER}"
+    parts.append(header + "\n---\n\n".join(sections))
 
-    return header + "\n---\n\n".join(sections) + footer
+    # Follow-up suggestions
+    follow_ups = _generate_follow_ups(results, query)
+    if follow_ups:
+        parts.append("\n**Suggested follow-up questions for the user:**")
+        for q in follow_ups:
+            parts.append(f"- {q}")
+
+    # Disclaimer
+    parts.append(f"\n---\n_{_DISCLAIMER}_")
+
+    return "\n".join(parts)

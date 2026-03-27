@@ -184,7 +184,7 @@ def api_login():
     if not request.content_type or "application/json" not in request.content_type:
         return jsonify(success=False, message="Content-Type must be application/json."), 415
     data = request.get_json(force=True)
-    email = _normalize_email(data.get("email", ""))
+    email = _normalize_email(data.get("email") or data.get("username") or "")
     password = data.get("password", "")
 
     if not email or not password:
@@ -239,3 +239,20 @@ def init_auth(app) -> None:
             db.session.add(demo)
             db.session.commit()
             logger.info("Seeded demo user: demo@example.com / demo123")
+
+        # Ensure the WhatsApp bridge service account exists
+        bot_email = "bot@dreamchat.local"
+        bot_password = os.environ.get("BOT_PASSWORD", "")
+        if User.query.filter_by(email=bot_email).first() is None:
+            if not bot_password:
+                bot_password = secrets.token_urlsafe(16)
+                logger.warning(
+                    "BOT_PASSWORD env var not set. Generated password for %s: %s  "
+                    "Set BOT_PASSWORD in your environment and in whatsapp/.env to persist it.",
+                    bot_email, bot_password,
+                )
+            bot = User(email=bot_email, tier="service")
+            bot.set_password(bot_password)
+            db.session.add(bot)
+            db.session.commit()
+            logger.info("Seeded service account: %s", bot_email)

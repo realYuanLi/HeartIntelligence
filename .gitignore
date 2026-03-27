@@ -3,6 +3,9 @@ __pycache__/
 .vscode
 .env
 
+# SQLite database (Flask-SQLAlchemy default location)
+instance/
+
 # Ignore JSON files except specific ones we want to include
 *.json
 !patient_info/*.json

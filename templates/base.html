@@ -30,9 +30,9 @@
     <div class="recents-title">Recents</div>
     <div class="recents" id="recentsList"></div>
     <div class="login-btn" id="loginBtn">
-      {{ username if username else 'Login' }}
+      {{ username if username else 'User' }}
     </div>
-    <div class="logout-btn" id="logoutBtn" {% if not username %}hidden{% endif %}>
+    <div class="logout-btn" id="logoutBtn">
       Logout
     </div>
   </aside>
@@ -40,13 +40,6 @@
     {% block main %}{% endblock %}
   </main>
   {% block input %}{% endblock %}
-  <div class="overlay" id="overlay">
-    <div class="login-modal">
-      <input id="loginUser" type="text" placeholder="Username"/>
-      <input id="loginPass" type="password" placeholder="Password"/>
-      <button id="loginSubmit">Login</button>
-    </div>
-  </div>
   <!-- Markdown parser -->
   <script src="https://cdn.jsdelivr.net/npm/marked@12.0.0/marked.min.js"></script>
   <script src="{{ url_for('static', filename='script.js') }}?t={{ cache_bust }}"></script>

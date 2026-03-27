@@ -305,8 +305,6 @@ document.addEventListener("DOMContentLoaded", () => {
   /* ---------- Grab common DOM elements ---------- */
   const loginBtn    = document.getElementById("loginBtn");
   const logoutBtn   = document.getElementById("logoutBtn");
-  const overlay     = document.getElementById("overlay");
-  const loginSubmit = document.getElementById("loginSubmit");
   const recentsList = document.getElementById("recentsList");
   const newChatBtn  = document.getElementById("newChatBtn");
 
@@ -314,45 +312,11 @@ document.addEventListener("DOMContentLoaded", () => {
   /* ==================================================== */
   /*  Authentication                                      */
   /* ==================================================== */
-  logoutBtn.hidden = loginBtn.textContent.trim() === "Login";
-
-  loginBtn.addEventListener("click", () => {
-    if (loginBtn.textContent.trim() === "Login") overlay.style.display = "flex";
-  });
-  overlay.addEventListener("click", e => {
-    if (e.target === overlay) overlay.style.display = "none";
-  });
-
-  loginSubmit.addEventListener("click", () => {
-    const username = document.getElementById("loginUser").value;
-    const password = document.getElementById("loginPass").value;
-    fetch("/api/login", {
-      method : "POST",
-      headers: { "Content-Type": "application/json" },
-      body   : JSON.stringify({ username, password })
-    })
-    .then(r => r.json())
-    .then(d => {
-      if (d.success) {
-        overlay.style.display = "none";
-        loginBtn.textContent  = username;
-        logoutBtn.hidden      = false;
-        loadHistory();
-      } else alert(d.message);
+  if (logoutBtn) {
+    logoutBtn.addEventListener("click", () => {
+      window.location.href = "/logout";
     });
-  });
-
-  logoutBtn.addEventListener("click", () => {
-    fetch("/api/logout", { method: "POST" })
-      .then(r => r.json())
-      .then(d => {
-        if (d.success) {
-          loginBtn.textContent = "Login";
-          logoutBtn.hidden     = true;
-          recentsList.innerHTML = "";
-        }
-      });
-  });
+  }
 
   /* ==================================================== */
   /*  Recent conversations sidebar                         */
@@ -940,7 +904,6 @@ document.addEventListener("DOMContentLoaded", () => {
         const box = document.getElementById("chatContent");
         box.innerHTML = "";
         data.conversation.forEach(m => appendMsg(m.content, m.role, m.images, m.exercise_images));
-        logoutBtn.hidden = loginBtn.textContent.trim() === "Login";
         
         // If there's an initial message from welcome page, send it automatically
         const hasWelcomeImages = sessionStorage.getItem("welcomeImages") !== null;

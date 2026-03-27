@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Login - HeartIntelligence</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}"/>
+</head>
+<body class="auth-page">
+  <div class="auth-card">
+    <h1 class="auth-title">HeartIntelligence</h1>
+    <p class="auth-subtitle">Sign in to your account</p>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div class="auth-error">{{ message }}</div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+
+    <form method="POST" action="{{ url_for('auth.login') }}">
+      <input type="hidden" name="_csrf_token" value="{{ csrf_token }}" />
+      <input class="auth-input" type="email" name="email" placeholder="Email address" required autofocus />
+      <input class="auth-input" type="password" name="password" placeholder="Password" required />
+      <button class="auth-button" type="submit">Sign In</button>
+    </form>
+
+    <p class="auth-link">
+      Don't have an account? <a href="{{ url_for('auth.register') }}">Create one</a>
+    </p>
+  </div>
+</body>
+</html>

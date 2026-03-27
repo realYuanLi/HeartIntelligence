@@ -1,4 +1,5 @@
 import os
+import secrets
 import json
 import uuid
 import threading
@@ -8,6 +9,7 @@ import io
 from datetime import datetime
 from pathlib import Path
 from flask import Flask, render_template, jsonify, request, session, redirect, url_for, send_file, Response
+from flask_login import current_user, login_required
 import numpy as np
 import nibabel as nib
 from PIL import Image
@@ -199,8 +201,14 @@ SummaryBot = Agent(
 # Flask setup
 # --------------------------------------------------------------------------------
 app = Flask(__name__, template_folder="templates", static_folder="static")
-app.secret_key = os.environ.get("SECRET_KEY", "replace-with-your-secret-key")
+app.secret_key = os.environ.get("SECRET_KEY") or secrets.token_hex(32)
 app.config["SEND_FILE_MAX_AGE_DEFAULT"] = 0  # disable static file caching
+
+# Initialize authentication (SQLite + Flask-Login)
+from functions.auth import init_auth, auth_bp
+init_auth(app)
+app.register_blueprint(auth_bp)
+print("✓ Authentication system initialized")
 
 @app.context_processor
 def inject_cache_bust():
@@ -212,17 +220,13 @@ def add_no_cache_headers(response):
         response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
     return response
 
-# ---- "account name": password  ----
-USERS = {"Kevin": "123456", "Yuan": "3456", "test": "111", "whatsapp_bot": os.environ.get("WHATSAPP_BOT_PASSWORD", "")}
-
 def _username() -> str | None:
+    if current_user.is_authenticated:
+        return current_user.email
     return session.get("username")
 
 def _require_login() -> bool:
-    u = session.get("username")
-    if not u or u not in USERS:
-        return False
-    return True
+    return current_user.is_authenticated
 
 def _user_dir(user: str) -> Path:
     d = DATA_DIR / user
@@ -310,12 +314,10 @@ def _generate_summary_async(user: str, session_id: str, conversation: list):
 # --------------------------------------------------------------------------------
 @app.route("/")
 def index():
-    # Show welcome page for logged in users, login page for others
     if not _require_login():
-        return render_template("base.html")
-    
-    # For logged in users, show welcome page
-    return render_template("welcome.html", username=session.get("username"))
+        return redirect(url_for("auth.login"))
+
+    return render_template("welcome.html", username=_username())
 
 @app.route("/health")
 def health_check():
@@ -384,66 +386,29 @@ def api_status():
     return jsonify(success=True, status=status, label=label)
 
 @app.route("/new")
+@login_required
 def new_chat():
-    # Show welcome page for new chat
-    if not _require_login():
-        return redirect(url_for("index"))
-    
-    # For logged in users, show welcome page
-    return render_template("welcome.html", username=session.get("username"))
+    return render_template("welcome.html", username=_username())
 
 @app.route("/dashboard")
+@login_required
 def dashboard():
-    # Show dashboard page
-    if not _require_login():
-        return redirect(url_for("index"))
-    
-    # For logged in users, show dashboard page
-    return render_template("dashboard.html", username=session.get("username"))
+    return render_template("dashboard.html", username=_username())
 
 @app.route("/my-body")
+@login_required
 def my_body():
-    # Show my body page
-    if not _require_login():
-        return redirect(url_for("index"))
-    
-    # For logged in users, show my body page
-    return render_template("my_body.html", username=session.get("username"))
+    return render_template("my_body.html", username=_username())
 
 @app.route("/pdf-forms")
+@login_required
 def pdf_forms():
-    # Show PDF forms page
-    if not _require_login():
-        return redirect(url_for("index"))
-    
-    # For logged in users, show PDF forms page
-    return render_template("pdf_forms.html", username=session.get("username"))
+    return render_template("pdf_forms.html", username=_username())
 
 @app.route("/chat/<session_id>")
+@login_required
 def chat(session_id: str):
-    return render_template("chat.html", username=session.get("username"))
-
-# --------------------------------------------------------------------------------
-# Auth
-# --------------------------------------------------------------------------------
-@app.route("/api/login", methods=["POST"])
-def api_login():
-    data = request.get_json(force=True)
-    u = (data.get("username") or "").strip()
-    p = (data.get("password") or "").strip()
-
-    if u not in USERS:
-        return jsonify(success=False, message="User not found."), 401
-    if USERS[u] != p:
-        return jsonify(success=False, message="Incorrect password."), 401
-
-    session["username"] = u
-    return jsonify(success=True, username=u)
-
-@app.route("/api/logout", methods=["POST"])
-def api_logout():
-    session.pop("username", None)
-    return jsonify(success=True)
+    return render_template("chat.html", username=_username())
 
 # --------------------------------------------------------------------------------
 # Conversations (login required)
@@ -1405,6 +1370,13 @@ print("✓ Nutrition planner blueprint registered")
 from functions.user_memory import memory_bp
 app.register_blueprint(memory_bp)
 print("✓ User memory blueprint registered")
+
+# --------------------------------------------------------------------------------
+# External Calendar
+# --------------------------------------------------------------------------------
+from functions.external_calendar import calendar_settings_bp
+app.register_blueprint(calendar_settings_bp)
+print("✓ External calendar blueprint registered")
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8000)), debug=False)

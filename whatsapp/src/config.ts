@@ -11,9 +11,24 @@ export const STORE_DIR = path.join(__dirname, '..', 'store');
 // URL of the running DREAM-Chat Flask server
 export const FLASK_BASE_URL = process.env.FLASK_BASE_URL ?? 'http://localhost:8000';
 
-// Credentials used to authenticate with the Flask API
-export const FLASK_USERNAME = process.env.FLASK_USERNAME ?? 'whatsapp_bot';
-export const FLASK_PASSWORD = process.env.FLASK_PASSWORD ?? '';
+// Credentials used to authenticate with the Flask API (service account)
+export const BOT_EMAIL = process.env.BOT_EMAIL ?? 'bot@dreamchat.local';
+export const BOT_PASSWORD = (() => {
+  const pw = process.env.BOT_PASSWORD;
+  if (!pw) {
+    throw new Error(
+      'BOT_PASSWORD environment variable is required. '
+      + 'Set it in whatsapp/.env to match the Flask-side BOT_PASSWORD.',
+    );
+  }
+  return pw;
+})();
+
+// Port for the internal Node.js REST API
+export const NODE_API_PORT = parseInt(process.env.NODE_API_PORT ?? '3001', 10);
+
+// Shared secret for Node.js API authentication
+export const NODE_API_KEY = process.env.NODE_API_KEY ?? '';
 
 // How often (ms) the message poll loop runs
 export const POLL_INTERVAL_MS = 500;
@@ -37,43 +52,13 @@ if (WA_PROXY_URL && !process.env.HTTPS_PROXY) {
   process.env.HTTP_PROXY = WA_PROXY_URL;
 }
 
-// ── Personal-number mode ──────────────────────────────────────────────────────
+// ── Personal-number mode defaults ─────────────────────────────────────────────
 //
-// Set ASSISTANT_HAS_OWN_NUMBER=true only when the linked WhatsApp account is a
-// dedicated bot number that no human uses for personal messaging.
-//
-// When false (default — personal number mode):
-//   • Bot replies are prefixed with ASSISTANT_NAME so you can tell them apart
-//     from your own messages in the same chat thread.
-//   • Only JIDs listed in ALLOWLIST_JIDS receive bot replies, preventing the
-//     bot from responding to every contact on your personal account.
-//   • Self-chat (messages from your own number to itself) is allowed so you
-//     can test the bot by messaging yourself.
+// In multi-user mode every user connects their personal WhatsApp number.
+// ASSISTANT_HAS_OWN_NUMBER and ASSISTANT_NAME are kept as connection-level
+// defaults and can be passed into WhatsAppClient via constructor options.
 export const ASSISTANT_HAS_OWN_NUMBER: boolean =
   process.env.ASSISTANT_HAS_OWN_NUMBER === 'true';
 
 // Display name prepended to bot replies in personal-number mode.
 export const ASSISTANT_NAME: string = process.env.ASSISTANT_NAME ?? '[Health Pal]';
-
-// When true, the bot ONLY responds to self-chat (messages you send to your
-// own number). All other conversations are silently ignored.
-export const SELF_CHAT_ONLY: boolean =
-  (process.env.SELF_CHAT_ONLY ?? 'true') === 'true';
-
-// Comma-separated list of WhatsApp JIDs (or bare phone numbers) that the bot
-// will respond to. Ignored when SELF_CHAT_ONLY is true.
-// Leave empty to allow all senders (not recommended on a personal number).
-// Example: "+8613812345678,+12025551234"
-//
-// Self-chat (your own number) is always implicitly allowed so you can test
-// the bot without adding yourself to this list.
-export const ALLOWLIST_JIDS: Set<string> = (() => {
-  const raw = process.env.ALLOWLIST_JIDS ?? '';
-  if (!raw.trim()) return new Set<string>();
-  return new Set(
-    raw.split(',').map((s) => {
-      const cleaned = s.trim().replace(/\D/g, '');
-      return cleaned ? `${cleaned}@s.whatsapp.net` : '';
-    }).filter(Boolean),
-  );
-})();

@@ -11,12 +11,11 @@ import makeWASocket, {
   normalizeMessageContent,
   useMultiFileAuthState,
 } from '@whiskeysockets/baileys';
-import qrcode from 'qrcode-terminal';
 import { SocksProxyAgent } from 'socks-proxy-agent';
 import { HttpsProxyAgent } from 'https-proxy-agent';
 import https from 'https';
 
-import { ALLOWLIST_JIDS, ASSISTANT_HAS_OWN_NUMBER, ASSISTANT_NAME, SELF_CHAT_ONLY, STORE_DIR, WA_PROXY_URL } from './config.js';
+import { WA_PROXY_URL } from './config.js';
 import { baileysLogger, logger } from './logger.js';
 
 // Fallback version used when the live fetch fails
@@ -81,7 +80,18 @@ export interface InboundMessage {
   images?: string[];
 }
 
+export type ConnectionStatus = 'disconnected' | 'connecting' | 'qr' | 'connected';
+
 export type OnMessageCallback = (msg: InboundMessage) => void;
+export type QrCallback = (qr: string | null) => void;
+
+export interface WhatsAppClientOptions {
+  userId: number;
+  authDir: string;
+  onMessage: OnMessageCallback;
+  assistantHasOwnNumber?: boolean;
+  assistantName?: string;
+}
 
 /**
  * Manages the WhatsApp connection via Baileys.
@@ -96,13 +106,15 @@ const RECONNECT_DELAYS_MS = [2000, 5000, 10000, 30000, 60000];
  * creds.json and keeps a single backup copy so we can recover after
  * abrupt restarts.
  */
-let credsSaveQueue: Promise<void> = Promise.resolve();
+const credsSaveQueues = new Map<number, Promise<void>>();
 
 function enqueueSaveCreds(
+  userId: number,
   authDir: string,
   saveCreds: () => Promise<void>,
 ): void {
-  credsSaveQueue = credsSaveQueue
+  const prev = credsSaveQueues.get(userId) ?? Promise.resolve();
+  const next = prev
     .then(async () => {
       const credsPath = path.join(authDir, 'creds.json');
       const backupPath = path.join(authDir, 'creds.backup.json');
@@ -116,54 +128,65 @@ function enqueueSaveCreds(
       await saveCreds();
     })
     .catch((err) => {
-      logger.warn({ err }, 'WhatsApp creds save error');
+      logger.warn({ err, userId }, 'WhatsApp creds save error');
     });
+  credsSaveQueues.set(userId, next);
 }
 
 const MESSAGE_STORE_MAX = 500;
 
 export class WhatsAppClient {
+  readonly userId: number;
+  private readonly authDir: string;
+  private readonly onMessage: OnMessageCallback;
+  private readonly assistantHasOwnNumber: boolean;
+  private readonly assistantName: string;
+
   private sock!: WASocket;
-  private connected = false;
+  private status: ConnectionStatus = 'disconnected';
+  private currentQr: string | null = null;
   private outgoingQueue: Array<{ jid: string; text: string }> = [];
   private flushing = false;
   private reconnectAttempt = 0;
+  private loggedOut = false;
 
   // Phone JID of the linked account (e.g. "8613812345678@s.whatsapp.net").
-  // Populated once the connection opens; used to identify self-chat.
   private selfJid: string | null = null;
 
-  // LID → phone JID cache for accounts using WhatsApp's newer LID addressing.
-  // LID JIDs are internal identifiers used for incoming message routing; they
-  // are NOT valid targets for sendMessage (always use @s.whatsapp.net).
+  // LID -> phone JID cache for WhatsApp's newer LID addressing.
   private lidToPhoneMap: Record<string, string> = {};
 
-  // Stores sent message content keyed by message ID.  When the recipient
-  // device can't decrypt a message, WhatsApp asks for a retransmission and
-  // Baileys calls the `getMessage` callback to obtain the original content.
+  // Stores sent message content keyed by message ID for retransmission.
   private sentMsgStore = new Map<string, proto.IMessage>();
 
-  constructor(private readonly onMessage: OnMessageCallback) {}
+  constructor(options: WhatsAppClientOptions) {
+    this.userId = options.userId;
+    this.authDir = options.authDir;
+    this.onMessage = options.onMessage;
+    this.assistantHasOwnNumber = options.assistantHasOwnNumber ?? false;
+    this.assistantName = options.assistantName ?? '[Health Pal]';
+  }
 
   async connect(): Promise<void> {
+    this.loggedOut = false;
+    this.status = 'connecting';
     return new Promise<void>((resolve, reject) => {
       this.connectInternal(resolve).catch(reject);
     });
   }
 
   private async connectInternal(onFirstOpen?: () => void): Promise<void> {
-    const authDir = path.join(STORE_DIR, 'auth');
-    fsSync.mkdirSync(authDir, { recursive: true });
+    fsSync.mkdirSync(this.authDir, { recursive: true });
 
     // Restore creds from backup if main creds.json is missing or corrupted
-    const credsPath = path.join(authDir, 'creds.json');
-    const backupPath = path.join(authDir, 'creds.backup.json');
+    const credsPath = path.join(this.authDir, 'creds.json');
+    const backupPath = path.join(this.authDir, 'creds.backup.json');
     if (!fsSync.existsSync(credsPath) && fsSync.existsSync(backupPath)) {
-      logger.info('Restoring creds.json from backup');
+      logger.info({ userId: this.userId }, 'Restoring creds.json from backup');
       fsSync.copyFileSync(backupPath, credsPath);
     }
 
-    const { state, saveCreds } = await useMultiFileAuthState(authDir);
+    const { state, saveCreds } = await useMultiFileAuthState(this.authDir);
 
     const proxyAgent = buildAgent();
     const version = await fetchWaVersion(proxyAgent);
@@ -190,41 +213,48 @@ export class WhatsAppClient {
       const { connection, lastDisconnect, qr } = update;
 
       if (qr) {
-        console.log('\n=== Scan this QR code with WhatsApp to authenticate ===\n');
-        qrcode.generate(qr, { small: true });
-        console.log('\n=======================================================\n');
+        this.currentQr = qr;
+        this.status = 'qr';
+        logger.info({ userId: this.userId }, 'QR code available');
       }
 
       if (connection === 'close') {
-        this.connected = false;
+        this.status = 'disconnected';
+        this.currentQr = null;
         const reason = (
           lastDisconnect?.error as { output?: { statusCode?: number } }
         )?.output?.statusCode;
         const shouldReconnect = reason !== DisconnectReason.loggedOut;
 
-        logger.info({ reason, shouldReconnect }, 'Connection closed');
+        logger.info({ userId: this.userId, reason, shouldReconnect }, 'Connection closed');
 
-        if (shouldReconnect) {
+        if (shouldReconnect && !this.loggedOut) {
           const delay = RECONNECT_DELAYS_MS[
             Math.min(this.reconnectAttempt, RECONNECT_DELAYS_MS.length - 1)
           ];
           this.reconnectAttempt++;
-          logger.info({ attempt: this.reconnectAttempt, delayMs: delay }, 'Reconnecting...');
+          this.status = 'connecting';
+          logger.info({ userId: this.userId, attempt: this.reconnectAttempt, delayMs: delay }, 'Reconnecting...');
           setTimeout(() => {
             this.connectInternal().catch((err) =>
-              logger.error({ err }, 'Reconnect attempt failed'),
+              logger.error({ userId: this.userId, err }, 'Reconnect attempt failed'),
             );
           }, delay);
         } else {
-          logger.info('Logged out. Delete store/auth and restart to re-authenticate.');
-          process.exit(0);
+          this.loggedOut = true;
+          logger.info({ userId: this.userId }, 'Logged out — delete auth directory to re-authenticate');
+          // Clean up auth directory on logout
+          try {
+            fsSync.rmSync(this.authDir, { recursive: true, force: true });
+          } catch { /* best effort */ }
         }
       } else if (connection === 'open') {
-        this.connected = true;
+        this.status = 'connected';
+        this.currentQr = null;
         this.reconnectAttempt = 0;
-        logger.info('Connected to WhatsApp');
+        logger.info({ userId: this.userId }, 'Connected to WhatsApp');
 
-        // Capture own JID and build LID → phone mapping for self-chat detection
+        // Capture own JID and build LID -> phone mapping for self-chat detection
         if (this.sock.user) {
           const phoneUser = this.sock.user.id.split(':')[0];
           this.selfJid = `${phoneUser}@s.whatsapp.net`;
@@ -232,15 +262,15 @@ export class WhatsAppClient {
             const lidUser = this.sock.user.lid.split(':')[0];
             this.lidToPhoneMap[lidUser] = this.selfJid;
           }
-          logger.info({ selfJid: this.selfJid }, 'Own JID recorded');
+          logger.info({ userId: this.userId, selfJid: this.selfJid }, 'Own JID recorded');
         }
 
         this.sock.sendPresenceUpdate('available').catch((err) =>
-          logger.warn({ err }, 'Failed to send presence update'),
+          logger.warn({ userId: this.userId, err }, 'Failed to send presence update'),
         );
 
         this.flushOutgoingQueue().catch((err) =>
-          logger.error({ err }, 'Failed to flush outgoing queue'),
+          logger.error({ userId: this.userId, err }, 'Failed to flush outgoing queue'),
         );
 
         if (onFirstOpen) {
@@ -250,7 +280,7 @@ export class WhatsAppClient {
       }
     });
 
-    this.sock.ev.on('creds.update', () => enqueueSaveCreds(authDir, saveCreds));
+    this.sock.ev.on('creds.update', () => enqueueSaveCreds(this.userId, this.authDir, saveCreds));
 
     this.sock.ev.on('messages.upsert', async ({ messages, type }) => {
       if (type !== 'notify') return;
@@ -267,8 +297,7 @@ export class WhatsAppClient {
         // Only handle direct (1-on-1) messages, not group chats
         if (rawJid.endsWith('@g.us')) continue;
 
-        // Translate LID-based JIDs to phone JIDs (WhatsApp's newer addressing).
-        // In 7.x, remoteJidAlt carries the phone JID when remoteJid is a LID.
+        // Translate LID-based JIDs to phone JIDs
         const altJid = (msg.key as { remoteJidAlt?: string }).remoteJidAlt;
         const chatJid = altJid && !altJid.endsWith('@lid')
           ? altJid
@@ -276,13 +305,12 @@ export class WhatsAppClient {
 
         const fromMe = msg.key.fromMe ?? false;
 
-        if (ASSISTANT_HAS_OWN_NUMBER) {
-          // Dedicated bot number: skip all outgoing messages (they are bot replies)
+        if (this.assistantHasOwnNumber) {
+          // Dedicated bot number: skip all outgoing messages
           if (fromMe) continue;
         } else {
           // Personal number mode: skip messages sent from this linked device
-          // (those are the bot's own replies), but allow self-chat messages
-          // sent from the phone (fromMe=true, remoteJid = own JID).
+          // but allow self-chat messages sent from the phone
           const isSelfChat = this.selfJid !== null && chatJid === this.selfJid;
           if (fromMe && !isSelfChat) continue;
         }
@@ -301,7 +329,7 @@ export class WhatsAppClient {
             const mimetype = normalized.imageMessage.mimetype || 'image/jpeg';
             images.push(`data:${mimetype};base64,${(buffer as Buffer).toString('base64')}`);
           } catch (err) {
-            logger.warn({ err, msgId: msg.key.id }, 'Failed to download image');
+            logger.warn({ err, msgId: msg.key.id, userId: this.userId }, 'Failed to download image');
           }
         }
 
@@ -309,20 +337,13 @@ export class WhatsAppClient {
 
         // In personal-number mode, bot replies are prefixed with ASSISTANT_NAME.
         // When WhatsApp echoes the sent message back, drop it to break the loop.
-        if (!ASSISTANT_HAS_OWN_NUMBER && content.startsWith(`${ASSISTANT_NAME}:`)) continue;
+        if (!this.assistantHasOwnNumber && content.startsWith(`${this.assistantName}:`)) continue;
 
+        // In personal-number mode with self-chat only (default for v1)
         const isSelf = this.selfJid !== null && chatJid === this.selfJid;
-
-        if (SELF_CHAT_ONLY) {
-          if (!isSelf) {
-            logger.debug({ chatJid }, 'Self-chat-only mode, ignoring');
-            continue;
-          }
-        } else if (ALLOWLIST_JIDS.size > 0) {
-          if (!isSelf && !ALLOWLIST_JIDS.has(chatJid)) {
-            logger.debug({ chatJid }, 'Sender not in allowlist, ignoring');
-            continue;
-          }
+        if (!isSelf) {
+          logger.debug({ userId: this.userId, chatJid }, 'Self-chat-only mode, ignoring');
+          continue;
         }
 
         const timestamp = new Date(
@@ -344,18 +365,16 @@ export class WhatsAppClient {
   }
 
   async sendMessage(jid: string, text: string): Promise<void> {
-    if (!this.connected) {
+    if (this.status !== 'connected') {
       this.outgoingQueue.push({ jid, text });
-      logger.info({ jid, queueSize: this.outgoingQueue.length }, 'WA disconnected, message queued');
+      logger.info({ userId: this.userId, jid, queueSize: this.outgoingQueue.length }, 'WA disconnected, message queued');
       return;
     }
 
-    // Always send to the phone-number JID (@s.whatsapp.net).
-    // LID JIDs are internal identifiers — NOT valid send targets.
     try {
       const result = await this.sock.sendMessage(jid, { text });
       logger.info(
-        { jid, length: text.length, msgId: result?.key?.id, status: result?.status },
+        { userId: this.userId, jid, length: text.length, msgId: result?.key?.id, status: result?.status },
         'Message sent',
       );
       if (result?.key?.id && result.message) {
@@ -363,13 +382,13 @@ export class WhatsAppClient {
       }
     } catch (err) {
       this.outgoingQueue.push({ jid, text });
-      logger.warn({ jid, err, queueSize: this.outgoingQueue.length }, 'Send failed, message queued');
+      logger.warn({ userId: this.userId, jid, err, queueSize: this.outgoingQueue.length }, 'Send failed, message queued');
     }
   }
 
   async sendImage(jid: string, imageBuffer: Buffer, caption?: string): Promise<void> {
-    if (!this.connected) {
-      logger.warn({ jid }, 'WA disconnected, cannot send image');
+    if (this.status !== 'connected') {
+      logger.warn({ userId: this.userId, jid }, 'WA disconnected, cannot send image');
       return;
     }
 
@@ -378,23 +397,39 @@ export class WhatsAppClient {
       if (caption) payload.caption = caption;
       const result = await this.sock.sendMessage(jid, payload);
       logger.info(
-        { jid, msgId: result?.key?.id, caption: caption ?? '' },
+        { userId: this.userId, jid, msgId: result?.key?.id, caption: caption ?? '' },
         'Image sent',
       );
       if (result?.key?.id && result.message) {
         this.storeSentMessage(result.key.id, result.message);
       }
     } catch (err) {
-      logger.warn({ jid, err }, 'Failed to send image');
+      logger.warn({ userId: this.userId, jid, err }, 'Failed to send image');
     }
   }
 
   isConnected(): boolean {
-    return this.connected;
+    return this.status === 'connected';
+  }
+
+  getStatus(): ConnectionStatus {
+    return this.status;
+  }
+
+  getQr(): string | null {
+    return this.currentQr;
+  }
+
+  getPhoneNumber(): string | null {
+    if (this.status !== 'connected' || !this.selfJid) return null;
+    const phone = this.selfJid.split('@')[0];
+    return `+${phone}`;
   }
 
   async disconnect(): Promise<void> {
-    this.connected = false;
+    this.loggedOut = true;
+    this.status = 'disconnected';
+    this.currentQr = null;
     this.sock?.end(undefined);
   }
 
@@ -402,15 +437,12 @@ export class WhatsAppClient {
     try {
       await this.sock.sendPresenceUpdate(isTyping ? 'composing' : 'paused', jid);
     } catch (err) {
-      logger.debug({ jid, err }, 'Failed to update typing status');
+      logger.debug({ userId: this.userId, jid, err }, 'Failed to update typing status');
     }
   }
 
   /**
    * Translate a LID-based JID (ending in @lid) to its phone-based equivalent.
-   * WhatsApp's newer protocol may deliver messages with LID JIDs instead of
-   * the traditional phone-number JIDs. Falls back to the original JID if
-   * translation is not possible.
    */
   private async translateJid(jid: string): Promise<string> {
     if (!jid.endsWith('@lid')) return jid;
@@ -438,14 +470,14 @@ export class WhatsAppClient {
     if (this.flushing || this.outgoingQueue.length === 0) return;
     this.flushing = true;
     try {
-      logger.info({ count: this.outgoingQueue.length }, 'Flushing outgoing queue');
+      logger.info({ userId: this.userId, count: this.outgoingQueue.length }, 'Flushing outgoing queue');
       while (this.outgoingQueue.length > 0) {
         const item = this.outgoingQueue.shift()!;
         const result = await this.sock.sendMessage(item.jid, { text: item.text });
         if (result?.key?.id && result.message) {
           this.storeSentMessage(result.key.id, result.message);
         }
-        logger.info({ jid: item.jid }, 'Queued message sent');
+        logger.info({ userId: this.userId, jid: item.jid }, 'Queued message sent');
       }
     } finally {
       this.flushing = false;

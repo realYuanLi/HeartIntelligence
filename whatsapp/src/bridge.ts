@@ -1,4 +1,4 @@
-import { FLASK_BASE_URL, FLASK_PASSWORD, FLASK_USERNAME } from './config.js';
+import { BOT_EMAIL, BOT_PASSWORD, FLASK_BASE_URL } from './config.js';
 import { logger } from './logger.js';
 
 /**
@@ -17,7 +17,7 @@ export class FlaskBridge {
     const res = await fetch(`${FLASK_BASE_URL}/api/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username: FLASK_USERNAME, password: FLASK_PASSWORD }),
+      body: JSON.stringify({ email: BOT_EMAIL, password: BOT_PASSWORD }),
     });
 
     if (!res.ok) {
@@ -36,7 +36,7 @@ export class FlaskBridge {
       this.sessionCookie = setCookie.split(';')[0];
     }
 
-    logger.info({ username: FLASK_USERNAME }, 'Logged in to Flask server');
+    logger.info({ email: BOT_EMAIL }, 'Logged in to Flask server');
   }
 
   /**
@@ -146,9 +146,10 @@ export class FlaskBridge {
     senderName: string,
     text: string,
     images?: string[],
+    userId?: number,
   ): Promise<{ reply: string; exerciseImages: Array<{ name: string; url: string }> }> {
     await this.ensureSession();
-    return this.doSendWhatsAppMessage(senderJid, senderName, text, images);
+    return this.doSendWhatsAppMessage(senderJid, senderName, text, images, userId);
   }
 
   private async doSendWhatsAppMessage(
@@ -156,6 +157,7 @@ export class FlaskBridge {
     senderName: string,
     text: string,
     images?: string[],
+    userId?: number,
     retried = false,
   ): Promise<{ reply: string; exerciseImages: Array<{ name: string; url: string }> }> {
     const payload: Record<string, unknown> = {
@@ -164,6 +166,7 @@ export class FlaskBridge {
       message: text,
     };
     if (images && images.length > 0) payload.images = images;
+    if (userId !== undefined) payload.user_id = userId;
 
     const res = await fetch(`${FLASK_BASE_URL}/api/whatsapp/message`, {
       method: 'POST',
@@ -177,7 +180,7 @@ export class FlaskBridge {
     if (res.status === 401 && !retried) {
       this.sessionCookie = null;
       await this.login();
-      return this.doSendWhatsAppMessage(senderJid, senderName, text, images, true);
+      return this.doSendWhatsAppMessage(senderJid, senderName, text, images, userId, true);
     }
 
     if (!res.ok) {
@@ -233,7 +236,7 @@ export class FlaskBridge {
    * Returns an array of messages to send, each with msg_id, target_jid, and message.
    */
   async pollOutbound(): Promise<
-    Array<{ msg_id: string; target_jid: string; message: string; skip_prefix?: boolean }>
+    Array<{ msg_id: string; target_jid: string; message: string; skip_prefix?: boolean; user_id?: number }>
   > {
     await this.ensureSession();
     return this.doPollOutbound();
@@ -241,7 +244,7 @@ export class FlaskBridge {
 
   private async doPollOutbound(
     retried = false,
-  ): Promise<Array<{ msg_id: string; target_jid: string; message: string; skip_prefix?: boolean }>> {
+  ): Promise<Array<{ msg_id: string; target_jid: string; message: string; skip_prefix?: boolean; user_id?: number }>> {
     const res = await fetch(`${FLASK_BASE_URL}/api/whatsapp/outbound`, {
       headers: {
         Cookie: this.sessionCookie!,
@@ -258,7 +261,7 @@ export class FlaskBridge {
 
     const body = (await res.json()) as {
       success: boolean;
-      messages?: Array<{ msg_id: string; target_jid: string; message: string; skip_prefix?: boolean }>;
+      messages?: Array<{ msg_id: string; target_jid: string; message: string; skip_prefix?: boolean; user_id?: number }>;
     };
 
     return body.messages ?? [];

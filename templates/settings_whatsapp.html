@@ -15,10 +15,11 @@
     </div>
 
     <div class="cron-jobs-content">
-      <div class="cron-jobs-list-card">
-        <h2>Skills</h2>
-        <div id="skillsList" class="jobs-list">
-          <div class="loading">Loading skills...</div>
+      <!-- Connection status card -->
+      <div class="cron-job-form-card">
+        <h2>WhatsApp Connection</h2>
+        <div id="waStatus" class="heartbeat-status-grid">
+          <div class="loading">Loading status...</div>
         </div>
       </div>
     </div>
@@ -54,5 +55,5 @@
 {% endblock %}
 
 {% block scripts %}
-  <script src="{{ url_for('static', filename='settings_skills.js') }}?v=1"></script>
+  <script src="{{ url_for('static', filename='settings_whatsapp.js') }}?v=1"></script>
 {% endblock %}

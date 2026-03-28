@@ -27,6 +27,7 @@ from functions.user_memory import (
     LONG_TERM_CATEGORIES,
     MAX_PER_CATEGORY,
     DEFAULT_SHORT_TERM_TTL,
+    _OLD_SHORT_TERM_CATEGORIES,
 )
 
 
@@ -78,7 +79,7 @@ class TestRemember:
 
     def test_invalid_category_raises_value_error(self, mem):
         with pytest.raises(ValueError, match="Invalid long-term category"):
-            mem.remember("page_visits", "something")
+            mem.remember("recent_conversations", "something")
 
     def test_auto_generates_key_if_none(self, mem):
         entry = mem.remember("goal", "Run a marathon")
@@ -92,25 +93,30 @@ class TestRemember:
 
 class TestTrack:
     def test_creates_short_term_entry(self, mem):
-        entry = mem.track("page_visits", "/settings")
-        assert entry["value"] == "/settings"
+        entry = mem.track("recent_conversations", "asked about diet plans")
+        assert entry["value"] == "asked about diet plans"
         assert "key" in entry
         assert "ts" in entry
         assert entry["ttl"] == DEFAULT_SHORT_TERM_TTL
 
     def test_custom_ttl(self, mem):
-        entry = mem.track("chat_topics", "weather", ttl=120)
+        entry = mem.track("recent_conversations", "weather", ttl=120)
         assert entry["ttl"] == 120
 
     def test_stored_in_correct_category(self, mem):
-        mem.track("recent_searches", "python decorators")
+        mem.track("recent_plans", "5-day strength routine")
         data = mem.get_all()
-        assert len(data["short_term"]["recent_searches"]) == 1
-        assert data["short_term"]["recent_searches"][0]["value"] == "python decorators"
+        assert len(data["short_term"]["recent_plans"]) == 1
+        assert data["short_term"]["recent_plans"][0]["value"] == "5-day strength routine"
 
     def test_invalid_category_raises_value_error(self, mem):
         with pytest.raises(ValueError, match="Invalid short-term category"):
             mem.track("preference", "something")
+
+    def test_old_categories_rejected(self, mem):
+        for old_cat in _OLD_SHORT_TERM_CATEGORIES:
+            with pytest.raises(ValueError, match="Invalid short-term category"):
+                mem.track(old_cat, "something")
 
     def test_all_valid_short_term_categories(self, mem):
         for cat in SHORT_TERM_CATEGORIES:
@@ -126,11 +132,11 @@ class TestForget:
         assert len(data["long_term"]) == 0
 
     def test_removes_short_term_entry(self, mem):
-        entry = mem.track("page_visits", "/dashboard")
+        entry = mem.track("recent_conversations", "asked about running")
         key = entry["key"]
         assert mem.forget(key) is True
         data = mem.get_all()
-        assert len(data["short_term"]["page_visits"]) == 0
+        assert len(data["short_term"]["recent_conversations"]) == 0
 
     def test_returns_false_for_nonexistent_key(self, mem):
         assert mem.forget("nonexistent-key-12345") is False
@@ -156,10 +162,10 @@ class TestGetAll:
 
     def test_includes_all_entries(self, mem):
         mem.remember("preference", "dark mode", key="theme")
-        mem.track("page_visits", "/home")
+        mem.track("recent_conversations", "asked about exercise")
         data = mem.get_all()
         assert len(data["long_term"]) == 1
-        assert len(data["short_term"]["page_visits"]) == 1
+        assert len(data["short_term"]["recent_conversations"]) == 1
 
 
 class TestGetSummary:
@@ -179,11 +185,23 @@ class TestGetSummary:
         summary = mem.get_summary()
         assert "EpiPen prescribed" in summary
 
-    def test_includes_recent_activity(self, mem):
-        mem.track("chat_topics", "machine learning")
+    def test_includes_recent_conversations(self, mem):
+        mem.track("recent_conversations", "asked about machine learning")
         summary = mem.get_summary()
-        assert "Recent activity:" in summary
-        assert "machine learning" in summary
+        assert "Recent conversations:" in summary
+        assert "asked about machine learning" in summary
+
+    def test_includes_active_plans(self, mem):
+        mem.track("recent_plans", "5-day strength program")
+        summary = mem.get_summary()
+        assert "Active plans:" in summary
+        assert "5-day strength program" in summary
+
+    def test_includes_health_status(self, mem):
+        mem.track("health_status", "BMI 24.5, blood pressure 120/80")
+        summary = mem.get_summary()
+        assert "Recent health status:" in summary
+        assert "BMI 24.5" in summary
 
     def test_max_items_limits_output(self, mem):
         for i in range(15):
@@ -191,12 +209,12 @@ class TestGetSummary:
         summary = mem.get_summary(max_items=5)
         assert "... and 10 more" in summary
 
-    def test_summary_combines_topics_and_searches(self, mem):
-        mem.track("chat_topics", "topic1")
-        mem.track("recent_searches", "search1")
+    def test_summary_combines_short_term_sections(self, mem):
+        mem.track("recent_conversations", "topic1")
+        mem.track("recent_plans", "plan1")
         summary = mem.get_summary()
         assert "topic1" in summary
-        assert "search1" in summary
+        assert "plan1" in summary
 
 
 # ===========================================================================
@@ -206,17 +224,15 @@ class TestGetSummary:
 class TestTTLExpiry:
     def test_expired_short_term_entry_removed(self, mem):
         """Entry with ttl=1 should be cleaned up after expiry."""
-        entry = mem.track("page_visits", "/old-page", ttl=1)
-        # Immediately after creation, it should exist
+        entry = mem.track("recent_conversations", "old topic", ttl=1)
         data = mem.get_all()
-        assert len(data["short_term"]["page_visits"]) == 1
+        assert len(data["short_term"]["recent_conversations"]) == 1
 
-        # Monkey-patch time to simulate passage
         real_time = time.time
         with patch("functions.user_memory.time") as mock_time:
             mock_time.time.return_value = real_time() + 2
             data = mem.get_all()
-        assert len(data["short_term"]["page_visits"]) == 0
+        assert len(data["short_term"]["recent_conversations"]) == 0
 
     def test_none_ttl_never_expires(self, mem):
         """Long-term entry with ttl=None should persist forever."""
@@ -229,14 +245,12 @@ class TestTTLExpiry:
 
     def test_ttl_zero_expires_immediately(self, mem):
         """Entry with ttl=0 should expire on next load."""
-        mem.track("chat_topics", "ephemeral", ttl=0)
-        # On next load, ts + 0 = ts, which is NOT > now, so it should be gone
-        # (unless loaded in same instant). We patch time to be slightly ahead.
+        mem.track("recent_conversations", "ephemeral", ttl=0)
         real_time = time.time
         with patch("functions.user_memory.time") as mock_time:
             mock_time.time.return_value = real_time() + 0.001
             data = mem.get_all()
-        assert len(data["short_term"]["chat_topics"]) == 0
+        assert len(data["short_term"]["recent_conversations"]) == 0
 
     def test_expired_long_term_entry_removed(self, mem):
         """Long-term entry with TTL should also expire."""
@@ -256,31 +270,29 @@ class TestFIFOPruning:
     def test_prunes_to_max_per_category(self, mem):
         """Adding more than MAX_PER_CATEGORY entries keeps only the newest."""
         for i in range(25):
-            mem.track("page_visits", f"/page-{i}")
+            mem.track("recent_conversations", f"topic-{i}")
         data = mem.get_all()
-        entries = data["short_term"]["page_visits"]
+        entries = data["short_term"]["recent_conversations"]
         assert len(entries) == MAX_PER_CATEGORY  # 20
 
     def test_oldest_entries_dropped(self, mem):
         """The 5 oldest entries (0-4) should be dropped when 25 are added."""
         for i in range(25):
-            mem.track("page_visits", f"/page-{i}")
+            mem.track("recent_conversations", f"topic-{i}")
         data = mem.get_all()
-        values = [e["value"] for e in data["short_term"]["page_visits"]]
-        # Oldest 5 should be gone
+        values = [e["value"] for e in data["short_term"]["recent_conversations"]]
         for i in range(5):
-            assert f"/page-{i}" not in values
-        # Newest should remain
+            assert f"topic-{i}" not in values
         for i in range(5, 25):
-            assert f"/page-{i}" in values
+            assert f"topic-{i}" in values
 
     def test_fifo_preserves_order(self, mem):
         """Entries should be in insertion order after pruning."""
         for i in range(25):
-            mem.track("page_visits", f"/page-{i}")
+            mem.track("recent_conversations", f"topic-{i}")
         data = mem.get_all()
-        values = [e["value"] for e in data["short_term"]["page_visits"]]
-        expected = [f"/page-{i}" for i in range(5, 25)]
+        values = [e["value"] for e in data["short_term"]["recent_conversations"]]
+        expected = [f"topic-{i}" for i in range(5, 25)]
         assert values == expected
 
 
@@ -293,14 +305,13 @@ class TestPersistence:
         """New UserMemory instance for same user sees previous data."""
         mem1 = UserMemory("alice")
         mem1.remember("preference", "Likes cats", key="pet-pref")
-        mem1.track("chat_topics", "feline health")
+        mem1.track("recent_conversations", "feline health")
 
-        # Create a fresh instance
         mem2 = UserMemory("alice")
         data = mem2.get_all()
         assert len(data["long_term"]) == 1
         assert data["long_term"][0]["value"] == "Likes cats"
-        assert len(data["short_term"]["chat_topics"]) == 1
+        assert len(data["short_term"]["recent_conversations"]) == 1
 
     def test_no_cross_user_leakage(self, tmp_path):
         """Different usernames must get independent files."""
@@ -335,7 +346,6 @@ class TestEdgeCases:
 
     def test_special_characters_sanitized(self):
         mem = UserMemory("user@name!#$%")
-        # Should strip special chars, keep only alphanumeric, underscore, hyphen
         assert mem.username == "username"
 
     def test_username_with_spaces_sanitized(self):
@@ -349,10 +359,8 @@ class TestEdgeCases:
     def test_corrupted_json_file_recovers(self, tmp_path):
         """If the JSON file is corrupted, UserMemory should recover gracefully."""
         mem = UserMemory("corrupt")
-        # Write garbage to the file
         mem.path.parent.mkdir(parents=True, exist_ok=True)
         mem.path.write_text("{{not valid json!!!", encoding="utf-8")
-        # Should recover with default structure
         data = mem.get_all()
         assert "short_term" in data
         assert "long_term" in data
@@ -380,7 +388,7 @@ class TestEdgeCases:
         mem = UserMemory("partial")
         mem.path.parent.mkdir(parents=True, exist_ok=True)
         mem.path.write_text(json.dumps({
-            "short_term": {"page_visits": []},
+            "short_term": {"recent_conversations": []},
             "long_term": [],
         }), encoding="utf-8")
         data = mem.get_all()
@@ -399,10 +407,14 @@ class TestAPI:
     def client(self, tmp_path, monkeypatch):
         """Create a minimal Flask app with the memory blueprint."""
         from flask import Flask
+        from flask_login import LoginManager
         from functions.user_memory import memory_bp
 
         app = Flask(__name__)
         app.secret_key = "test-secret"
+        lm = LoginManager()
+        lm.init_app(app)
+        lm.user_loader(lambda uid: None)
         app.register_blueprint(memory_bp)
         app.config["TESTING"] = True
         return app.test_client()
@@ -472,14 +484,12 @@ class TestAPI:
 
     def test_forget_removes_entry(self, client):
         self._login(client)
-        # Create entry
         resp = client.post("/api/memory", json={
             "category": "fact",
             "value": "To be deleted",
             "key": "del-me",
         })
         assert resp.status_code == 200
-        # Delete it
         resp = client.delete("/api/memory/del-me")
         assert resp.status_code == 200
         assert resp.get_json()["success"] is True
@@ -492,13 +502,13 @@ class TestAPI:
     def test_track_creates_entry(self, client):
         self._login(client)
         resp = client.post("/api/memory/track", json={
-            "category": "page_visits",
-            "value": "/dashboard",
+            "category": "recent_conversations",
+            "value": "asked about diet",
         })
         assert resp.status_code == 200
         body = resp.get_json()
         assert body["success"] is True
-        assert body["entry"]["value"] == "/dashboard"
+        assert body["entry"]["value"] == "asked about diet"
 
     def test_track_rejects_invalid_category(self, client):
         self._login(client)
@@ -508,18 +518,27 @@ class TestAPI:
         })
         assert resp.status_code == 400
 
+    def test_track_rejects_old_categories(self, client):
+        self._login(client)
+        for old_cat in _OLD_SHORT_TERM_CATEGORIES:
+            resp = client.post("/api/memory/track", json={
+                "category": old_cat,
+                "value": "something",
+            })
+            assert resp.status_code == 400
+
     def test_track_rejects_long_value(self, client):
         self._login(client)
         resp = client.post("/api/memory/track", json={
-            "category": "page_visits",
+            "category": "recent_conversations",
             "value": "x" * 201,
         })
         assert resp.status_code == 400
 
     def test_track_requires_auth(self, client):
         resp = client.post("/api/memory/track", json={
-            "category": "page_visits",
-            "value": "/home",
+            "category": "recent_conversations",
+            "value": "something",
         })
         assert resp.status_code == 401
 
@@ -566,13 +585,11 @@ class TestContextAndEvergreen:
 
     def test_upsert_preserves_access_count(self, mem):
         mem.remember("fact", "Original", key="ac-test")
-        # Simulate external access_count bump by modifying the file directly
         data = mem.get_all()
         for e in data["long_term"]:
             if e["key"] == "ac-test":
                 e["access_count"] = 7
         mem._save(data)
-        # Re-remember with same key (upsert)
         entry = mem.remember("fact", "Updated", key="ac-test")
         assert entry["access_count"] == 7
         assert entry["value"] == "Updated"
@@ -620,30 +637,27 @@ class TestRelevanceScoring:
     def test_newer_entries_score_higher(self):
         now = time.time()
         new_entry = {"ts": now, "access_count": 0, "evergreen": False}
-        old_entry = {"ts": now - 60 * 86400, "access_count": 0, "evergreen": False}  # 60 days old
+        old_entry = {"ts": now - 60 * 86400, "access_count": 0, "evergreen": False}
         assert _relevance_score(new_entry, now) > _relevance_score(old_entry, now)
 
     def test_evergreen_entries_get_max_decay(self):
         now = time.time()
         old_evergreen = {"ts": now - 365 * 86400, "access_count": 0, "evergreen": True}
         score = _relevance_score(old_evergreen, now)
-        # Decay component should be 1.0, plus access_boost = log1p(0)*0.2 = 0
         assert score == pytest.approx(1.0)
 
     def test_access_count_boosts_score(self):
         now = time.time()
-        ts = now - 10 * 86400  # 10 days old
+        ts = now - 10 * 86400
         high_access = {"ts": ts, "access_count": 10, "evergreen": False}
         low_access = {"ts": ts, "access_count": 0, "evergreen": False}
         assert _relevance_score(high_access, now) > _relevance_score(low_access, now)
 
     def test_score_formula_concrete_values(self):
         now = 1000000.0
-        # age=0 days → decay = exp(0) = 1.0
         entry_age0 = {"ts": now, "access_count": 0, "evergreen": False}
         assert _relevance_score(entry_age0, now) == pytest.approx(1.0)
 
-        # age=30 days → decay = exp(-ln2 * 30/30) = exp(-ln2) = 0.5
         entry_age30 = {"ts": now - 30 * 86400, "access_count": 0, "evergreen": False}
         assert _relevance_score(entry_age30, now) == pytest.approx(0.5)
 
@@ -651,28 +665,22 @@ class TestRelevanceScoring:
 class TestGetSummaryScored:
     def test_summary_ordered_by_relevance(self, mem, monkeypatch):
         now = time.time()
-        # Create old entry first
         monkeypatch.setattr("functions.user_memory.time.time", lambda: now - 90 * 86400)
         mem.remember("fact", "Old fact", key="old")
-        # Create new entry
         monkeypatch.setattr("functions.user_memory.time.time", lambda: now)
         mem.remember("fact", "New fact", key="new")
         summary = mem.get_summary()
         lines = summary.split("\n")
-        # New fact should appear before old fact
         new_idx = next(i for i, l in enumerate(lines) if "New fact" in l)
         old_idx = next(i for i, l in enumerate(lines) if "Old fact" in l)
         assert new_idx < old_idx
 
     def test_evergreen_old_entry_ranks_high(self, mem, monkeypatch):
         now = time.time()
-        # Create old evergreen entry
         monkeypatch.setattr("functions.user_memory.time.time", lambda: now - 180 * 86400)
         mem.remember("fact", "Evergreen fact", key="eg", evergreen=True)
-        # Create newer non-evergreen entry (30 days old → decay ~0.5)
         monkeypatch.setattr("functions.user_memory.time.time", lambda: now - 30 * 86400)
         mem.remember("fact", "Recent fact", key="recent")
-        # Restore time for get_summary
         monkeypatch.setattr("functions.user_memory.time.time", lambda: now)
         summary = mem.get_summary()
         lines = summary.split("\n")
@@ -702,59 +710,165 @@ class TestGetSummaryScored:
 
 
 class TestPromotion:
-    def test_promote_at_threshold(self, mem):
+    def test_promote_conversations_at_threshold(self, mem):
         for _ in range(PROMOTION_THRESHOLD):
-            mem.track("page_visits", "/dashboard")
-        # get_summary triggers _promote
+            mem.track("recent_conversations", "knee pain exercises")
         mem.get_summary()
         data = mem.get_all()
-        promoted = [e for e in data["long_term"] if "dashboard" in e["value"]]
+        promoted = [e for e in data["long_term"] if "knee pain exercises" in e["value"]]
         assert len(promoted) == 1
+        assert promoted[0]["category"] == "fact"
 
     def test_no_promote_below_threshold(self, mem):
         for _ in range(PROMOTION_THRESHOLD - 1):
-            mem.track("page_visits", "/settings")
+            mem.track("recent_conversations", "shoulder stretch")
         mem.get_summary()
         data = mem.get_all()
-        promoted = [e for e in data["long_term"] if "settings" in e["value"]]
+        promoted = [e for e in data["long_term"] if "shoulder stretch" in e["value"]]
         assert len(promoted) == 0
 
     def test_promote_deduplicates(self, mem):
-        # Pre-create a long-term entry with the same value that promotion would create
-        mem.remember("fact", "frequently uses /reports", key="existing-reports")
+        mem.remember("fact", "knee pain exercises", key="existing-knee")
         for _ in range(PROMOTION_THRESHOLD):
-            mem.track("page_visits", "/reports")
+            mem.track("recent_conversations", "knee pain exercises")
         mem.get_summary()
         data = mem.get_all()
-        matches = [e for e in data["long_term"] if "reports" in e["value"]]
+        matches = [e for e in data["long_term"] if "knee pain exercises" in e["value"]]
         assert len(matches) == 1  # No duplicate
 
     def test_promote_removes_short_term_entries(self, mem):
         for _ in range(PROMOTION_THRESHOLD):
-            mem.track("page_visits", "/dashboard")
+            mem.track("recent_conversations", "knee pain exercises")
         mem.get_summary()
         data = mem.get_all()
-        st_values = [e["value"] for e in data["short_term"]["page_visits"]]
-        assert "/dashboard" not in st_values
+        st_values = [e["value"] for e in data["short_term"]["recent_conversations"]]
+        assert "knee pain exercises" not in st_values
 
     def test_promote_sets_context(self, mem):
         for _ in range(PROMOTION_THRESHOLD):
-            mem.track("page_visits", "/analytics")
+            mem.track("recent_conversations", "protein intake")
         mem.get_summary()
         data = mem.get_all()
-        promoted = [e for e in data["long_term"] if "analytics" in e["value"]]
+        promoted = [e for e in data["long_term"] if "protein intake" in e["value"]]
         assert len(promoted) == 1
-        assert promoted[0]["context"] == "Auto-promoted from repeated page_visits"
+        assert promoted[0]["context"] == "Auto-promoted from repeated recent_conversations"
+
+    def test_no_promotion_from_recent_plans(self, mem):
+        """recent_plans entries should never be promoted even if repeated."""
+        for _ in range(PROMOTION_THRESHOLD + 2):
+            mem.track("recent_plans", "5-day strength routine")
+        mem.get_summary()
+        data = mem.get_all()
+        promoted = [e for e in data["long_term"] if "5-day strength routine" in e["value"]]
+        assert len(promoted) == 0
+
+    def test_no_promotion_from_health_status(self, mem):
+        """health_status entries should never be promoted even if repeated."""
+        for _ in range(PROMOTION_THRESHOLD + 2):
+            mem.track("health_status", "BMI 24.5")
+        mem.get_summary()
+        data = mem.get_all()
+        promoted = [e for e in data["long_term"] if "BMI 24.5" in e["value"]]
+        assert len(promoted) == 0
+
+
+# ===========================================================================
+# 8. Migration tests
+# ===========================================================================
+
+class TestMigration:
+    def test_old_short_term_categories_dropped_on_load(self, tmp_path):
+        """Files with old categories (page_visits, etc.) should have them removed."""
+        mem = UserMemory("migrator")
+        mem.path.parent.mkdir(parents=True, exist_ok=True)
+        old_data = {
+            "short_term": {
+                "page_visits": [{"key": "pv1", "value": "/settings", "ts": time.time(), "ttl": 604800}],
+                "chat_topics": [{"key": "ct1", "value": "diet tips", "ts": time.time(), "ttl": 604800}],
+                "recent_searches": [{"key": "rs1", "value": "bicep curls", "ts": time.time(), "ttl": 604800}],
+                "last_used_skills": [{"key": "ls1", "value": "workout", "ts": time.time(), "ttl": 604800}],
+            },
+            "long_term": [],
+        }
+        mem.path.write_text(json.dumps(old_data), encoding="utf-8")
+        data = mem.get_all()
+        # Old categories should be gone
+        for old_cat in _OLD_SHORT_TERM_CATEGORIES:
+            assert old_cat not in data["short_term"]
+        # New categories should exist (empty)
+        for cat in SHORT_TERM_CATEGORIES:
+            assert cat in data["short_term"]
+            assert isinstance(data["short_term"][cat], list)
+
+    def test_page_visit_promoted_noise_cleaned_on_load(self, tmp_path):
+        """Long-term entries auto-promoted from page_visits should be removed."""
+        mem = UserMemory("noisy")
+        mem.path.parent.mkdir(parents=True, exist_ok=True)
+        noisy_data = {
+            "short_term": {cat: [] for cat in SHORT_TERM_CATEGORIES},
+            "long_term": [
+                {
+                    "key": "promoted-abc",
+                    "category": "fact",
+                    "value": "frequently uses settings",
+                    "notes": None,
+                    "context": "Auto-promoted from repeated page_visits",
+                    "evergreen": False,
+                    "access_count": 2,
+                    "ts": time.time(),
+                    "ttl": None,
+                },
+                {
+                    "key": "real-fact",
+                    "category": "fact",
+                    "value": "Allergic to peanuts",
+                    "notes": None,
+                    "context": "dietary needs",
+                    "evergreen": True,
+                    "access_count": 5,
+                    "ts": time.time(),
+                    "ttl": None,
+                },
+            ],
+        }
+        mem.path.write_text(json.dumps(noisy_data), encoding="utf-8")
+        data = mem.get_all()
+        assert len(data["long_term"]) == 1
+        assert data["long_term"][0]["key"] == "real-fact"
+
+    def test_mixed_old_and_new_categories_migration(self, tmp_path):
+        """If a file has a mix of old and new categories, old are dropped, new are preserved."""
+        mem = UserMemory("mixed")
+        mem.path.parent.mkdir(parents=True, exist_ok=True)
+        mixed_data = {
+            "short_term": {
+                "page_visits": [{"key": "pv1", "value": "/home", "ts": time.time(), "ttl": 604800}],
+                "recent_conversations": [{"key": "rc1", "value": "asked about diet", "ts": time.time(), "ttl": 604800}],
+            },
+            "long_term": [],
+        }
+        mem.path.write_text(json.dumps(mixed_data), encoding="utf-8")
+        data = mem.get_all()
+        assert "page_visits" not in data["short_term"]
+        assert len(data["short_term"]["recent_conversations"]) == 1
+        assert data["short_term"]["recent_conversations"][0]["value"] == "asked about diet"
+        # Ensure all new categories exist
+        for cat in SHORT_TERM_CATEGORIES:
+            assert cat in data["short_term"]
 
 
 class TestAPINewFields:
     @pytest.fixture
     def client(self, tmp_path, monkeypatch):
         from flask import Flask
+        from flask_login import LoginManager
         from functions.user_memory import memory_bp
 
         app = Flask(__name__)
         app.secret_key = "test-secret"
+        lm = LoginManager()
+        lm.init_app(app)
+        lm.user_loader(lambda uid: None)
         app.register_blueprint(memory_bp)
         app.config["TESTING"] = True
         return app.test_client()
@@ -804,3 +918,513 @@ class TestAPINewFields:
             "context": 123,
         })
         assert resp.status_code == 400
+
+
+# ===========================================================================
+# 9. Additional coverage: gaps identified by adversarial review
+# ===========================================================================
+
+
+class TestMigrationAdditional:
+    """Additional migration edge cases beyond the basics."""
+
+    def test_file_with_only_old_categories_gets_new_ones(self, tmp_path):
+        """A file that has ONLY old categories (no new ones at all) should heal."""
+        mem = UserMemory("onlyold")
+        mem.path.parent.mkdir(parents=True, exist_ok=True)
+        old_only = {
+            "short_term": {
+                "page_visits": [{"key": "pv1", "value": "/home", "ts": time.time(), "ttl": 604800}],
+                "chat_topics": [{"key": "ct1", "value": "nutrition", "ts": time.time(), "ttl": 604800}],
+            },
+            "long_term": [],
+        }
+        mem.path.write_text(json.dumps(old_only), encoding="utf-8")
+        data = mem.get_all()
+        for old_cat in _OLD_SHORT_TERM_CATEGORIES:
+            assert old_cat not in data["short_term"]
+        for cat in SHORT_TERM_CATEGORIES:
+            assert cat in data["short_term"]
+            assert data["short_term"][cat] == []
+
+    def test_multiple_page_visit_noise_entries_all_removed(self, tmp_path):
+        """Multiple long-term entries promoted from page_visits should all be removed."""
+        mem = UserMemory("multinoise")
+        mem.path.parent.mkdir(parents=True, exist_ok=True)
+        noisy_data = {
+            "short_term": {cat: [] for cat in SHORT_TERM_CATEGORIES},
+            "long_term": [
+                {
+                    "key": f"promoted-{i}",
+                    "category": "fact",
+                    "value": f"page visit noise {i}",
+                    "notes": None,
+                    "context": "Auto-promoted from repeated page_visits",
+                    "evergreen": False,
+                    "access_count": 0,
+                    "ts": time.time(),
+                    "ttl": None,
+                }
+                for i in range(5)
+            ] + [
+                {
+                    "key": "legit",
+                    "category": "preference",
+                    "value": "Likes running",
+                    "notes": None,
+                    "context": None,
+                    "evergreen": False,
+                    "access_count": 0,
+                    "ts": time.time(),
+                    "ttl": None,
+                },
+            ],
+        }
+        mem.path.write_text(json.dumps(noisy_data), encoding="utf-8")
+        data = mem.get_all()
+        assert len(data["long_term"]) == 1
+        assert data["long_term"][0]["key"] == "legit"
+
+    def test_legitimate_conversation_promoted_entries_survive_migration(self, tmp_path):
+        """Entries promoted from recent_conversations should NOT be removed."""
+        mem = UserMemory("legit_promote")
+        mem.path.parent.mkdir(parents=True, exist_ok=True)
+        data = {
+            "short_term": {cat: [] for cat in SHORT_TERM_CATEGORIES},
+            "long_term": [
+                {
+                    "key": "promoted-conv",
+                    "category": "fact",
+                    "value": "knee pain exercises",
+                    "notes": None,
+                    "context": "Auto-promoted from repeated recent_conversations",
+                    "evergreen": False,
+                    "access_count": 0,
+                    "ts": time.time(),
+                    "ttl": None,
+                },
+            ],
+        }
+        mem.path.write_text(json.dumps(data), encoding="utf-8")
+        loaded = mem.get_all()
+        assert len(loaded["long_term"]) == 1
+        assert loaded["long_term"][0]["value"] == "knee pain exercises"
+
+    def test_migration_preserves_new_category_data(self, tmp_path):
+        """Old category removal must not destroy data in valid new categories."""
+        mem = UserMemory("preserve")
+        mem.path.parent.mkdir(parents=True, exist_ok=True)
+        mixed = {
+            "short_term": {
+                "page_visits": [{"key": "pv1", "value": "/x", "ts": time.time(), "ttl": 604800}],
+                "recent_conversations": [
+                    {"key": "rc1", "value": "topic A", "ts": time.time(), "ttl": 604800},
+                    {"key": "rc2", "value": "topic B", "ts": time.time(), "ttl": 604800},
+                ],
+                "recent_plans": [
+                    {"key": "rp1", "value": "plan 1", "ts": time.time(), "ttl": 604800},
+                ],
+                "health_status": [
+                    {"key": "hs1", "value": "BMI 22", "ts": time.time(), "ttl": 604800},
+                ],
+            },
+            "long_term": [],
+        }
+        mem.path.write_text(json.dumps(mixed), encoding="utf-8")
+        data = mem.get_all()
+        assert len(data["short_term"]["recent_conversations"]) == 2
+        assert len(data["short_term"]["recent_plans"]) == 1
+        assert len(data["short_term"]["health_status"]) == 1
+
+    def test_migration_handles_old_category_with_non_list_value(self, tmp_path):
+        """If an old category has a non-list value, migration still drops it cleanly."""
+        mem = UserMemory("badold")
+        mem.path.parent.mkdir(parents=True, exist_ok=True)
+        data = {
+            "short_term": {
+                "page_visits": "not a list",
+                "chat_topics": 42,
+                "recent_conversations": [],
+            },
+            "long_term": [],
+        }
+        mem.path.write_text(json.dumps(data), encoding="utf-8")
+        loaded = mem.get_all()
+        assert "page_visits" not in loaded["short_term"]
+        assert "chat_topics" not in loaded["short_term"]
+        for cat in SHORT_TERM_CATEGORIES:
+            assert cat in loaded["short_term"]
+
+
+class TestPromotionAdditional:
+    """Additional promotion edge cases."""
+
+    def test_multiple_topics_promoted_simultaneously(self, mem):
+        """Two different topics both above threshold should both be promoted."""
+        for _ in range(PROMOTION_THRESHOLD):
+            mem.track("recent_conversations", "topic A")
+            mem.track("recent_conversations", "topic B")
+        mem.get_summary()
+        data = mem.get_all()
+        promoted_values = [e["value"] for e in data["long_term"]]
+        assert "topic A" in promoted_values
+        assert "topic B" in promoted_values
+
+    def test_promotion_returns_promoted_keys(self, mem):
+        """_promote() should return the keys of promoted entries."""
+        for _ in range(PROMOTION_THRESHOLD):
+            mem.track("recent_conversations", "repeat topic")
+        with mem._lock:
+            data = mem._load()
+            keys = mem._promote(data)
+        assert len(keys) == 1
+        assert keys[0].startswith("promoted-")
+
+    def test_promotion_idempotent_on_repeated_summary(self, mem):
+        """Calling get_summary() twice should not create duplicate long-term entries."""
+        for _ in range(PROMOTION_THRESHOLD):
+            mem.track("recent_conversations", "stable topic")
+        mem.get_summary()
+        mem.get_summary()
+        data = mem.get_all()
+        matches = [e for e in data["long_term"] if e["value"] == "stable topic"]
+        assert len(matches) == 1
+
+    def test_promotion_threshold_exact_boundary(self, mem):
+        """Exactly PROMOTION_THRESHOLD repetitions should trigger promotion."""
+        for _ in range(PROMOTION_THRESHOLD):
+            mem.track("recent_conversations", "boundary topic")
+        mem.get_summary()
+        data = mem.get_all()
+        promoted = [e for e in data["long_term"] if e["value"] == "boundary topic"]
+        assert len(promoted) == 1
+
+    def test_no_promotion_returns_empty_list(self, mem):
+        """_promote() with nothing to promote returns an empty list."""
+        mem.track("recent_conversations", "single mention")
+        with mem._lock:
+            data = mem._load()
+            keys = mem._promote(data)
+        assert keys == []
+
+    def test_promoted_entry_has_correct_category(self, mem):
+        """Promoted entries should always have category 'fact'."""
+        for _ in range(PROMOTION_THRESHOLD):
+            mem.track("recent_conversations", "fact-worthy topic")
+        mem.get_summary()
+        data = mem.get_all()
+        promoted = [e for e in data["long_term"] if e["value"] == "fact-worthy topic"]
+        assert promoted[0]["category"] == "fact"
+
+    def test_promoted_entry_has_null_ttl(self, mem):
+        """Promoted entries should be permanent (ttl=None)."""
+        for _ in range(PROMOTION_THRESHOLD):
+            mem.track("recent_conversations", "permanent topic")
+        mem.get_summary()
+        data = mem.get_all()
+        promoted = [e for e in data["long_term"] if e["value"] == "permanent topic"]
+        assert promoted[0]["ttl"] is None
+
+
+class TestSummaryAdditional:
+    """Additional summary rendering tests."""
+
+    def test_summary_does_not_include_old_category_headings(self, mem):
+        """Summary should never contain headings for old categories."""
+        mem.track("recent_conversations", "something")
+        summary = mem.get_summary()
+        assert "Page visits" not in summary
+        assert "page_visits" not in summary
+        assert "Chat topics" not in summary
+        assert "chat_topics" not in summary
+        assert "Recent searches" not in summary
+        assert "recent_searches" not in summary
+        assert "Last used skills" not in summary
+        assert "last_used_skills" not in summary
+
+    def test_summary_section_headings_correct(self, mem):
+        """Verify the exact section headings for each new category."""
+        mem.track("recent_conversations", "conv topic")
+        mem.track("recent_plans", "my plan")
+        mem.track("health_status", "my health")
+        summary = mem.get_summary()
+        assert "Recent conversations:" in summary
+        assert "Active plans:" in summary
+        assert "Recent health status:" in summary
+
+    def test_summary_with_only_short_term_no_long_term(self, mem):
+        """Summary with only short-term entries should not have 'Long-term memories:' heading."""
+        mem.track("recent_conversations", "just chatting")
+        summary = mem.get_summary()
+        assert "Long-term memories:" not in summary
+        assert "Recent conversations:" in summary
+        assert "just chatting" in summary
+
+    def test_summary_with_only_long_term_no_short_term(self, mem):
+        """Summary with only long-term entries should not have short-term headings."""
+        mem.remember("preference", "Dark mode", key="theme")
+        summary = mem.get_summary()
+        assert "Long-term memories:" in summary
+        assert "Recent conversations:" not in summary
+        assert "Active plans:" not in summary
+        assert "Recent health status:" not in summary
+
+    def test_summary_max_items_shared_between_long_and_short(self, mem):
+        """max_items budget is shared: long-term fills first, short-term gets the rest."""
+        for i in range(8):
+            mem.remember("fact", f"Fact {i}", key=f"f-{i}")
+        mem.track("recent_conversations", "conv topic")
+        mem.track("recent_plans", "plan topic")
+        # max_items=10: 8 long-term + 2 short-term should all fit
+        summary = mem.get_summary(max_items=10)
+        assert "conv topic" in summary
+        assert "plan topic" in summary
+
+    def test_summary_max_items_1_shows_only_top_long_term(self, mem):
+        """With max_items=1 and both long and short term, only top long-term entry shows."""
+        mem.remember("preference", "VIP preference", key="vip")
+        mem.track("recent_conversations", "conv topic")
+        summary = mem.get_summary(max_items=1)
+        assert "VIP preference" in summary
+        # remaining budget is 0, so short-term should not appear
+        assert "conv topic" not in summary
+
+
+class TestEdgeCasesAdditional:
+    """Additional edge cases for robustness."""
+
+    def test_track_empty_string_value(self, mem):
+        """Tracking an empty string should still work (no validation in track())."""
+        entry = mem.track("recent_conversations", "")
+        assert entry["value"] == ""
+
+    def test_remember_very_long_value(self, mem):
+        """Remember should handle values up to the normal Python string limit."""
+        long_val = "x" * 10000
+        entry = mem.remember("fact", long_val, key="long")
+        assert entry["value"] == long_val
+
+    def test_remember_unicode_value(self, mem):
+        """Unicode values should be preserved correctly."""
+        entry = mem.remember("fact", "Allergique aux arachides", key="unicode")
+        data = mem.get_all()
+        assert data["long_term"][0]["value"] == "Allergique aux arachides"
+
+    def test_remember_emoji_value(self, mem):
+        """Emoji characters should be preserved."""
+        entry = mem.remember("fact", "Loves pizza", key="emoji")
+        data = mem.get_all()
+        assert "pizza" in data["long_term"][0]["value"]
+
+    def test_file_is_array_not_dict(self, tmp_path):
+        """If the file contains a JSON array instead of dict, it should recover."""
+        mem = UserMemory("arraybug")
+        mem.path.parent.mkdir(parents=True, exist_ok=True)
+        mem.path.write_text(json.dumps([1, 2, 3]), encoding="utf-8")
+        data = mem.get_all()
+        assert "short_term" in data
+        assert "long_term" in data
+
+    def test_file_is_null_json(self, tmp_path):
+        """If the file contains 'null', it should recover."""
+        mem = UserMemory("nulljson")
+        mem.path.parent.mkdir(parents=True, exist_ok=True)
+        mem.path.write_text("null", encoding="utf-8")
+        data = mem.get_all()
+        assert "short_term" in data
+        assert "long_term" in data
+
+    def test_file_is_integer_json(self, tmp_path):
+        """If the file contains a bare integer, it should recover."""
+        mem = UserMemory("intjson")
+        mem.path.parent.mkdir(parents=True, exist_ok=True)
+        mem.path.write_text("42", encoding="utf-8")
+        data = mem.get_all()
+        assert "short_term" in data
+        assert "long_term" in data
+
+    def test_short_term_category_replaced_with_non_list(self, tmp_path):
+        """If a new short-term category has a non-list value, it should be healed to []."""
+        mem = UserMemory("badcat")
+        mem.path.parent.mkdir(parents=True, exist_ok=True)
+        data = {
+            "short_term": {
+                "recent_conversations": "not a list",
+                "recent_plans": 123,
+                "health_status": None,
+            },
+            "long_term": [],
+        }
+        mem.path.write_text(json.dumps(data), encoding="utf-8")
+        loaded = mem.get_all()
+        for cat in SHORT_TERM_CATEGORIES:
+            assert isinstance(loaded["short_term"][cat], list)
+
+    def test_long_term_replaced_with_non_list_heals(self, tmp_path):
+        """If long_term is a dict instead of list, it should be healed."""
+        mem = UserMemory("badlt")
+        mem.path.parent.mkdir(parents=True, exist_ok=True)
+        data = {
+            "short_term": {cat: [] for cat in SHORT_TERM_CATEGORIES},
+            "long_term": {"not": "a list"},
+        }
+        mem.path.write_text(json.dumps(data), encoding="utf-8")
+        loaded = mem.get_all()
+        assert isinstance(loaded["long_term"], list)
+
+    def test_remember_old_short_term_category_as_long_term_rejected(self, mem):
+        """Old short-term category names should be rejected as long-term categories too."""
+        for old_cat in _OLD_SHORT_TERM_CATEGORIES:
+            with pytest.raises(ValueError, match="Invalid long-term category"):
+                mem.remember(old_cat, "something")
+
+    def test_cleanup_does_not_touch_unexpired_entries(self, mem):
+        """Cleanup should leave non-expired entries intact."""
+        mem.track("recent_conversations", "topic A", ttl=99999)
+        mem.track("recent_conversations", "topic B", ttl=99999)
+        data = mem.get_all()
+        assert len(data["short_term"]["recent_conversations"]) == 2
+
+
+class TestAPIAdditional:
+    """Additional API endpoint edge case tests."""
+
+    @pytest.fixture
+    def client(self, tmp_path, monkeypatch):
+        from flask import Flask
+        from flask_login import LoginManager
+        from functions.user_memory import memory_bp
+
+        app = Flask(__name__)
+        app.secret_key = "test-secret"
+        lm = LoginManager()
+        lm.init_app(app)
+        lm.user_loader(lambda uid: None)
+        app.register_blueprint(memory_bp)
+        app.config["TESTING"] = True
+        return app.test_client()
+
+    @staticmethod
+    def _login(client, username="apiuser"):
+        with client.session_transaction() as sess:
+            sess["username"] = username
+
+    def test_track_all_new_categories_accepted(self, client):
+        """All new short-term categories should return 200 via the API."""
+        self._login(client)
+        for cat in SHORT_TERM_CATEGORIES:
+            resp = client.post("/api/memory/track", json={
+                "category": cat,
+                "value": f"test-{cat}",
+            })
+            assert resp.status_code == 200, f"Category {cat} should be accepted"
+
+    def test_track_empty_value_rejected(self, client):
+        """Tracking empty value via API should return 400."""
+        self._login(client)
+        resp = client.post("/api/memory/track", json={
+            "category": "recent_conversations",
+            "value": "",
+        })
+        assert resp.status_code == 400
+
+    def test_track_whitespace_only_value_rejected(self, client):
+        """Tracking whitespace-only value via API should return 400."""
+        self._login(client)
+        resp = client.post("/api/memory/track", json={
+            "category": "recent_conversations",
+            "value": "   ",
+        })
+        assert resp.status_code == 400
+
+    def test_remember_rejects_old_short_term_as_long_term(self, client):
+        """Old short-term category names should be rejected in the remember API."""
+        self._login(client)
+        for old_cat in _OLD_SHORT_TERM_CATEGORIES:
+            resp = client.post("/api/memory", json={
+                "category": old_cat,
+                "value": "something",
+            })
+            assert resp.status_code == 400, f"Old category {old_cat} should be rejected"
+
+    def test_remember_rejects_new_short_term_categories(self, client):
+        """New short-term categories should not be usable as long-term categories."""
+        self._login(client)
+        for cat in SHORT_TERM_CATEGORIES:
+            resp = client.post("/api/memory", json={
+                "category": cat,
+                "value": "something",
+            })
+            assert resp.status_code == 400, f"Short-term category {cat} should be rejected for remember"
+
+    def test_track_with_valid_ttl(self, client):
+        """Track endpoint should accept a valid TTL value."""
+        self._login(client)
+        resp = client.post("/api/memory/track", json={
+            "category": "recent_conversations",
+            "value": "topic with TTL",
+            "ttl": 300,
+        })
+        assert resp.status_code == 200
+        body = resp.get_json()
+        assert body["entry"]["ttl"] == 300
+
+    def test_track_rejects_negative_ttl(self, client):
+        """Track endpoint should reject negative TTL."""
+        self._login(client)
+        resp = client.post("/api/memory/track", json={
+            "category": "recent_conversations",
+            "value": "negative TTL",
+            "ttl": -1,
+        })
+        assert resp.status_code == 400
+
+    def test_track_rejects_string_ttl(self, client):
+        """Track endpoint should reject string TTL."""
+        self._login(client)
+        resp = client.post("/api/memory/track", json={
+            "category": "recent_conversations",
+            "value": "string TTL",
+            "ttl": "forever",
+        })
+        assert resp.status_code == 400
+
+    def test_forget_requires_auth(self, client):
+        """Forget endpoint should require authentication."""
+        resp = client.delete("/api/memory/some-key")
+        assert resp.status_code == 401
+
+    def test_remember_requires_auth(self, client):
+        """Remember endpoint should require authentication."""
+        resp = client.post("/api/memory", json={
+            "category": "fact",
+            "value": "something",
+        })
+        assert resp.status_code == 401
+
+
+class TestCategoryConstants:
+    """Verify the category constants match the spec."""
+
+    def test_short_term_categories_exact(self):
+        assert SHORT_TERM_CATEGORIES == ["recent_conversations", "recent_plans", "health_status"]
+
+    def test_long_term_categories_exact(self):
+        assert LONG_TERM_CATEGORIES == ["preference", "fact", "saved", "goal"]
+
+    def test_old_categories_exact(self):
+        assert set(_OLD_SHORT_TERM_CATEGORIES) == {"page_visits", "chat_topics", "recent_searches", "last_used_skills"}
+
+    def test_no_overlap_between_short_and_long_term(self):
+        assert set(SHORT_TERM_CATEGORIES).isdisjoint(set(LONG_TERM_CATEGORIES))
+
+    def test_no_overlap_between_new_and_old_short_term(self):
+        assert set(SHORT_TERM_CATEGORIES).isdisjoint(set(_OLD_SHORT_TERM_CATEGORIES))
+
+    def test_promotion_threshold_is_positive_integer(self):
+        assert isinstance(PROMOTION_THRESHOLD, int)
+        assert PROMOTION_THRESHOLD > 0
+
+    def test_max_per_category_is_positive_integer(self):
+        assert isinstance(MAX_PER_CATEGORY, int)
+        assert MAX_PER_CATEGORY > 0

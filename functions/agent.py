@@ -365,10 +365,11 @@ class Agent:
             if latest_user_message:
                 print(f"Running skill runtime for query: {latest_user_message}")
                 update_status("processing")
+                context_runtime = {"user": self._get_username_from_messages(openai_messages)}
                 skill_results = self.skill_runtime.run(
                     query=latest_user_message,
                     kind="context",
-                    runtime_context={},
+                    runtime_context=context_runtime,
                     status_updater=update_status,
                 )
                 web_output = skill_results.get("web_search", {})
@@ -397,6 +398,15 @@ class Agent:
                     exam_context = "PHYSICAL EXAM FINDINGS REFERENCE (use ONLY this data — do not add outside associations):\n"
                     exam_context += exam_output["exam_summary"]
                     context_sections.append(exam_context)
+
+                calendar_output = skill_results.get("external_calendar", {})
+                if calendar_output.get("activated") and calendar_output.get("calendar_summary"):
+                    calendar_context = (
+                        "USER'S UPCOMING SCHEDULE (from their connected calendars):\n"
+                        "Use this to avoid scheduling conflicts and suggest free time slots.\n\n"
+                    )
+                    calendar_context += calendar_output["calendar_summary"]
+                    context_sections.append(calendar_context)
 
                 if context_sections:
                     combined = "\n\n".join(context_sections)
@@ -470,6 +480,17 @@ class Agent:
                     message = response.choices[0].message
 
             reply_text = message.content or ""
+
+            # Track conversation topic in short-term memory
+            if latest_user_message:
+                try:
+                    username = self._get_username_from_messages(openai_messages)
+                    if username:
+                        from .user_memory import UserMemory
+                        topic = latest_user_message[:150].strip()
+                        UserMemory(username).track("recent_conversations", topic)
+                except Exception:
+                    logger.debug("Conversation tracking failed", exc_info=True)
 
             update_status("idle")
             return Response(reply_text, exercise_images=exercise_images)

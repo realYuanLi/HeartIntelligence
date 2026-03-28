@@ -477,19 +477,6 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  /* ---- Page visit tracking (fire-and-forget) ---- */
-  function trackPageVisit(pageName) {
-    fetch('/api/memory/track', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({category: 'page_visits', value: pageName})
-    }).catch(() => {}); // fire-and-forget
-  }
-
-  // Derive page name from URL path
-  const pagePath = location.pathname.replace(/^\/+/, '').split('/')[0] || 'home';
-  trackPageVisit(pagePath);
-
   /* ==================================================== */
   /*  Welcome page functionality                           */
   /* ==================================================== */

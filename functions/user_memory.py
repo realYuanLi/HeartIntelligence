@@ -14,6 +14,7 @@ import uuid
 from pathlib import Path
 
 from flask import Blueprint, request, jsonify, session, render_template, redirect
+from flask_login import current_user, login_required
 
 # ── Constants ────────────────────────────────────────────────────────────────
 
@@ -22,9 +23,10 @@ DEFAULT_SHORT_TERM_TTL = 604800  # 7 days in seconds
 _HALF_LIFE_DAYS = 30
 _LN2 = math.log(2)
 
-SHORT_TERM_CATEGORIES = ["page_visits", "chat_topics", "recent_searches", "last_used_skills"]
+SHORT_TERM_CATEGORIES = ["recent_conversations", "recent_plans", "health_status"]
 LONG_TERM_CATEGORIES = ["preference", "fact", "saved", "goal"]
 PROMOTION_THRESHOLD = 3
+_OLD_SHORT_TERM_CATEGORIES = ["page_visits", "chat_topics", "recent_searches", "last_used_skills"]
 
 MEMORY_DIR = Path(__file__).resolve().parent.parent / "personal_data" / "memory"
 
@@ -86,12 +88,25 @@ class UserMemory:
                 data = self._default_data()
             if "short_term" not in data or not isinstance(data["short_term"], dict):
                 data["short_term"] = {cat: [] for cat in SHORT_TERM_CATEGORIES}
+
+            # Migration: drop old short-term categories
+            for old_cat in _OLD_SHORT_TERM_CATEGORIES:
+                data["short_term"].pop(old_cat, None)
+
+            # Ensure new short-term categories exist
             for cat in SHORT_TERM_CATEGORIES:
                 if cat not in data["short_term"] or not isinstance(data["short_term"][cat], list):
                     data["short_term"][cat] = []
+
             if "long_term" not in data or not isinstance(data["long_term"], list):
                 data["long_term"] = []
             data["long_term"] = [_backfill_entry(e) for e in data["long_term"]]
+
+            # Migration: remove long-term entries auto-promoted from page_visits
+            data["long_term"] = [
+                e for e in data["long_term"]
+                if e.get("context") != "Auto-promoted from repeated page_visits"
+            ]
         except (FileNotFoundError, json.JSONDecodeError, OSError):
             data = self._default_data()
         self.cleanup(data)
@@ -246,58 +261,67 @@ class UserMemory:
             if len(lt) > max_items:
                 lines.append(f"  ... and {len(lt) - max_items} more")
 
-        # Short-term: recent chat topics and searches
+        # Short-term sections
         remaining = max_items - len(top)
         if remaining > 0:
             st = data.get("short_term", {})
-            topics = st.get("chat_topics", [])
-            searches = st.get("recent_searches", [])
-            combined = topics + searches
-            if combined:
-                lines.append("Recent activity:")
-                for entry in combined[-remaining:]:
+            section_map = [
+                ("recent_conversations", "Recent conversations:"),
+                ("recent_plans", "Active plans:"),
+                ("health_status", "Recent health status:"),
+            ]
+            for cat, heading in section_map:
+                entries = st.get(cat, [])
+                if not entries or remaining <= 0:
+                    continue
+                lines.append(heading)
+                for entry in entries[-remaining:]:
                     lines.append(f"  - {entry.get('value', '')}")
+                    remaining -= 1
+                    if remaining <= 0:
+                        break
 
         return "\n".join(lines)
 
     def _promote(self, data: dict) -> list[str]:
-        """Promote frequently repeated short-term entries to long-term memory."""
-        promoted_keys = []
-        for category in SHORT_TERM_CATEGORIES:
-            entries = data["short_term"].get(category, [])
-            # Count occurrences of each unique value
-            counts: dict[str, int] = {}
-            for e in entries:
-                val = e.get("value", "")
-                counts[val] = counts.get(val, 0) + 1
+        """Promote frequently repeated recent_conversations entries to long-term memory.
 
-            for value, count in counts.items():
-                if count < PROMOTION_THRESHOLD:
-                    continue
-                # Determine the value for the long-term entry
-                lt_value = f"frequently uses {value}" if category == "page_visits" else value
-                # Check for duplicate in long-term
-                if any(e.get("value") == lt_value for e in data["long_term"]):
-                    continue
-                promoted_key = f"promoted-{uuid.uuid4().hex[:8]}"
-                new_entry = {
-                    "key": promoted_key,
-                    "category": "fact",
-                    "value": lt_value,
-                    "notes": None,
-                    "context": f"Auto-promoted from repeated {category}",
-                    "evergreen": False,
-                    "access_count": 0,
-                    "ts": time.time(),
-                    "ttl": None,
-                }
-                data["long_term"].append(new_entry)
-                promoted_keys.append(promoted_key)
-                # Remove promoted entries from short-term
-                data["short_term"][category] = [
-                    e for e in data["short_term"][category]
-                    if e.get("value") != value
-                ]
+        Only recent_conversations are eligible for promotion (repeated topics
+        become long-term facts). recent_plans and health_status are inherently
+        ephemeral and are never promoted.
+        """
+        promoted_keys = []
+        entries = data["short_term"].get("recent_conversations", [])
+        counts: dict[str, int] = {}
+        for e in entries:
+            val = e.get("value", "")
+            counts[val] = counts.get(val, 0) + 1
+
+        for value, count in counts.items():
+            if count < PROMOTION_THRESHOLD:
+                continue
+            # Check for duplicate in long-term
+            if any(e.get("value") == value for e in data["long_term"]):
+                continue
+            promoted_key = f"promoted-{uuid.uuid4().hex[:8]}"
+            new_entry = {
+                "key": promoted_key,
+                "category": "fact",
+                "value": value,
+                "notes": None,
+                "context": "Auto-promoted from repeated recent_conversations",
+                "evergreen": False,
+                "access_count": 0,
+                "ts": time.time(),
+                "ttl": None,
+            }
+            data["long_term"].append(new_entry)
+            promoted_keys.append(promoted_key)
+            # Remove promoted entries from short-term
+            data["short_term"]["recent_conversations"] = [
+                e for e in data["short_term"]["recent_conversations"]
+                if e.get("value") != value
+            ]
         return promoted_keys
 
 
@@ -308,6 +332,8 @@ memory_bp = Blueprint("memory", __name__)
 
 def _require_auth():
     """Return username if logged in, else None."""
+    if current_user.is_authenticated:
+        return current_user.email
     return session.get("username")
 
 
@@ -409,11 +435,10 @@ def api_track():
 
 
 @memory_bp.route("/settings/memory")
+@login_required
 def settings_memory_page():
     """Render settings memory page."""
     username = _require_auth()
-    if not username:
-        return redirect("/")
     return render_template(
         "settings_memory.html",
         username=username,

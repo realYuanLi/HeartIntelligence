@@ -360,14 +360,24 @@ class Agent:
                         latest_user_message = content
                     break
 
+            # Extract images from the latest user message for skill context
+            latest_user_images = []
+            for msg in reversed(messages):
+                if msg.get("role") == "user":
+                    latest_user_images = msg.get("images") or []
+                    break
+
             # Run non-tool context skills (web search, health data)
             context_sections = []
-            if latest_user_message:
-                print(f"Running skill runtime for query: {latest_user_message}")
+            if latest_user_message or latest_user_images:
+                skill_query = latest_user_message or "[image]"
+                print(f"Running skill runtime for query: {skill_query}")
                 update_status("processing")
                 context_runtime = {"user": self._get_username_from_messages(openai_messages)}
+                if latest_user_images:
+                    context_runtime["images"] = latest_user_images
                 skill_results = self.skill_runtime.run(
-                    query=latest_user_message,
+                    query=skill_query,
                     kind="context",
                     runtime_context=context_runtime,
                     status_updater=update_status,
@@ -407,6 +417,16 @@ class Agent:
                     )
                     calendar_context += calendar_output["calendar_summary"]
                     context_sections.append(calendar_context)
+
+                food_image_output = skill_results.get("food_image_analysis", {})
+                if food_image_output.get("activated") and food_image_output.get("food_image_summary"):
+                    food_context = (
+                        "FOOD IMAGE ANALYSIS (from user's photo):\n"
+                        "Present this analysis conversationally. Include the item breakdown, "
+                        "meal total, daily budget comparison if available, and suggestions.\n\n"
+                    )
+                    food_context += food_image_output["food_image_summary"]
+                    context_sections.append(food_context)
 
                 if context_sections:
                     combined = "\n\n".join(context_sections)

@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Callable, Optional
 
 from .health_analyzer import analyze_health_query_with_raw_data
+from .food_image_analyzer import analyze_food_image, format_food_image_analysis
 from .md_utils import _parse_bool, _parse_frontmatter
 from .web_search import format_search_results, needs_web_search, web_search
 from .workout_search import needs_workout_data, search_exercises, format_exercise_results
@@ -105,6 +106,8 @@ class SkillRuntime:
             "nutrition_guidance": self._run_nutrition_guidance,
             "physical_exam_interpreter": self._run_physical_exam_interpreter,
             "health_qa": self._run_health_qa,
+            "external_calendar": self._run_external_calendar,
+            "food_image_analysis": self._run_food_image_analysis,
         }
 
     def _load_skills(self) -> dict[str, SkillDefinition]:
@@ -191,7 +194,7 @@ class SkillRuntime:
                 limited.append(skill)
         return limited
 
-    def _should_run(self, skill: SkillDefinition, query: str) -> bool:
+    def _should_run(self, skill: SkillDefinition, query: str, runtime_context: dict | None = None) -> bool:
         executor = skill.executor
         if executor == "set_reminder":
             return True
@@ -215,6 +218,10 @@ class SkillRuntime:
             return needs_physical_exam_data(query)
         if executor == "health_qa":
             return needs_health_qa(query)
+        if executor == "external_calendar":
+            return self._needs_calendar_context(query)
+        if executor == "food_image_analysis":
+            return bool((runtime_context or {}).get("images"))
         return False
 
     def _is_skill_enabled(self, skill: SkillDefinition, overrides: dict[str, bool]) -> bool:
@@ -309,7 +316,7 @@ class SkillRuntime:
         prefilter_ms = (time.time() - start_prefilter) * 1000
 
         start_gate = time.time()
-        runnable = [skill for skill in shortlisted if self._should_run(skill, query)]
+        runnable = [skill for skill in shortlisted if self._should_run(skill, query, runtime_context)]
         gate_ms = (time.time() - start_gate) * 1000
         if not runnable:
             logger.info(
@@ -512,6 +519,32 @@ class SkillRuntime:
             "health_qa_summary": health_qa_summary,
         }
 
+    def _run_food_image_analysis(
+        self,
+        query: str,
+        runtime_context: dict,
+        status_updater: Optional[Callable[[str], None]],
+        _skill: SkillDefinition,
+    ) -> dict:
+        images = runtime_context.get("images", [])
+        if not images:
+            return {"activated": False}
+
+        if status_updater:
+            status_updater("analyzing_food_image")
+        username = runtime_context.get("user", "")
+        analysis = analyze_food_image(images[0], username=username)
+
+        if not analysis.get("detected"):
+            return {"activated": False}
+
+        formatted = format_food_image_analysis(analysis)
+        return {
+            "activated": True,
+            "food_image_analysis": analysis,
+            "food_image_summary": formatted,
+        }
+
     _COMPLETION_PATTERNS = re.compile(
         r"\b(finished|done|completed|did)\b.{0,20}\b(workout|exercise|training|gym|session|today)\b"
         r"|\b(worked out|just trained|hit the gym)\b",
@@ -541,3 +574,49 @@ class SkillRuntime:
         today = datetime.now().strftime("%Y-%m-%d")
         mark_day_complete(username, today, True)
         return {"activated": True, "marked_date": today}
+
+    _CALENDAR_PATTERNS = re.compile(
+        r"\b(schedule|busy|free|available|calendar|meeting|appointment|"
+        r"plan|today|tomorrow|this week|next week|slot|conflict|"
+        r"when.{0,10}(am i|can i|should i)|what.{0,10}(do i have|is on)|"
+        r"make.{0,10}(plan|schedule)|create.{0,10}(plan|schedule))\b",
+        re.IGNORECASE,
+    )
+
+    def _needs_calendar_context(self, query: str) -> bool:
+        """Check if the query might benefit from calendar context."""
+        if not self._CALENDAR_PATTERNS.search(query):
+            return False
+        # Only activate if user actually has feeds configured
+        from .external_calendar import has_feeds
+        # Use the username from the runtime context — checked by run()
+        # For gating, we just check if any user has feeds (lightweight)
+        return True
+
+    def _run_external_calendar(
+        self,
+        query: str,
+        runtime_context: dict,
+        status_updater: Optional[Callable[[str], None]],
+        _skill: SkillDefinition,
+    ) -> dict:
+        username = runtime_context.get("user", "")
+        if not username:
+            return {"activated": False}
+
+        from .external_calendar import get_upcoming_events, format_events_for_context, has_feeds
+        if not has_feeds(username):
+            return {"activated": False}
+
+        if status_updater:
+            status_updater("loading_calendar")
+        events = get_upcoming_events(username)
+        if not events:
+            return {"activated": False}
+
+        calendar_summary = format_events_for_context(events)
+        return {
+            "activated": True,
+            "events": events,
+            "calendar_summary": calendar_summary,
+        }

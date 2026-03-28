@@ -1,34 +1,34 @@
 """User Memory module for DREAM-Chat.
 
-Provides persistent per-user memory with short-term (auto-expiring, FIFO-pruned)
-and long-term (permanent) layers. Exposes a Flask blueprint with CRUD endpoints
-and a UserMemory class for programmatic access.
+Internal memory system that stores per-user context in markdown files.
+Short-term memory captures recent conversations, plans, and health status.
+Long-term memory stores preferences, facts, goals, and saved items.
+Not exposed to users via UI — purely used to provide better service.
 """
 
-import json
-import math
 import re
 import threading
-import time
-import uuid
+from datetime import datetime
 from pathlib import Path
-
-from flask import Blueprint, request, jsonify, session, render_template, redirect
-from flask_login import current_user, login_required
 
 # ── Constants ────────────────────────────────────────────────────────────────
 
-MAX_PER_CATEGORY = 20
-DEFAULT_SHORT_TERM_TTL = 604800  # 7 days in seconds
-_HALF_LIFE_DAYS = 30
-_LN2 = math.log(2)
-
 SHORT_TERM_CATEGORIES = ["recent_conversations", "recent_plans", "health_status"]
 LONG_TERM_CATEGORIES = ["preference", "fact", "saved", "goal"]
+MAX_PER_CATEGORY = 20
 PROMOTION_THRESHOLD = 3
-_OLD_SHORT_TERM_CATEGORIES = ["page_visits", "chat_topics", "recent_searches", "last_used_skills"]
 
 MEMORY_DIR = Path(__file__).resolve().parent.parent / "personal_data" / "memory"
+
+_SECTION_HEADINGS = {
+    "preference": "Preferences",
+    "fact": "Facts",
+    "saved": "Saved",
+    "goal": "Goals",
+    "recent_conversations": "Recent Conversations",
+    "recent_plans": "Recent Plans",
+    "health_status": "Health Status",
+}
 
 # ── Per-user locks ───────────────────────────────────────────────────────────
 
@@ -43,404 +43,436 @@ def _get_lock(username: str) -> threading.Lock:
         return _user_locks[username]
 
 
-def _backfill_entry(entry: dict) -> dict:
-    """Ensure new fields exist on legacy long-term entries."""
-    entry.setdefault("context", None)
-    entry.setdefault("evergreen", False)
-    entry.setdefault("access_count", 0)
-    return entry
+def _today() -> str:
+    return datetime.now().strftime("%Y-%m-%d")
 
 
-def _relevance_score(entry: dict, now: float) -> float:
-    """Score a long-term entry for ranking: temporal decay + access boost + evergreen."""
-    age_days = max(0, (now - entry.get("ts", now)) / 86400)
-    decay = math.exp(-_LN2 * age_days / _HALF_LIFE_DAYS)
-    if entry.get("evergreen", False):
-        decay = 1.0
-    access_boost = math.log1p(entry.get("access_count", 0)) * 0.2
-    return decay + access_boost
+# ── Entry normalization ─────────────────────────────────────────────────────
+
+FILLER_PREFIXES = [
+    r"^(?:the )?user(?:'s)?\s+(?:prefers?|likes?|wants?|has|is|mentioned|said|noted|reported|follows?|enjoys?|needs?|asked|discussed|talked)\s+(?:about\s+)?",
+    r"^(?:remember|note|save|store|record)(?:\s+that)?\s*:?\s*",
+    r"^(?:preference|fact|goal|note):\s*",
+    r"^(?:it is|this is|they are|he is|she is)\s+(?:noted|known|important)?\s*(?:that)?\s*",
+]
+
+KEY_SYNONYMS: dict[str, str] = {
+    "dietary_preference": "diet",
+    "food_preference": "diet",
+    "dietary_restriction": "diet",
+    "exercise_preference": "exercise",
+    "workout_preference": "exercise",
+    "sleep_preference": "sleep",
+    "sleep_schedule": "sleep",
+    "weight_goal": "weight",
+    "fitness_goal": "fitness",
+    "health_goal": "fitness",
+    "body_weight": "weight",
+    "body_height": "height",
+    "birth_date": "age",
+    "birthday": "age",
+    "medication": "medications",
+    "med": "medications",
+    "supplement": "supplements",
+    "injury": "injuries",
+    "medical_condition": "condition",
+    "health_condition": "condition",
+    "chronic_condition": "condition",
+}
+
+KEY_PATTERNS: list[tuple[str, str]] = [
+    (r"\b(?:vegan|vegetarian|keto|paleo|diet|eat|food|meal)\b", "diet"),
+    (r"\b(?:allerg|intoleran)", "allergy"),
+    (r"\b(?:exercis|workout|training|gym|runn|swim|yoga|jog|cycl|hik)", "exercise"),
+    (r"\b(?:sleep|wake|bedtime|insomnia)\b", "sleep"),
+    (r"(?:\bweight|(?:\d\s*)kg\b|(?:\d\s*)lbs?\b|\bpounds?\b|\bweigh)", "weight"),
+    (r"(?:\bheight|\b(?:\d\s*)cm\b|\bfeet\b|\btall\b)", "height"),
+    (r"\b(?:age|born|birthday|years old)\b", "age"),
+    (r"\b(?:medic|prescription|drug|pill)\b", "medications"),
+    (r"\b(?:supplement|vitamin|mineral)\b", "supplements"),
+    (r"\b(?:injur|sprain|strain|fracture|torn)\b", "injuries"),
+    (r"\b(?:diabet|asthma|hypertension|cholesterol)\b", "condition"),
+    (r"\b(?:goal|target|aim|objective)\b", "goal"),
+    (r"\b(?:schedule|routine|habit)\b", "routine"),
+]
+
+_FILLER_RES = [re.compile(p, re.IGNORECASE) for p in FILLER_PREFIXES]
+
+_TOPIC_FILLER_PREFIXES = [
+    r"^(?:the )?user(?:'s)?\s+(?:prefers?|likes?|wants?|has|is|mentioned|said|noted|reported|follows?|enjoys?|needs?|asked|discussed|talked)\s+(?:about\s+)?",
+    r"^(?:it is|this is|they are|he is|she is)\s+(?:noted|known|important)?\s*(?:that)?\s*",
+]
+_TOPIC_FILLER_RES = [re.compile(p, re.IGNORECASE) for p in _TOPIC_FILLER_PREFIXES]
+
+
+def _strip_filler(text: str, patterns: list[re.Pattern]) -> str:
+    """Repeatedly strip matching filler prefixes until stable."""
+    prev = None
+    while prev != text:
+        prev = text
+        for pat in patterns:
+            text = pat.sub("", text).strip()
+    return text
+
+
+def _slugify_key(raw: str) -> str:
+    """Convert a raw key string to canonical slug form."""
+    s = raw.lower().strip()
+    s = s.replace("_", "-").replace(" ", "-")
+    s = re.sub(r"[^a-z0-9\-]", "", s)
+    s = re.sub(r"-{2,}", "-", s).strip("-")
+    return s[:40]
+
+
+def _resolve_synonym(key: str) -> str:
+    """Map a key through KEY_SYNONYMS (underscore-normalized lookup)."""
+    lookup = key.lower().strip().replace("-", "_").replace(" ", "_")
+    return KEY_SYNONYMS.get(lookup, key)
+
+
+def _infer_key(value: str) -> str | None:
+    """Try to infer a canonical key from value content via KEY_PATTERNS."""
+    lower = value.lower()
+    for pattern, key in KEY_PATTERNS:
+        if re.search(pattern, lower):
+            return key
+    return None
+
+
+def normalize_entry(value: str, category: str, key: str | None = None,
+                    notes: str | None = None, context: str | None = None) -> tuple[str, str]:
+    """Normalize a memory entry into canonical ``key: value`` format.
+
+    Returns ``(normalized_key, entry_line)`` where *entry_line* is the full
+    string to store in the markdown file.
+
+    Raises ``ValueError`` if *value* is empty after stripping.
+    """
+    # 1. Strip filler prefixes and sanitize newlines
+    cleaned = value.strip().replace("\n", " ").replace("\r", " ")
+    cleaned = re.sub(r"\s+", " ", cleaned).strip()
+    cleaned = _strip_filler(cleaned, _FILLER_RES)
+
+    if not cleaned:
+        raise ValueError("value is empty after stripping filler")
+
+    # 2. Check if value already has "key: value" format
+    extracted_key: str | None = None
+    extracted_value: str | None = None
+    colon_match = re.match(r"^([a-zA-Z0-9_\- ]{1,40}):\s+(.+)$", cleaned)
+    if colon_match:
+        candidate_key = colon_match.group(1).strip()
+        # Only treat as key:value if key part is short (looks like a label)
+        if len(candidate_key.split()) <= 3:
+            extracted_key = candidate_key
+            extracted_value = colon_match.group(2).strip()
+
+    # 3. Determine the key
+    if key:
+        resolved = _resolve_synonym(key)
+        norm_key = _slugify_key(resolved)
+    elif extracted_key:
+        resolved = _resolve_synonym(extracted_key)
+        norm_key = _slugify_key(resolved)
+        cleaned = extracted_value or cleaned
+    else:
+        inferred = _infer_key(cleaned)
+        if inferred:
+            norm_key = _slugify_key(inferred)
+        else:
+            norm_key = _slugify_key(category)
+
+    if not norm_key:
+        norm_key = _slugify_key(category)
+
+    # 4. Clean the value: strip leading articles/filler, capitalize first word
+    cleaned = re.sub(r"^(?:a |an |the )\s*", "", cleaned, flags=re.IGNORECASE).strip()
+    if cleaned:
+        cleaned = cleaned[0].upper() + cleaned[1:]
+
+    # 5. Build entry line (sanitize notes/context for newlines)
+    entry_line = f"{norm_key}: {cleaned}"
+    if notes:
+        notes = notes.replace("\n", " ").strip()
+        entry_line += f" ({notes})"
+    if context:
+        context = context.replace("\n", " ").strip()
+        entry_line += f" | context: {context}"
+
+    return (norm_key, entry_line)
+
+
+def normalize_topic(value: str) -> str:
+    """Lightly normalize a short-term topic string.
+
+    Strips "The user mentioned/said/…" style filler but keeps action words
+    like "asked about" that carry semantic meaning for conversation context.
+
+    Returns cleaned string (empty string for empty/whitespace input).
+    """
+    if not value or not value.strip():
+        return ""
+    cleaned = value.strip().replace("\n", " ").replace("\r", " ")
+    cleaned = re.sub(r"\s+", " ", cleaned).strip()
+    cleaned = _strip_filler(cleaned, _TOPIC_FILLER_RES)
+    return cleaned
+
+
+# ── Markdown parsing / writing ───────────────────────────────────────────────
+
+def _parse_md(text: str) -> dict:
+    """Parse a memory markdown file into a structured dict.
+
+    Returns: {
+        "long_term": {"preference": [...], "fact": [...], "saved": [...], "goal": [...]},
+        "short_term": {"recent_conversations": [...], "recent_plans": [...], "health_status": []},
+    }
+    Each entry is a string (the bullet text without the leading "- ").
+    """
+    data = {
+        "long_term": {cat: [] for cat in LONG_TERM_CATEGORIES},
+        "short_term": {cat: [] for cat in SHORT_TERM_CATEGORIES},
+    }
+
+    # Build reverse lookup: heading text -> (layer, category)
+    heading_to_key = {}
+    for cat, heading in _SECTION_HEADINGS.items():
+        if cat in LONG_TERM_CATEGORIES:
+            heading_to_key[heading.lower()] = ("long_term", cat)
+        else:
+            heading_to_key[heading.lower()] = ("short_term", cat)
+
+    current_layer = None
+    current_cat = None
+
+    for line in text.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("## "):
+            heading_text = stripped[3:].strip().lower()
+            if heading_text in heading_to_key:
+                current_layer, current_cat = heading_to_key[heading_text]
+            else:
+                current_layer = None
+                current_cat = None
+        elif stripped.startswith("- ") and current_layer and current_cat:
+            entry = stripped[2:].strip()
+            if entry:
+                data[current_layer][current_cat].append(entry)
+
+    return data
+
+
+def _render_md(data: dict) -> str:
+    """Render a structured dict back into markdown."""
+    lines = ["# User Memory", ""]
+
+    # Long-term sections
+    has_lt = any(data["long_term"].get(cat) for cat in LONG_TERM_CATEGORIES)
+    if has_lt:
+        for cat in LONG_TERM_CATEGORIES:
+            entries = data["long_term"].get(cat, [])
+            if entries:
+                lines.append(f"## {_SECTION_HEADINGS[cat]}")
+                for entry in entries:
+                    lines.append(f"- {entry}")
+                lines.append("")
+
+    # Short-term sections
+    for cat in SHORT_TERM_CATEGORIES:
+        entries = data["short_term"].get(cat, [])
+        if entries:
+            lines.append(f"## {_SECTION_HEADINGS[cat]}")
+            for entry in entries:
+                lines.append(f"- {entry}")
+            lines.append("")
+
+    return "\n".join(lines)
 
 
 # ── UserMemory class ────────────────────────────────────────────────────────
 
 class UserMemory:
-    """Per-user memory store backed by a JSON file."""
+    """Per-user memory store backed by a markdown file."""
 
     def __init__(self, username: str):
         self.username = re.sub(r"[^a-zA-Z0-9_\-]", "", username or "")
         if not self.username:
             raise ValueError("Invalid username")
-        self.path = MEMORY_DIR / f"{self.username}.json"
+        self.path = MEMORY_DIR / f"{self.username}.md"
         self._lock = _get_lock(self.username)
-
-    @staticmethod
-    def _default_data() -> dict:
-        return {
-            "short_term": {cat: [] for cat in SHORT_TERM_CATEGORIES},
-            "long_term": [],
-        }
 
     def _load(self) -> dict:
         try:
-            data = json.loads(self.path.read_text(encoding="utf-8"))
-            # Ensure structure is valid
-            if not isinstance(data, dict):
-                data = self._default_data()
-            if "short_term" not in data or not isinstance(data["short_term"], dict):
-                data["short_term"] = {cat: [] for cat in SHORT_TERM_CATEGORIES}
-
-            # Migration: drop old short-term categories
-            for old_cat in _OLD_SHORT_TERM_CATEGORIES:
-                data["short_term"].pop(old_cat, None)
-
-            # Ensure new short-term categories exist
-            for cat in SHORT_TERM_CATEGORIES:
-                if cat not in data["short_term"] or not isinstance(data["short_term"][cat], list):
-                    data["short_term"][cat] = []
-
-            if "long_term" not in data or not isinstance(data["long_term"], list):
-                data["long_term"] = []
-            data["long_term"] = [_backfill_entry(e) for e in data["long_term"]]
-
-            # Migration: remove long-term entries auto-promoted from page_visits
-            data["long_term"] = [
-                e for e in data["long_term"]
-                if e.get("context") != "Auto-promoted from repeated page_visits"
-            ]
-        except (FileNotFoundError, json.JSONDecodeError, OSError):
-            data = self._default_data()
-        self.cleanup(data)
-        return data
+            text = self.path.read_text(encoding="utf-8")
+            return _parse_md(text)
+        except (FileNotFoundError, OSError):
+            return {
+                "long_term": {cat: [] for cat in LONG_TERM_CATEGORIES},
+                "short_term": {cat: [] for cat in SHORT_TERM_CATEGORIES},
+            }
 
     def _save(self, data: dict) -> None:
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        self.path.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
+        self.path.write_text(_render_md(data), encoding="utf-8")
 
-    def cleanup(self, data: dict) -> None:
-        """Remove expired entries and enforce FIFO limits."""
-        now = time.time()
-        # Short-term: remove expired, enforce FIFO
-        for cat in SHORT_TERM_CATEGORIES:
-            entries = data["short_term"].get(cat, [])
-            entries = [
-                e for e in entries
-                if e.get("ttl") is None or (e.get("ts", 0) + e["ttl"]) > now
-            ]
-            if len(entries) > MAX_PER_CATEGORY:
-                entries = entries[-MAX_PER_CATEGORY:]
-            data["short_term"][cat] = entries
-        # Long-term: remove expired (ttl not None)
-        data["long_term"] = [
-            e for e in data["long_term"]
-            if e.get("ttl") is None or (e.get("ts", 0) + e["ttl"]) > now
-        ]
-
-    def track(self, category: str, value: str, ttl: int | None = None) -> dict:
+    def track(self, category: str, value: str) -> None:
         """Add an entry to short-term memory."""
         if category not in SHORT_TERM_CATEGORIES:
             raise ValueError(f"Invalid short-term category: {category}")
-        entry = {
-            "key": str(uuid.uuid4()),
-            "value": value,
-            "ts": time.time(),
-            "ttl": ttl if ttl is not None else DEFAULT_SHORT_TERM_TTL,
-        }
+        value = normalize_topic(value)
+        if not value:
+            return
+        # Truncate long values
+        if len(value) > 150:
+            value = value[:150] + "..."
+        entry = f"{value} ({_today()})"
         with self._lock:
             data = self._load()
-            data["short_term"][category].append(entry)
+            entries = data["short_term"][category]
+            # Avoid near-duplicates (same value prefix on same day)
+            val_prefix = value[:80]
+            entries = [e for e in entries if not e.startswith(val_prefix)]
+            entries.append(entry)
             # FIFO prune
-            if len(data["short_term"][category]) > MAX_PER_CATEGORY:
-                data["short_term"][category] = data["short_term"][category][-MAX_PER_CATEGORY:]
+            if len(entries) > MAX_PER_CATEGORY:
+                entries = entries[-MAX_PER_CATEGORY:]
+            data["short_term"][category] = entries
+            self._promote(data)
             self._save(data)
-        return entry
 
     def remember(self, category: str, value: str, key: str | None = None,
-                 notes: str | None = None, ttl: int | None = None,
-                 context: str | None = None, evergreen: bool = False) -> dict:
-        """Upsert an entry in long-term memory."""
+                 notes: str | None = None, context: str | None = None,
+                 **_kwargs) -> dict:
+        """Add or update an entry in long-term memory. Returns a dict with key/value for compatibility."""
         if category not in LONG_TERM_CATEGORIES:
             raise ValueError(f"Invalid long-term category: {category}")
-        if key is None:
-            key = f"{category}-{uuid.uuid4().hex[:8]}"
+        value = value.strip()
+        if not value:
+            raise ValueError("value is required")
+        if len(value) > 500:
+            value = value[:500]
+
+        # Normalize into canonical "key: value" format
+        normalized_key, entry_line = normalize_entry(
+            value, category, key=key, notes=notes, context=context,
+        )
+
         with self._lock:
             data = self._load()
-            # Check for existing entry with same key (upsert)
-            for i, entry in enumerate(data["long_term"]):
-                if entry.get("key") == key:
-                    data["long_term"][i] = {
-                        "key": key,
-                        "category": category,
-                        "value": value,
-                        "notes": notes,
-                        "context": context,
-                        "evergreen": evergreen,
-                        "access_count": entry.get("access_count", 0),
-                        "ts": time.time(),
-                        "ttl": ttl,
-                    }
-                    self._save(data)
-                    return data["long_term"][i]
-            # New entry
-            entry = {
-                "key": key,
-                "category": category,
-                "value": value,
-                "notes": notes,
-                "context": context,
-                "evergreen": evergreen,
-                "access_count": 0,
-                "ts": time.time(),
-                "ttl": ttl,
-            }
-            data["long_term"].append(entry)
+            entries = data["long_term"][category]
+
+            # Dedup by normalized key prefix: replace existing entry with same key
+            key_prefix = normalized_key + ":"
+            replaced = False
+            for i, existing in enumerate(entries):
+                if existing.startswith(key_prefix):
+                    entries[i] = entry_line
+                    replaced = True
+                    break
+
+            if not replaced:
+                # Avoid exact duplicates as fallback
+                if entry_line not in entries:
+                    entries.append(entry_line)
+
+            data["long_term"][category] = entries
             self._save(data)
-        return entry
+        return {"key": normalized_key, "value": entry_line}
 
     def forget(self, key: str) -> bool:
-        """Remove an entry by key from long-term or short-term memory."""
+        """Remove an entry by matching text (case-insensitive) from any memory section."""
+        key_lower = key.lower()
         with self._lock:
             data = self._load()
-            # Try long-term first
-            for i, entry in enumerate(data["long_term"]):
-                if entry.get("key") == key:
-                    data["long_term"].pop(i)
-                    self._save(data)
-                    return True
-            # Try short-term
+            # Search long-term
+            for cat in LONG_TERM_CATEGORIES:
+                for i, entry in enumerate(data["long_term"][cat]):
+                    if key_lower in entry.lower():
+                        data["long_term"][cat].pop(i)
+                        self._save(data)
+                        return True
+            # Search short-term
             for cat in SHORT_TERM_CATEGORIES:
                 for i, entry in enumerate(data["short_term"][cat]):
-                    if entry.get("key") == key:
+                    if key_lower in entry.lower():
                         data["short_term"][cat].pop(i)
                         self._save(data)
                         return True
         return False
 
     def get_all(self) -> dict:
-        """Return the full cleaned memory dict."""
+        """Return the full memory dict."""
         with self._lock:
-            data = self._load()
-            self._save(data)  # persist any cleanup
-        return data
+            return self._load()
 
     def get_summary(self, max_items: int = 10) -> str:
         """Return a text summary for system prompt injection."""
         with self._lock:
             data = self._load()
             self._promote(data)
-
-            # Score and rank long-term entries
-            now = time.time()
-            lt = data.get("long_term", [])
-            scored = sorted(lt, key=lambda e: _relevance_score(e, now), reverse=True)
-            top = scored[:max_items]
-
-            # Increment access_count on selected entries
-            top_keys = {e["key"] for e in top}
-            for entry in lt:
-                if entry["key"] in top_keys:
-                    entry["access_count"] = entry.get("access_count", 0) + 1
-
             self._save(data)
 
         lines = []
+        count = 0
 
         # Long-term memories
-        if top:
-            lines.append("Long-term memories:")
-            for entry in top:
-                cat = entry.get("category", "unknown")
-                val = entry.get("value", "")
-                notes = entry.get("notes")
-                ctx = entry.get("context")
-                line = f"  - [{cat}] {val}"
-                if notes:
-                    line += f" ({notes})"
-                if ctx:
-                    line += f" | context: {ctx}"
-                lines.append(line)
-            if len(lt) > max_items:
-                lines.append(f"  ... and {len(lt) - max_items} more")
-
-        # Short-term sections
-        remaining = max_items - len(top)
-        if remaining > 0:
-            st = data.get("short_term", {})
-            section_map = [
-                ("recent_conversations", "Recent conversations:"),
-                ("recent_plans", "Active plans:"),
-                ("health_status", "Recent health status:"),
-            ]
-            for cat, heading in section_map:
-                entries = st.get(cat, [])
-                if not entries or remaining <= 0:
-                    continue
-                lines.append(heading)
-                for entry in entries[-remaining:]:
-                    lines.append(f"  - {entry.get('value', '')}")
-                    remaining -= 1
-                    if remaining <= 0:
+        for cat in LONG_TERM_CATEGORIES:
+            entries = data["long_term"].get(cat, [])
+            if entries:
+                lines.append(f"{_SECTION_HEADINGS[cat]}:")
+                for entry in entries:
+                    if count >= max_items:
                         break
+                    lines.append(f"  - {entry}")
+                    count += 1
+
+        # Short-term memories
+        for cat in SHORT_TERM_CATEGORIES:
+            entries = data["short_term"].get(cat, [])
+            if entries:
+                if count >= max_items:
+                    break
+                lines.append(f"{_SECTION_HEADINGS[cat]}:")
+                for entry in entries[-5:]:  # most recent 5 per short-term category
+                    if count >= max_items:
+                        break
+                    lines.append(f"  - {entry}")
+                    count += 1
 
         return "\n".join(lines)
 
-    def _promote(self, data: dict) -> list[str]:
-        """Promote frequently repeated recent_conversations entries to long-term memory.
-
-        Only recent_conversations are eligible for promotion (repeated topics
-        become long-term facts). recent_plans and health_status are inherently
-        ephemeral and are never promoted.
-        """
-        promoted_keys = []
+    def _promote(self, data: dict) -> None:
+        """Promote frequently repeated conversation topics to long-term facts."""
         entries = data["short_term"].get("recent_conversations", [])
-        counts: dict[str, int] = {}
+        # Extract just the value part (before the date suffix)
+        values = []
         for e in entries:
-            val = e.get("value", "")
+            # Strip date suffix like " (2026-03-28)"
+            val = re.sub(r"\s*\(\d{4}-\d{2}-\d{2}\)\s*$", "", e)
+            values.append(val)
+
+        counts: dict[str, int] = {}
+        for val in values:
             counts[val] = counts.get(val, 0) + 1
 
+        facts = data["long_term"]["fact"]
         for value, count in counts.items():
             if count < PROMOTION_THRESHOLD:
                 continue
-            # Check for duplicate in long-term
-            if any(e.get("value") == value for e in data["long_term"]):
+            # Normalize promoted entry before appending
+            try:
+                norm_key, entry_line = normalize_entry(
+                    value, "fact", context="auto-promoted from repeated conversations",
+                )
+            except ValueError:
                 continue
-            promoted_key = f"promoted-{uuid.uuid4().hex[:8]}"
-            new_entry = {
-                "key": promoted_key,
-                "category": "fact",
-                "value": value,
-                "notes": None,
-                "context": "Auto-promoted from repeated recent_conversations",
-                "evergreen": False,
-                "access_count": 0,
-                "ts": time.time(),
-                "ttl": None,
-            }
-            data["long_term"].append(new_entry)
-            promoted_keys.append(promoted_key)
+            # Check for duplicate in long-term facts (by key prefix or content)
+            key_prefix = norm_key + ":"
+            if any(f.startswith(key_prefix) or value in f for f in facts):
+                continue
+            facts.append(entry_line)
             # Remove promoted entries from short-term
             data["short_term"]["recent_conversations"] = [
                 e for e in data["short_term"]["recent_conversations"]
-                if e.get("value") != value
+                if not e.startswith(value)
             ]
-        return promoted_keys
-
-
-# ── Flask Blueprint ──────────────────────────────────────────────────────────
-
-memory_bp = Blueprint("memory", __name__)
-
-
-def _require_auth():
-    """Return username if logged in, else None."""
-    if current_user.is_authenticated:
-        return current_user.email
-    return session.get("username")
-
-
-@memory_bp.route("/api/memory", methods=["GET"])
-def api_get_memory():
-    username = _require_auth()
-    if not username:
-        return jsonify(success=False, message="Login required"), 401
-    try:
-        mem = UserMemory(username)
-        return jsonify(success=True, memory=mem.get_all())
-    except ValueError as e:
-        return jsonify(success=False, message=str(e)), 400
-
-
-@memory_bp.route("/api/memory", methods=["POST"])
-def api_remember():
-    username = _require_auth()
-    if not username:
-        return jsonify(success=False, message="Login required"), 401
-    body = request.get_json(force=True) or {}
-    category = body.get("category", "")
-    value = (body.get("value") or "").strip()
-    key = body.get("key")
-    notes = body.get("notes")
-    ttl = body.get("ttl")
-    context = body.get("context")
-    evergreen = body.get("evergreen", False)
-
-    if not value:
-        return jsonify(success=False, message="value is required"), 400
-    if len(value) > 500:
-        return jsonify(success=False, message="value must be 500 characters or less"), 400
-    if category not in LONG_TERM_CATEGORIES:
-        return jsonify(success=False, message=f"category must be one of {LONG_TERM_CATEGORIES}"), 400
-    if ttl is not None:
-        if not isinstance(ttl, (int, float)) or ttl < 0:
-            return jsonify(success=False, message="ttl must be a non-negative number"), 400
-    if key and len(key) > 200:
-        return jsonify(success=False, message="key must be 200 characters or less"), 400
-    if notes and len(notes) > 500:
-        return jsonify(success=False, message="notes must be 500 characters or less"), 400
-    if context is not None:
-        if not isinstance(context, str) or len(context) > 500:
-            return jsonify(success=False, message="context must be a string of 500 characters or less"), 400
-    if not isinstance(evergreen, bool):
-        return jsonify(success=False, message="evergreen must be a boolean"), 400
-
-    try:
-        mem = UserMemory(username)
-        entry = mem.remember(category, value, key=key, notes=notes, ttl=ttl,
-                             context=context, evergreen=evergreen)
-        return jsonify(success=True, entry=entry)
-    except ValueError as e:
-        return jsonify(success=False, message=str(e)), 400
-
-
-@memory_bp.route("/api/memory/<key>", methods=["DELETE"])
-def api_forget(key):
-    username = _require_auth()
-    if not username:
-        return jsonify(success=False, message="Login required"), 401
-    try:
-        mem = UserMemory(username)
-        found = mem.forget(key)
-        if found:
-            return jsonify(success=True)
-        return jsonify(success=False, message="Key not found"), 404
-    except ValueError as e:
-        return jsonify(success=False, message=str(e)), 400
-
-
-@memory_bp.route("/api/memory/track", methods=["POST"])
-def api_track():
-    username = _require_auth()
-    if not username:
-        return jsonify(success=False, message="Login required"), 401
-    body = request.get_json(force=True) or {}
-    category = body.get("category", "")
-    value = (body.get("value") or "").strip()
-    ttl = body.get("ttl")
-
-    if not value:
-        return jsonify(success=False, message="value is required"), 400
-    if len(value) > 200:
-        return jsonify(success=False, message="value must be 200 characters or less"), 400
-    if category not in SHORT_TERM_CATEGORIES:
-        return jsonify(success=False, message=f"category must be one of {SHORT_TERM_CATEGORIES}"), 400
-    if ttl is not None:
-        if not isinstance(ttl, (int, float)) or ttl < 0:
-            return jsonify(success=False, message="ttl must be a non-negative number"), 400
-
-    try:
-        mem = UserMemory(username)
-        entry = mem.track(category, value, ttl=ttl)
-        return jsonify(success=True, entry=entry)
-    except ValueError as e:
-        return jsonify(success=False, message=str(e)), 400
-
-
-@memory_bp.route("/settings/memory")
-@login_required
-def settings_memory_page():
-    """Render settings memory page."""
-    username = _require_auth()
-    return render_template(
-        "settings_memory.html",
-        username=username,
-        settings_section="memory",
-    )

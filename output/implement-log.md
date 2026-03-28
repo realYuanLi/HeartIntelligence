@@ -124,3 +124,119 @@
 
 ## Phase 4: Dev Logger ✅
 - Devlog: `devlog/2026-03-18-health-qa.md`
+
+---
+
+# Implementation Log: Heartbeat v2 - Improved Decision-Making
+
+## Phase 1: Research & Design ✅
+- Researched proactive AI assistant best practices (CHI 2025, Amazon Hunches, Google Now, Apple Intelligence)
+- Identified four-gate decision model: Relevance -> Information Value -> Timing -> Confidence
+- Explored full system data inventory: health data, workout plans, nutrition profiles, calendars, memory
+
+## Phase 2: Code & Review ✅
+- Rewrote `skills/heartbeat.md` with research-backed decision framework
+- Expanded `_build_context()` with 8 data sources (was 4)
+- Added `_get_time_window()` for time-of-day awareness
+- Added `_gather_health_trends()` for 7-day health metric analysis
+- Added `_gather_workout_context()` for today's workout schedule + weekly completion rate
+- Added `_gather_nutrition_context()` for dietary goals and preferences
+- Added `_get_last_user_activity()` for interruptibility awareness
+
+## Phase 3: Test ✅
+- 45/45 tests pass (19 new tests for enriched context functions)
+
+## Phase 4: Dev Logger ✅
+- Devlog: `devlog/2026-03-25-heartbeat.md` (updated)
+
+---
+
+# Implementation Log: Email-Based User Authentication
+
+## Phase 1: Product Design ✅
+- Spec designed for email-based auth replacing hardcoded USERS dict
+- SQLite-backed User model with Flask-Login + Flask-SQLAlchemy + werkzeug
+- User model includes `tier` field (default "free") for future subscriptions
+- Per-user data isolation prepared (shared demo data for now)
+
+## Phase 2: Code & Review ✅
+- Round 1: Changes requested (hardcoded SECRET_KEY fallback, no CSRF protection)
+- Round 2: Fixes applied and approved
+- Files created: `functions/auth.py`, `templates/login.html`, `templates/register.html`, `tests/test_auth.py`
+- Files modified: `app.py`, `static/style.css`, `templates/base.html`, `static/script.js`, `.gitignore`, `requirements.txt`, all blueprint files
+
+## Phase 3: Tester ✅
+- 63 auth tests, all pass
+- Coverage: registration, login, logout, auth enforcement, API endpoints, sessions, security (CSRF), edge cases, User model
+
+## Phase 4: Dev Logger ✅
+## Phase 5: GitHub Manager ✅
+
+---
+
+# Implementation Log: Multi-User WhatsApp Gateway + Production Server
+
+## Phase 1: Product Design ✅
+- Full spec for multi-user WhatsApp gateway, production server, and settings UI
+- Architecture: ConnectionManager with Map<userId, WhatsAppClient>, Express REST API, Flask proxy endpoints
+- Per-user auth state in `whatsapp/store/auth/{userId}/`
+- Polling-based QR code display (2s interval)
+
+## Phase 2: Code & Review ✅
+- Round 1: Changes requested (global mutable state, hardcoded BOT_PASSWORD, 5 major issues)
+- Round 2: All 9 issues fixed, approved
+- Node.js: connection-manager.ts, api.ts, refactored whatsapp.ts/bridge.ts/index.ts/db.ts
+- Flask: flask_whatsapp.py (proxy endpoints, per-user routing), auth.py (service account)
+- UI: settings_whatsapp.html, settings_whatsapp.js
+- Scripts: dev.sh (gunicorn --reload + tsx watch), start.sh (production)
+
+## Phase 3: Tester ✅
+- 63 WhatsApp tests, all pass
+- Coverage: proxy endpoints, message routing, auth, settings page, security/isolation, edge cases
+
+## Phase 4: Dev Logger ✅
+## Phase 5: GitHub Manager ✅
+
+---
+
+# Implementation Log: Memory System Redesign
+
+## Phase 1: Product Design ✅
+- Spec: Redesign memory from navigation-noise to user-centric categories
+- Short-term: `recent_conversations`, `recent_plans`, `health_status` (replacing `page_visits`, `chat_topics`, `recent_searches`, `last_used_skills`)
+- Long-term: unchanged (`preference`, `fact`, `saved`, `goal`)
+- Migration in `_load()` drops old categories and cleans promoted noise
+
+## Phase 2: Code & Review ✅
+- Round 1: Approved with 2 minor suggestions (logging, summary budget)
+- Applied logger.debug fix for silent exception
+- Files modified: `functions/user_memory.py`, `functions/agent.py`, `static/script.js`, `tests/test_user_memory.py`
+
+## Phase 3: Tester ✅
+- 136 tests, all pass (90 existing + 46 new)
+- Coverage: unit, migration, promotion, summary, edge cases, API, constants
+
+## Phase 4: Dev Logger ✅
+## Phase 5: Git - pending
+
+---
+
+# Implementation Log: WhatsApp QR Code Linking Flow
+
+## Phase 1: Product Design ✅
+- Replace password-based setup with scan-and-go QR code linking
+- Auto-generate BOT_PASSWORD, share via `whatsapp/store/.bot_secret`
+- SSE for real-time QR streaming, polling fallback
+
+## Phase 2: Code & Review ✅
+- Round 1: Changes requested (1 CRITICAL path traversal, 2 MAJOR IDOR + stale cache, 3 MINOR)
+- Round 2: 5/6 fixes verified, 1 remaining IDOR on /api/whatsapp/message
+- Round 3: Final IDOR fix applied
+- Files modified: auth.py, config.ts, bridge.ts, whatsapp.ts, api.ts, flask_whatsapp.py, settings_whatsapp.js, settings_whatsapp.html, .env.example, .gitignore
+
+## Phase 3: Tester ✅
+- 103 new tests, all pass
+- Coverage: session ID validation, path traversal, IDOR, service account access, auth enforcement, proxy endpoints, input validation, bot secret generation, SSE proxy, edge cases
+
+## Phase 4: Dev Logger ✅
+## Phase 5: GitHub Manager ✅

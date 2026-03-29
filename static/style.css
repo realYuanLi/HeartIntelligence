@@ -1005,101 +1005,62 @@ body.sources-sidebar-open .message {
 }
 
 /* ===================== Exercise Image Panel (side panel — kept for full-view) ===================== */
-.exercise-image-panel {
+/* ===================== Exercise Image Lightbox ===================== */
+.exercise-lightbox {
   position: fixed;
-  top: 0;
-  right: 0;
-  width: 340px;
-  height: 100vh;
-  background: var(--bg);
-  border-left: 1px solid var(--border);
-  box-shadow: -4px 0 16px rgba(0, 0, 0, 0.08);
-  z-index: 200;
-  display: flex;
-  flex-direction: column;
-  transform: translateX(100%);
-  transition: transform 0.25s ease;
-}
-.exercise-image-panel.open {
-  transform: translateX(0);
-}
-.exercise-panel-header {
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  z-index: 300;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 0.85rem 1rem;
-  border-bottom: 1px solid var(--border);
-  flex-shrink: 0;
+  justify-content: center;
+  animation: lightbox-fade-in 0.15s ease;
 }
-.exercise-panel-title {
-  font-weight: 600;
-  font-size: 1rem;
+@keyframes lightbox-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
-.exercise-panel-close {
-  background: none;
-  border: none;
-  font-size: 1.4rem;
-  cursor: pointer;
-  color: var(--muted);
-  padding: 0 0.25rem;
-  line-height: 1;
-}
-.exercise-panel-close:hover {
-  color: var(--text);
-}
-.exercise-panel-grid {
-  flex: 1;
-  overflow-y: auto;
-  padding: 1rem;
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 0.85rem;
-  align-content: start;
-}
-.exercise-panel-card {
+.exercise-lightbox-content {
+  position: relative;
+  max-width: min(90vw, 600px);
+  max-height: 85vh;
   display: flex;
   flex-direction: column;
   align-items: center;
 }
-.exercise-panel-card img {
-  width: 100%;
-  aspect-ratio: 1;
-  object-fit: cover;
-  border-radius: 0.5rem;
-  border: 1px solid var(--border);
-}
-.exercise-panel-card span {
-  margin-top: 0.3rem;
-  font-size: 0.72rem;
-  color: var(--muted);
-  text-align: center;
-  line-height: 1.2;
+.exercise-lightbox-content img {
   max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
+  max-height: 75vh;
+  object-fit: contain;
+  border-radius: 0.5rem;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
 }
-
-@media (max-width: 768px) {
-  .exercise-image-panel {
-    top: auto;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    width: 100%;
-    height: auto;
-    max-height: 50vh;
-    border-left: none;
-    border-top: 1px solid var(--border);
-    border-radius: 1rem 1rem 0 0;
-    box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.1);
-    transform: translateY(100%);
-  }
-  .exercise-image-panel.open {
-    transform: translateY(0);
-  }
+.exercise-lightbox-caption {
+  margin-top: 0.75rem;
+  color: #fff;
+  font-size: 0.95rem;
+  text-align: center;
+}
+.exercise-lightbox-close {
+  position: absolute;
+  top: -0.75rem;
+  right: -0.75rem;
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  border: none;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  font-size: 1.2rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  z-index: 1;
+}
+.exercise-lightbox-close:hover {
+  background: rgba(0, 0, 0, 0.85);
 }
 
 /* ===================== Inline Exercise Image Strip (in chat bubble) ===================== */

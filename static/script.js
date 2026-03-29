@@ -470,12 +470,6 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  const memoryBtn = document.getElementById("memoryBtn");
-  if (memoryBtn) {
-    memoryBtn.addEventListener("click", () => {
-      window.location.href = "/settings/memory";
-    });
-  }
 
   /* ==================================================== */
   /*  Welcome page functionality                           */
@@ -1664,13 +1658,7 @@ document.addEventListener("DOMContentLoaded", () => {
       label.className = "inline-exercise-strip-label";
       label.textContent = `${exerciseImages.length} exercises`;
 
-      const expandBtn = document.createElement("button");
-      expandBtn.className = "inline-exercise-expand-btn";
-      expandBtn.textContent = "Open full view";
-      expandBtn.addEventListener("click", () => showExercisePanel(exerciseImages));
-
       header.appendChild(label);
-      header.appendChild(expandBtn);
       strip.appendChild(header);
 
       const scroll = document.createElement("div");
@@ -1684,7 +1672,7 @@ document.addEventListener("DOMContentLoaded", () => {
         img.alt = item.name;
         img.loading = "lazy";
         img.onerror = () => { el.remove(); };
-        img.addEventListener("click", () => showExercisePanel(exerciseImages));
+        img.addEventListener("click", () => showExerciseLightbox(item.url, item.name));
         const nameSpan = document.createElement("span");
         nameSpan.textContent = item.name;
         el.appendChild(img);
@@ -1822,48 +1810,48 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   /* ==================================================== */
-  /*  Exercise image panel (full view — side panel)        */
+  /*  Exercise image lightbox (centered overlay)           */
   /* ==================================================== */
-  function showExercisePanel(images) {
-    const panel = document.getElementById("exerciseImagePanel");
-    const grid = document.getElementById("exercisePanelGrid");
-    if (!panel || !grid) return;
+  function showExerciseLightbox(url, name) {
+    // Remove existing lightbox if any
+    const existing = document.getElementById("exerciseLightbox");
+    if (existing) existing.remove();
 
-    grid.innerHTML = "";
-    images.forEach(item => {
-      const card = document.createElement("div");
-      card.className = "exercise-panel-card";
-      const img = document.createElement("img");
-      img.src = item.url;
-      img.alt = item.name;
-      img.loading = "lazy";
-      img.onerror = () => { card.remove(); };
-      const label = document.createElement("span");
-      label.textContent = item.name;
-      card.appendChild(img);
-      card.appendChild(label);
-      grid.appendChild(card);
+    const overlay = document.createElement("div");
+    overlay.id = "exerciseLightbox";
+    overlay.className = "exercise-lightbox";
+
+    const content = document.createElement("div");
+    content.className = "exercise-lightbox-content";
+
+    const closeBtn = document.createElement("button");
+    closeBtn.className = "exercise-lightbox-close";
+    closeBtn.innerHTML = "&times;";
+    closeBtn.addEventListener("click", () => overlay.remove());
+
+    const img = document.createElement("img");
+    img.src = url;
+    img.alt = name;
+
+    const caption = document.createElement("div");
+    caption.className = "exercise-lightbox-caption";
+    caption.textContent = name;
+
+    content.appendChild(closeBtn);
+    content.appendChild(img);
+    content.appendChild(caption);
+    overlay.appendChild(content);
+    document.body.appendChild(overlay);
+
+    // Close on overlay background click
+    overlay.addEventListener("click", (e) => {
+      if (e.target === overlay) overlay.remove();
     });
 
-    panel.hidden = false;
-    // Trigger reflow before adding open class for transition
-    panel.offsetHeight;
-    panel.classList.add("open");
-  }
-
-  function hideExercisePanel() {
-    const panel = document.getElementById("exerciseImagePanel");
-    if (!panel) return;
-    if (!panel.classList.contains("open")) return;
-    panel.classList.remove("open");
-    panel.addEventListener("transitionend", function onEnd() {
-      panel.removeEventListener("transitionend", onEnd);
-      panel.hidden = true;
-    });
-  }
-
-  const exerciseCloseBtn = document.getElementById("exercisePanelClose");
-  if (exerciseCloseBtn) {
-    exerciseCloseBtn.addEventListener("click", hideExercisePanel);
+    // Close on Escape key
+    function onKey(e) {
+      if (e.key === "Escape") { overlay.remove(); document.removeEventListener("keydown", onKey); }
+    }
+    document.addEventListener("keydown", onKey);
   }
 });

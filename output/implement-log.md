@@ -240,3 +240,44 @@
 
 ## Phase 4: Dev Logger ✅
 ## Phase 5: GitHub Manager ✅
+
+---
+
+# Implementation Log: Food Image Calorie Estimation
+
+## Phase 1: Product Design ✅
+- Spec: Food image calorie estimation via vision API for WhatsApp
+- Architecture: Context skill pattern — gpt-4o-mini vision analyzes food photos, returns structured JSON with per-item calories/macros, profile comparison, suggestions
+- No new dependencies — uses existing OpenAI SDK and nutrition profile system
+
+## Phase 2: Code & Review ✅
+- Round 1: Changes requested (1 MAJOR: image-only messages skipped, 2 MINOR: MIME bypass, error leakage)
+- Round 2: All 3 fixes verified, approved
+- Files created: `functions/food_image_analyzer.py`, `skills/food_image_analysis.md`
+- Files modified: `functions/skills_runtime.py`, `functions/agent.py`
+
+## Phase 3: Tester ✅
+- 69 tests, all pass
+- Coverage: core analysis, formatting, profile comparison, edge cases, MIME validation, skill runtime gate, agent integration
+
+## Phase 4: Dev Logger ✅
+## Phase 5: GitHub Manager ✅
+
+---
+
+# Implementation Log: SOCKS5 Fetch Proxy for Baileys Media Uploads
+
+## Phase 1: Product Design ✅
+- Root cause: Baileys uses `globalThis.fetch` for media uploads; Node 24's built-in fetch ignores SOCKS5 and `setGlobalDispatcher`
+- Fix: Monkey-patch `globalThis.fetch` with `node:https` + `SocksProxyAgent`
+
+## Phase 2: Code & Review ✅
+- Round 1: Approved — clean implementation, all acceptance criteria met
+- File rewritten: `whatsapp/src/fetch-proxy.ts`
+- Handles: streaming Readable body, AbortSignal, response buffering, SOCKS5 + HTTP proxy
+
+## Phase 3: TypeScript ✅
+- `tsc --noEmit` passes clean
+
+## Phase 4: Dev Logger ✅
+- Devlog: `devlog/2026-03-28-fetch-proxy-socks5.md`

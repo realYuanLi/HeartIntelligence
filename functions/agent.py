@@ -84,7 +84,7 @@ class Agent:
         "type": "function",
         "function": {
             "name": "exercise_search",
-            "description": "Search the exercise database for workouts, exercises by muscle group, equipment, or difficulty. Use this whenever the user asks about exercises, workouts, or fitness routines.",
+            "description": "Search the exercise database for workouts, exercises by muscle group, equipment, or difficulty. Use this whenever the user asks about exercises, workouts, or fitness routines. When presenting results, mention the source briefly (e.g. 'Based on the Free Exercise DB').",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -205,10 +205,17 @@ class Agent:
             if images:
                 img_path = images[0]
                 ensure_exercise_image(img_path)
-                image_lines.append({"name": name, "url": f"/exercises/images/{img_path}"})
+                image_lines.append({
+                    "name": name,
+                    "url": f"/exercises/images/{img_path}",
+                    "level": level,
+                    "equipment": equipment,
+                    "muscles": primary,
+                })
 
         text_summary = f"**Exercise Database — {len(exercises)} results:**\n\n"
         text_summary += "\n---\n\n".join(sections)
+        text_summary += "\n\n_Source: [Free Exercise DB](https://github.com/yuhonas/free-exercise-db) — open-source exercise database_"
         return text_summary, image_lines
 
     def _execute_tool_call(self, tool_call, openai_messages):
@@ -423,7 +430,9 @@ class Agent:
                     food_context = (
                         "FOOD IMAGE ANALYSIS (from user's photo):\n"
                         "Present this analysis conversationally. Include the item breakdown, "
-                        "meal total, daily budget comparison if available, and suggestions.\n\n"
+                        "meal total with calorie range, daily budget comparison if available, "
+                        "and suggestions. ALWAYS include the health disclaimer at the end — "
+                        "this is health-related data and accuracy cannot be guaranteed.\n\n"
                     )
                     food_context += food_image_output["food_image_summary"]
                     context_sections.append(food_context)

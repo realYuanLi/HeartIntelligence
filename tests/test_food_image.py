@@ -645,7 +645,8 @@ class TestItemSanitization:
         assert item["carbs_g"] == 0.0
         assert item["fat_g"] == 0.0
         assert item["fiber_g"] == 0.0
-        assert item["confidence"] == "medium"
+        # "medium" is downgraded to "low" on GPT fallback (no verified data)
+        assert item["confidence"] == "low"
         assert item["source"] == "estimate"
 
     @patch("functions.food_image_analyzer._local_food_lookup", return_value=None)
@@ -1505,22 +1506,36 @@ class TestMatchPortionToGrams:
 # ---------------------------------------------------------------------------
 
 class TestCalorieRange:
-    """Tests for the ±20% calorie range computation."""
+    """Tests for the confidence-based calorie range computation."""
 
-    def test_typical_range(self):
-        low, high = fia._compute_calorie_range(500)
-        assert low == 400   # 500 * 0.8
-        assert high == 600  # 500 * 1.2
+    def test_high_confidence_narrow_range(self):
+        """High confidence = ±15%."""
+        low, high = fia._compute_calorie_range(500, "high")
+        assert low == 425   # 500 * 0.85
+        assert high == 575  # 500 * 1.15
+
+    def test_medium_confidence_moderate_range(self):
+        """Medium confidence = ±25%."""
+        low, high = fia._compute_calorie_range(500, "medium")
+        assert low == 375   # 500 * 0.75
+        assert high == 625  # 500 * 1.25
+
+    def test_low_confidence_wide_range(self):
+        """Low confidence = ±40%."""
+        low, high = fia._compute_calorie_range(500, "low")
+        assert low == 300   # 500 * 0.6
+        assert high == 700  # 500 * 1.4
 
     def test_zero_calories(self):
         low, high = fia._compute_calorie_range(0)
         assert low == 0
         assert high == 0
 
-    def test_small_value(self):
-        low, high = fia._compute_calorie_range(10)
-        assert low == 8
-        assert high == 12
+    def test_default_is_medium(self):
+        """No confidence arg defaults to medium."""
+        low, high = fia._compute_calorie_range(100)
+        assert low == 75
+        assert high == 125
 
     def test_range_in_meal_total(self):
         """Meal calorie range should appear in the analysis result."""
@@ -1528,18 +1543,20 @@ class TestCalorieRange:
             "detected": True,
             "items": [{
                 "name": "Apple", "estimated_portion": "1 medium",
-                "calories": 95, "calorie_range": [76, 114],
+                "calories": 95, "calorie_range": [81, 109],
                 "protein_g": 0.5, "carbs_g": 25.0, "fat_g": 0.3, "fiber_g": 4.4,
                 "confidence": "high", "source": "USDA",
             }],
             "meal_total": {"calories": 95, "protein_g": 0.5, "carbs_g": 25.0, "fat_g": 0.3, "fiber_g": 4.4},
-            "meal_calorie_range": [76, 114],
+            "meal_calorie_range": [81, 109],
             "profile_comparison": None,
             "suggestions": [],
         }
         output = fia.format_food_image_analysis(analysis)
-        assert "76-114" in output
+        assert "81-109" in output
         assert "likely" in output.lower()
+        # Health disclaimer must always be present
+        assert "not a substitute" in output.lower()
 
 
 # ---------------------------------------------------------------------------
@@ -1632,3 +1649,175 @@ class TestUsdaFetchPortions:
         result = fia._usda_fetch_portions(171077)
         assert len(result) == 1
         assert result[0]["gram_weight"] == 15.0
+
+
+# ---------------------------------------------------------------------------
+# Tests: Health disclaimer
+# ---------------------------------------------------------------------------
+
+class TestHealthDisclaimer:
+    """Ensure disclaimer is always present in output."""
+
+    def test_disclaimer_in_analysis_result(self):
+        """analyze_food_image should include disclaimer in return dict."""
+        with patch("functions.food_image_analyzer._usda_search", return_value=None), \
+             patch("functions.food_image_analyzer._local_food_lookup", return_value=None), \
+             patch("functions.food_image_analyzer.openai.chat.completions.create") as mock_create:
+            mock_create.return_value = _make_openai_response(SAMPLE_FOOD_RESPONSE)
+            result = fia.analyze_food_image(SAMPLE_DATA_URI)
+        assert "disclaimer" in result
+        assert "not a substitute" in result["disclaimer"].lower()
+
+    def test_disclaimer_in_formatted_output(self):
+        """Formatted output must always contain the health disclaimer."""
+        analysis = {
+            "detected": True,
+            "items": [{
+                "name": "Test", "estimated_portion": "1 cup",
+                "calories": 100, "protein_g": 5.0, "carbs_g": 10.0,
+                "fat_g": 3.0, "fiber_g": 1.0, "confidence": "high",
+            }],
+            "meal_total": {"calories": 100, "protein_g": 5.0, "carbs_g": 10.0, "fat_g": 3.0, "fiber_g": 1.0},
+            "profile_comparison": None,
+            "suggestions": [],
+        }
+        output = fia.format_food_image_analysis(analysis)
+        assert "not a substitute" in output.lower()
+        assert "registered dietitian" in output.lower()
+
+
+# ---------------------------------------------------------------------------
+# Tests: Cross-validation (USDA vs GPT)
+# ---------------------------------------------------------------------------
+
+class TestCrossValidation:
+    """Tests for the USDA-vs-GPT cross-validation logic."""
+
+    @patch("functions.food_image_analyzer._usda_search")
+    @patch("functions.food_image_analyzer.openai.chat.completions.create")
+    def test_large_discrepancy_downgrades_confidence(self, mock_create, mock_usda):
+        """When USDA and GPT calories differ >2x, confidence should be downgraded to low."""
+        # GPT says 100 kcal, but USDA says 500 kcal (5x discrepancy)
+        response = json.dumps({
+            "detected": True,
+            "items": [{
+                "name": "mystery food",
+                "portion_description": "1 cup",
+                "portion_grams": 200,
+                "calories": 100,  # GPT estimate
+                "protein_g": 5.0, "carbs_g": 10.0, "fat_g": 3.0, "fiber_g": 1.0,
+                "confidence": "high",
+            }],
+        })
+        mock_create.return_value = _make_openai_response(response)
+        mock_usda.return_value = {
+            "food_description": "Mystery, cooked",
+            "calories_per_100g": 250.0,  # 250 * 200/100 = 500 kcal (5x GPT's 100)
+            "protein_per_100g": 10.0,
+            "carbs_per_100g": 20.0,
+            "fat_per_100g": 8.0,
+            "fiber_per_100g": 2.0,
+            "portions": [{"description": "1 cup", "gram_weight": 200.0}],
+            "source": "USDA FoodData Central",
+        }
+        result = fia.analyze_food_image(SAMPLE_DATA_URI)
+        # Confidence should be downgraded to "low" due to discrepancy
+        assert result["items"][0]["confidence"] == "low"
+        # Should still use USDA value (more reliable)
+        assert result["items"][0]["calories"] == 500
+
+    @patch("functions.food_image_analyzer._usda_search")
+    @patch("functions.food_image_analyzer.openai.chat.completions.create")
+    def test_small_discrepancy_keeps_confidence(self, mock_create, mock_usda):
+        """When USDA and GPT calories are close, confidence is preserved."""
+        response = json.dumps({
+            "detected": True,
+            "items": [{
+                "name": "banana raw",
+                "portion_description": "1 medium",
+                "portion_grams": 118,
+                "calories": 105,  # GPT estimate
+                "protein_g": 1.3, "carbs_g": 27.0, "fat_g": 0.4, "fiber_g": 3.1,
+                "confidence": "high",
+            }],
+        })
+        mock_create.return_value = _make_openai_response(response)
+        mock_usda.return_value = {
+            "food_description": "Bananas, raw",
+            "calories_per_100g": 89.0,  # 89 * 118/100 = 105 kcal (matches GPT)
+            "protein_per_100g": 1.1,
+            "carbs_per_100g": 22.8,
+            "fat_per_100g": 0.3,
+            "fiber_per_100g": 2.6,
+            "portions": [{"description": "1 medium (7 inches to 7-7/8 inches long)", "gram_weight": 118.0}],
+            "source": "USDA FoodData Central",
+        }
+        result = fia.analyze_food_image(SAMPLE_DATA_URI)
+        # Confidence should remain "high" since values agree
+        assert result["items"][0]["confidence"] == "high"
+
+
+# ---------------------------------------------------------------------------
+# Tests: Hidden calories
+# ---------------------------------------------------------------------------
+
+class TestHiddenCalories:
+    """Tests for the hidden calories note from vision model."""
+
+    @patch("functions.food_image_analyzer._usda_search", return_value=None)
+    @patch("functions.food_image_analyzer._local_food_lookup", return_value=None)
+    @patch("functions.food_image_analyzer.openai.chat.completions.create")
+    def test_hidden_calories_added_to_suggestions(self, mock_create, mock_local, mock_usda):
+        """Vision model's hidden_calories_note should appear in suggestions."""
+        response = json.dumps({
+            "detected": True,
+            "items": [{
+                "name": "Caesar Salad",
+                "portion_description": "1 bowl",
+                "portion_grams": 300,
+                "calories": 350,
+                "protein_g": 15.0, "carbs_g": 20.0, "fat_g": 25.0, "fiber_g": 3.0,
+                "confidence": "medium",
+            }],
+            "hidden_calories_note": "Visible Caesar dressing and parmesan cheese may add 150-200 kcal",
+        })
+        mock_create.return_value = _make_openai_response(response)
+        result = fia.analyze_food_image(SAMPLE_DATA_URI)
+
+        assert any("Caesar dressing" in s for s in result["suggestions"])
+        assert any("not be fully reflected" in s for s in result["suggestions"])
+
+
+# ---------------------------------------------------------------------------
+# Tests: GPT-fallback confidence downgrade
+# ---------------------------------------------------------------------------
+
+class TestFallbackConfidenceDowngrade:
+    """When using GPT-only estimates, medium confidence is downgraded to low."""
+
+    @patch("functions.food_image_analyzer._local_food_lookup", return_value=None)
+    @patch("functions.food_image_analyzer._usda_search", return_value=None)
+    @patch("functions.food_image_analyzer.openai.chat.completions.create")
+    def test_medium_downgraded_to_low_on_gpt_fallback(self, mock_create, mock_usda, mock_local):
+        """GPT-only items with 'medium' confidence get downgraded to 'low'."""
+        response = json.dumps({
+            "detected": True,
+            "items": [{
+                "name": "Exotic dish",
+                "portion_description": "1 serving",
+                "portion_grams": 200,
+                "calories": 400,
+                "protein_g": 20.0, "carbs_g": 40.0, "fat_g": 15.0, "fiber_g": 3.0,
+                "confidence": "medium",
+            }],
+        })
+        mock_create.return_value = _make_openai_response(response)
+        result = fia.analyze_food_image(SAMPLE_DATA_URI)
+
+        # Medium -> low when using GPT fallback (no verified data)
+        assert result["items"][0]["confidence"] == "low"
+        assert result["items"][0]["source"] == "estimate"
+        # Range should be wide (±40% for low confidence)
+        cal_range = result["items"][0]["calorie_range"]
+        assert cal_range[0] == 240  # 400 * 0.6
+        assert cal_range[1] == 560  # 400 * 1.4

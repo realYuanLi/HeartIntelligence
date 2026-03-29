@@ -44,8 +44,20 @@ _NUTRIENT_IDS = {
     "fiber_g": 1079,    # Fiber, total dietary (g)
 }
 
-# Uncertainty factor for calorie range display
-_RANGE_FACTOR = 0.20  # ±20%
+# Uncertainty ranges by confidence level — narrower for high confidence, wider for low
+_RANGE_FACTORS = {
+    "high": 0.15,    # ±15% — clearly identifiable food with visible size reference
+    "medium": 0.25,  # ±25% — identifiable food but ambiguous portion
+    "low": 0.40,     # ±40% — hard to identify, very uncertain
+}
+
+# Health disclaimer — MUST always accompany calorie estimates
+HEALTH_DISCLAIMER = (
+    "These are estimates based on visual analysis and USDA reference data. "
+    "Actual values vary with preparation method, ingredients, and portion sizes. "
+    "Not a substitute for professional dietary advice. "
+    "For medical dietary needs, consult a registered dietitian."
+)
 
 _VISION_PROMPT = """\
 You are a food nutrition analyst. Analyze the provided image and return a JSON object.
@@ -58,7 +70,7 @@ If the image DOES contain food, return a JSON object with this structure:
   "detected": true,
   "items": [
     {
-      "name": "<food item name in simple English, suitable for USDA database search>",
+      "name": "<USDA-searchable food name INCLUDING cooking method, e.g. 'chicken breast grilled' not just 'chicken'>",
       "portion_description": "<household measure, e.g. '1 cup', '2 slices', '1 medium', '6 oz', '1 bowl'>",
       "portion_grams": <your best gram estimate as a fallback number>,
       "calories": <your estimated kcal for this portion, used as fallback>,
@@ -66,19 +78,33 @@ If the image DOES contain food, return a JSON object with this structure:
       "carbs_g": <your estimated carbs in grams>,
       "fat_g": <your estimated fat in grams>,
       "fiber_g": <your estimated fiber in grams>,
-      "confidence": "<high|medium|low>"
+      "confidence": "<high|medium|low>",
+      "cooking_method": "<raw|boiled|steamed|grilled|fried|baked|roasted|sauteed|unknown>"
     }
-  ]
+  ],
+  "hidden_calories_note": "<optional: note any visible sauces, oils, dressings, or toppings that add significant calories but may be hard to quantify>"
 }
 
-Guidelines for portion estimation (CRITICAL for calorie accuracy):
+CRITICAL RULES FOR ACCURACY:
+1. ALWAYS include cooking method — it significantly affects calorie density:
+   - Fried chicken breast: ~240 kcal/100g vs grilled: ~165 kcal/100g
+   - Raw vegetables vs sauteed in oil: can double the calories
+2. ALWAYS look for hidden calorie sources:
+   - Cooking oils/butter (1 tbsp = ~120 kcal)
+   - Sauces, gravies, dressings
+   - Cheese toppings, cream-based sauces
+   - Sugar in drinks or desserts
+   Include these as separate items if visible, or note them in hidden_calories_note.
+3. When uncertain between two foods, name BOTH in the name field separated by " or "
+   and set confidence to "low".
+
+Guidelines for portion estimation:
 - Describe portions in HOUSEHOLD MEASURES (cups, pieces, slices, tablespoons, oz) — NOT raw grams.
 - Use standard reference objects visible in the image for scale:
   * Standard dinner plate: ~10 inches / 25 cm diameter
   * Salad/side plate: ~7 inches / 18 cm diameter
   * Standard bowl: holds ~1.5-2 cups
   * Fork length: ~7 inches / 18 cm
-  * Knife length: ~9 inches / 23 cm
   * Human hand width: ~3-4 inches / 8-10 cm
 - For proteins (meat, fish, tofu): estimate in oz. A deck-of-cards-sized piece is ~3 oz.
   A palm-sized piece is ~4-5 oz. A piece covering 1/4 of a dinner plate is ~5-6 oz.
@@ -88,9 +114,11 @@ Guidelines for portion estimation (CRITICAL for calorie accuracy):
 - For bread: count slices. For pizza: count slices and estimate size (small/medium/large).
 - For liquids/soups: estimate in cups based on bowl/glass size.
 - portion_grams is your fallback gram estimate in case USDA portion lookup fails.
-- For calorie and macro estimates, reference USDA standard values and scale to your estimated portion.
-- Set confidence to "high" for clearly identifiable items with clear size reference,
-  "medium" for identifiable food but ambiguous portion, "low" for hard to identify.
+- For calorie and macro estimates, reference USDA standard values for the COOKED form and scale to your estimated portion.
+- Confidence levels:
+  * "high": food is clearly identifiable, cooking method visible, size reference present
+  * "medium": food identifiable but portion or cooking method ambiguous
+  * "low": food hard to identify, heavily mixed, or no size reference
 - Return ONLY valid JSON with no additional text, markdown fences, or commentary.
 """
 
@@ -386,10 +414,15 @@ def _compute_meal_total(items: list[dict]) -> dict:
     return total
 
 
-def _compute_calorie_range(calories: int) -> tuple[int, int]:
-    """Return (low, high) calorie range applying ±20% uncertainty."""
-    low = max(0, round(calories * (1 - _RANGE_FACTOR)))
-    high = round(calories * (1 + _RANGE_FACTOR))
+def _compute_calorie_range(calories: int, confidence: str = "medium") -> tuple[int, int]:
+    """Return (low, high) calorie range based on confidence level.
+
+    Higher confidence = narrower range. This honestly communicates how
+    reliable the estimate is, which is critical for health applications.
+    """
+    factor = _RANGE_FACTORS.get(confidence, _RANGE_FACTORS["medium"])
+    low = max(0, round(calories * (1 - factor)))
+    high = round(calories * (1 + factor))
     return low, high
 
 
@@ -532,6 +565,9 @@ def analyze_food_image(image_data_uri: str, username: str = "") -> dict:
                 "suggestions": [],
             }
 
+        # Capture hidden calories note from vision model
+        hidden_calories_note = vision_result.get("hidden_calories_note", "")
+
         # Step 2: Resolve each item — USDA portions > local DB > GPT fallback
         enriched_items = []
         for item in raw_items:
@@ -539,6 +575,7 @@ def analyze_food_image(image_data_uri: str, username: str = "") -> dict:
             portion_desc = str(item.get("portion_description", item.get("estimated_portion", "1 serving")))
             gpt_grams = float(item.get("portion_grams", 100))
             confidence = str(item.get("confidence", "medium"))
+            gpt_calories = int(item.get("calories", 0))
 
             # Try USDA lookup (nutrients + portion gram weights)
             usda_data = _usda_search(name)
@@ -549,7 +586,20 @@ def analyze_food_image(image_data_uri: str, username: str = "") -> dict:
                     portion_desc, usda_data.get("portions", []), gpt_grams
                 )
                 scaled = _scale_nutrients(usda_data, gram_weight)
-                cal_low, cal_high = _compute_calorie_range(scaled["calories"])
+
+                # Cross-validate: flag large discrepancy between USDA and GPT
+                if gpt_calories > 0:
+                    ratio = scaled["calories"] / max(1, gpt_calories)
+                    if ratio > 2.0 or ratio < 0.5:
+                        # >2x discrepancy — downgrade confidence
+                        logger.info(
+                            "Cross-validation: USDA=%d vs GPT=%d for '%s' (ratio=%.1f). "
+                            "Downgrading confidence.",
+                            scaled["calories"], gpt_calories, name, ratio,
+                        )
+                        confidence = "low"
+
+                cal_low, cal_high = _compute_calorie_range(scaled["calories"], confidence)
                 enriched_items.append({
                     "name": name,
                     "estimated_portion": portion_desc,
@@ -570,7 +620,7 @@ def analyze_food_image(image_data_uri: str, username: str = "") -> dict:
                 local_match = _local_food_lookup(name)
                 if local_match:
                     cal = int(local_match.get("calories", 0))
-                    cal_low, cal_high = _compute_calorie_range(cal)
+                    cal_low, cal_high = _compute_calorie_range(cal, confidence)
                     enriched_items.append({
                         "name": name,
                         "estimated_portion": local_match.get("serving", portion_desc),
@@ -586,9 +636,11 @@ def analyze_food_image(image_data_uri: str, username: str = "") -> dict:
                         "source": "local_db",
                     })
                 else:
-                    # Last resort: GPT-4o estimates
-                    cal = int(item.get("calories", 0))
-                    cal_low, cal_high = _compute_calorie_range(cal)
+                    # Last resort: GPT-4o estimates — widen range to reflect uncertainty
+                    cal = gpt_calories
+                    # GPT-only estimates are inherently less reliable
+                    effective_confidence = "low" if confidence == "medium" else confidence
+                    cal_low, cal_high = _compute_calorie_range(cal, effective_confidence)
                     enriched_items.append({
                         "name": name,
                         "estimated_portion": portion_desc,
@@ -600,12 +652,21 @@ def analyze_food_image(image_data_uri: str, username: str = "") -> dict:
                         "carbs_g": round(float(item.get("carbs_g", 0)), 1),
                         "fat_g": round(float(item.get("fat_g", 0)), 1),
                         "fiber_g": round(float(item.get("fiber_g", 0)), 1),
-                        "confidence": confidence,
+                        "confidence": effective_confidence,
                         "source": "estimate",
                     })
 
         meal_total = _compute_meal_total(enriched_items)
-        meal_cal_low, meal_cal_high = _compute_calorie_range(meal_total["calories"])
+        # Meal-level range: use worst item confidence for conservative estimate
+        worst_confidence = "high"
+        for item in enriched_items:
+            ic = item.get("confidence", "medium")
+            if ic == "low":
+                worst_confidence = "low"
+                break
+            elif ic == "medium" and worst_confidence == "high":
+                worst_confidence = "medium"
+        meal_cal_low, meal_cal_high = _compute_calorie_range(meal_total["calories"], worst_confidence)
 
         # Step 3: Load profile if username provided
         profile_comparison = None
@@ -617,6 +678,12 @@ def analyze_food_image(image_data_uri: str, username: str = "") -> dict:
 
         suggestions = _generate_suggestions(meal_total, profile_comparison, enriched_items)
 
+        # Add hidden calories warning if flagged by vision model
+        if hidden_calories_note:
+            suggestions.insert(0,
+                f"Note: {hidden_calories_note} These may not be fully reflected in the estimates above."
+            )
+
         return {
             "detected": True,
             "items": enriched_items,
@@ -624,6 +691,7 @@ def analyze_food_image(image_data_uri: str, username: str = "") -> dict:
             "meal_calorie_range": [meal_cal_low, meal_cal_high],
             "profile_comparison": profile_comparison,
             "suggestions": suggestions,
+            "disclaimer": HEALTH_DISCLAIMER,
         }
 
     except json.JSONDecodeError as exc:
@@ -651,6 +719,7 @@ def format_food_image_analysis(analysis: dict) -> str:
     meal_range = analysis.get("meal_calorie_range", [])
     profile_comparison = analysis.get("profile_comparison")
     suggestions = analysis.get("suggestions", [])
+    disclaimer = analysis.get("disclaimer", HEALTH_DISCLAIMER)
 
     lines: list[str] = []
     lines.append("**Food Analysis**\n")
@@ -700,5 +769,8 @@ def format_food_image_analysis(analysis: dict) -> str:
         lines.append("\n**Suggestions:**")
         for suggestion in suggestions:
             lines.append(f"- {suggestion}")
+
+    # Health disclaimer — always present
+    lines.append(f"\n_{disclaimer}_")
 
     return "\n".join(lines)

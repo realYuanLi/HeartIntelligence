@@ -1,4 +1,4 @@
-import { BOT_EMAIL, BOT_PASSWORD, FLASK_BASE_URL } from './config.js';
+import { BOT_EMAIL, getBotPassword, clearBotPasswordCache, FLASK_BASE_URL } from './config.js';
 import { logger } from './logger.js';
 
 /**
@@ -14,10 +14,14 @@ export class FlaskBridge {
    * Throws if login fails.
    */
   async login(): Promise<void> {
+    // Clear cached password so we re-read from .bot_secret on disk,
+    // which may have been regenerated after a Flask restart.
+    clearBotPasswordCache();
+
     const res = await fetch(`${FLASK_BASE_URL}/api/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: BOT_EMAIL, password: BOT_PASSWORD }),
+      body: JSON.stringify({ email: BOT_EMAIL, password: getBotPassword() }),
     });
 
     if (!res.ok) {

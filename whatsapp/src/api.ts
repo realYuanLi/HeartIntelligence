@@ -138,6 +138,100 @@ export function startApiServer(manager: ConnectionManager): void {
     });
   });
 
+  // ── QR code SSE stream ────────────────────────────────────────────────────
+
+  app.get('/api/connections/:userId/qr-stream', async (req: Request, res: Response) => {
+    const userId = parseInt(String(req.params.userId), 10);
+    if (isNaN(userId)) {
+      res.status(400).json({ success: false, message: 'Invalid userId' });
+      return;
+    }
+
+    // Set SSE headers
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.setHeader('X-Accel-Buffering', 'no');
+    res.flushHeaders();
+
+    // Helper to send an SSE event
+    function sendEvent(event: string, data: Record<string, unknown>): void {
+      res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+    }
+
+    // Send current status immediately
+    const info = manager.getStatus(userId);
+    if (info.status === 'qr' && info.qr) {
+      try {
+        const qrDataUrl = await QRCode.toDataURL(info.qr, { width: 300, margin: 2 });
+        sendEvent('qr', { qr_data_url: qrDataUrl });
+      } catch {
+        sendEvent('status', { status: info.status });
+      }
+    } else if (info.status === 'connected') {
+      sendEvent('status', { status: 'connected', phone_number: info.phoneNumber });
+    } else {
+      sendEvent('status', { status: info.status });
+    }
+
+    // Subscribe to real-time updates from the WhatsApp client.
+    // The client may not exist yet if /connect was just called and the
+    // ConnectionManager hasn't finished creating it.  Wait briefly for it
+    // to appear so SSE listeners can be attached.
+    let client = manager.getClient(userId);
+    if (!client) {
+      // Poll up to 5 seconds (50 x 100ms) for the client to appear
+      for (let i = 0; i < 50 && !client; i++) {
+        await new Promise((resolve) => setTimeout(resolve, 100));
+        client = manager.getClient(userId);
+      }
+    }
+
+    let unsubStatus: (() => void) | null = null;
+    let unsubQr: (() => void) | null = null;
+
+    if (client) {
+      unsubQr = client.onQrChange(async (qr) => {
+        if (qr) {
+          try {
+            const qrDataUrl = await QRCode.toDataURL(qr, { width: 300, margin: 2 });
+            sendEvent('qr', { qr_data_url: qrDataUrl });
+          } catch {
+            sendEvent('status', { status: 'qr' });
+          }
+        }
+      });
+
+      unsubStatus = client.onStatusChange((status, phoneNumber) => {
+        if (status === 'connected') {
+          sendEvent('status', { status: 'connected', phone_number: phoneNumber });
+          // Close stream once connected — client no longer needs updates
+          cleanup();
+          res.end();
+        } else {
+          sendEvent('status', { status });
+        }
+      });
+    } else {
+      // Client never appeared — inform the caller
+      sendEvent('status', { status: 'disconnected', warning: 'Connection not started. Call /connect first.' });
+    }
+
+    // Keep-alive ping every 15 seconds to prevent proxy timeouts
+    const keepAlive = setInterval(() => {
+      res.write(': ping\n\n');
+    }, 15000);
+
+    function cleanup(): void {
+      clearInterval(keepAlive);
+      if (unsubStatus) { unsubStatus(); unsubStatus = null; }
+      if (unsubQr) { unsubQr(); unsubQr = null; }
+    }
+
+    // Clean up on client disconnect
+    req.on('close', cleanup);
+  });
+
   // ── Start server ──────────────────────────────────────────────────────────
 
   app.listen(NODE_API_PORT, () => {

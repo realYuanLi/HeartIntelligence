@@ -1,4 +1,5 @@
 node_modules/
 dist/
 store/
+store/.bot_secret
 .env

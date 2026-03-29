@@ -25,6 +25,15 @@ function createSchema(database: Database.Database): void {
       content      TEXT NOT NULL,
       timestamp    TEXT NOT NULL
     );
+  `);
+}
+
+/**
+ * Create indexes that depend on columns added by migrations.
+ * Called after migrateSchema to avoid referencing columns that don't exist yet.
+ */
+function createIndexes(database: Database.Database): void {
+  database.exec(`
     CREATE INDEX IF NOT EXISTS idx_messages_jid_user ON messages(sender_jid, user_id, timestamp);
   `);
 }
@@ -71,6 +80,7 @@ export function initDatabase(): void {
   db = new Database(dbPath);
   createSchema(db);
   migrateSchema(db);
+  createIndexes(db);
 }
 
 /**

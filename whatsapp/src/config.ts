@@ -1,3 +1,4 @@
+import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
@@ -13,16 +14,51 @@ export const FLASK_BASE_URL = process.env.FLASK_BASE_URL ?? 'http://localhost:80
 
 // Credentials used to authenticate with the Flask API (service account)
 export const BOT_EMAIL = process.env.BOT_EMAIL ?? 'bot@dreamchat.local';
-export const BOT_PASSWORD = (() => {
-  const pw = process.env.BOT_PASSWORD;
-  if (!pw) {
-    throw new Error(
-      'BOT_PASSWORD environment variable is required. '
-      + 'Set it in whatsapp/.env to match the Flask-side BOT_PASSWORD.',
-    );
+
+// Path to the shared secret file written by Flask on startup.
+const BOT_SECRET_PATH = path.join(STORE_DIR, '.bot_secret');
+
+/**
+ * Lazily read the bot password.  Checked in order:
+ * 1. BOT_PASSWORD environment variable
+ * 2. store/.bot_secret file (written by Flask)
+ * Throws a clear error only when actually called and neither source exists.
+ */
+let _cachedBotPassword: string | null = null;
+
+export function getBotPassword(): string {
+  if (_cachedBotPassword) return _cachedBotPassword;
+
+  const envPw = process.env.BOT_PASSWORD;
+  if (envPw) {
+    _cachedBotPassword = envPw;
+    return envPw;
   }
-  return pw;
-})();
+
+  try {
+    const filePw = fs.readFileSync(BOT_SECRET_PATH, 'utf-8').trim();
+    if (filePw) {
+      _cachedBotPassword = filePw;
+      return filePw;
+    }
+  } catch {
+    // File does not exist yet — fall through to error
+  }
+
+  throw new Error(
+    'BOT_PASSWORD not found. Set the BOT_PASSWORD environment variable '
+    + `or ensure Flask has written ${BOT_SECRET_PATH}.`,
+  );
+}
+
+/**
+ * Clear the cached bot password so the next call to getBotPassword()
+ * re-reads from the env var or .bot_secret file.  Called by FlaskBridge
+ * when a 401 indicates the cached password is stale (e.g. after Flask restart).
+ */
+export function clearBotPasswordCache(): void {
+  _cachedBotPassword = null;
+}
 
 // Port for the internal Node.js REST API
 export const NODE_API_PORT = parseInt(process.env.NODE_API_PORT ?? '3001', 10);

@@ -210,6 +210,22 @@ def api_logout():
 
 
 # ---------------------------------------------------------------------------
+# Shared secret for WhatsApp bridge
+# ---------------------------------------------------------------------------
+
+def _write_bot_secret(password: str) -> None:
+    """Write the bot password to whatsapp/store/.bot_secret for the Node.js bridge."""
+    from pathlib import Path
+
+    secret_dir = Path(__file__).resolve().parent.parent / "whatsapp" / "store"
+    secret_dir.mkdir(parents=True, exist_ok=True)
+    secret_file = secret_dir / ".bot_secret"
+    secret_file.write_text(password, encoding="utf-8")
+    secret_file.chmod(0o600)
+    logger.info("Wrote shared bot secret to %s", secret_file)
+
+
+# ---------------------------------------------------------------------------
 # Initialization
 # ---------------------------------------------------------------------------
 
@@ -246,13 +262,28 @@ def init_auth(app) -> None:
         if User.query.filter_by(email=bot_email).first() is None:
             if not bot_password:
                 bot_password = secrets.token_urlsafe(16)
-                logger.warning(
-                    "BOT_PASSWORD env var not set. Generated password for %s: %s  "
-                    "Set BOT_PASSWORD in your environment and in whatsapp/.env to persist it.",
-                    bot_email, bot_password,
+                logger.info(
+                    "BOT_PASSWORD env var not set — auto-generated for %s",
+                    bot_email,
                 )
             bot = User(email=bot_email, tier="service")
             bot.set_password(bot_password)
             db.session.add(bot)
             db.session.commit()
             logger.info("Seeded service account: %s", bot_email)
+        else:
+            bot_user = User.query.filter_by(email=bot_email).first()
+            if bot_password:
+                # Env var is set — sync the DB hash to match it.
+                bot_user.set_password(bot_password)
+                db.session.commit()
+            else:
+                # No env var — auto-generate and update the service account.
+                bot_password = secrets.token_urlsafe(16)
+                bot_user.set_password(bot_password)
+                db.session.commit()
+                logger.info("Rotated auto-generated BOT_PASSWORD for %s", bot_email)
+
+        # Write the bot password to a shared secret file so the Node.js
+        # WhatsApp bridge can read it without manual .env configuration.
+        _write_bot_secret(bot_password)

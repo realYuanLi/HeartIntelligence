@@ -3,6 +3,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const statusEl = document.getElementById("waStatus");
   let pollTimer = null;
+  let eventSource = null;
 
   // ── Render status ───────────────────────────────────────────────────────
 
@@ -52,9 +53,13 @@ document.addEventListener("DOMContentLoaded", () => {
         </div>
       </div>
       <div class="heartbeat-stat heartbeat-stat-wide" style="text-align:center;margin-top:12px;">
-        <p style="color:#a0a0b0;margin-bottom:12px;">Open WhatsApp on your phone, go to <strong>Linked Devices</strong>, and scan this QR code.</p>
+        <div class="wa-qr-instructions">
+          <p><strong>Step 1:</strong> Open WhatsApp on your phone</p>
+          <p><strong>Step 2:</strong> Tap <strong>Settings</strong> &gt; <strong>Linked Devices</strong></p>
+          <p><strong>Step 3:</strong> Tap <strong>Link a Device</strong> and point your camera at the code below</p>
+        </div>
         <img id="waQrImage" src="${qrDataUrl}" alt="WhatsApp QR Code"
-             style="max-width:300px;border-radius:8px;background:#fff;padding:8px;" />
+             style="max-width:300px;border-radius:8px;background:#fff;padding:8px;margin-top:12px;" />
       </div>
       <div class="heartbeat-stat heartbeat-stat-wide" style="margin-top:12px;">
         <button id="waCancelBtn" class="create-job-btn" style="background:#ef4444;">Cancel</button>
@@ -75,6 +80,9 @@ document.addEventListener("DOMContentLoaded", () => {
         <div class="heartbeat-stat-label">Phone Number</div>
         <div class="heartbeat-stat-value">${escapeHtml(phoneNumber || "Unknown")}</div>
       </div>
+      <div class="heartbeat-stat heartbeat-stat-wide" style="margin-top:8px;color:#a0a0b0;font-size:0.9em;">
+        Your WhatsApp is linked. Messages you send to yourself will be answered by the health assistant.
+      </div>
       <div class="heartbeat-stat heartbeat-stat-wide" style="margin-top:12px;">
         <button id="waDisconnectBtn" class="create-job-btn" style="background:#ef4444;">Disconnect</button>
       </div>
@@ -94,7 +102,7 @@ document.addEventListener("DOMContentLoaded", () => {
       .then((r) => r.json())
       .then((data) => {
         if (data.success) {
-          startPolling();
+          startSseStream();
         } else {
           renderDisconnected(data.message || "Failed to connect");
         }
@@ -106,6 +114,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function doDisconnect() {
+    closeSseStream();
     stopPolling();
     fetch("/api/whatsapp/disconnect", { method: "POST" })
       .then((r) => r.json())
@@ -118,7 +127,70 @@ document.addEventListener("DOMContentLoaded", () => {
       });
   }
 
-  // ── Polling ─────────────────────────────────────────────────────────────
+  // ── SSE stream ─────────────────────────────────────────────────────────
+
+  function startSseStream() {
+    closeSseStream();
+    stopPolling();
+
+    try {
+      eventSource = new EventSource("/api/whatsapp/qr-stream");
+
+      eventSource.addEventListener("qr", (e) => {
+        try {
+          const data = JSON.parse(e.data);
+          if (data.qr_data_url) {
+            renderQr(data.qr_data_url);
+          }
+        } catch (err) {
+          console.error("Failed to parse QR event:", err);
+        }
+      });
+
+      eventSource.addEventListener("status", (e) => {
+        try {
+          const data = JSON.parse(e.data);
+          switch (data.status) {
+            case "connected":
+              closeSseStream();
+              renderConnected(data.phone_number);
+              break;
+            case "qr":
+              // QR without data URL — wait for next qr event
+              break;
+            case "connecting":
+              renderConnecting();
+              break;
+            case "disconnected":
+              closeSseStream();
+              renderDisconnected(data.warning);
+              break;
+          }
+        } catch (err) {
+          console.error("Failed to parse status event:", err);
+        }
+      });
+
+      eventSource.onerror = () => {
+        console.warn("SSE connection error, falling back to polling");
+        closeSseStream();
+        startPolling();
+      };
+    } catch {
+      // EventSource not supported or failed — fall back to polling
+      console.warn("SSE not available, falling back to polling");
+      startPolling();
+    }
+  }
+
+  function closeSseStream() {
+    if (eventSource) {
+      eventSource.close();
+      eventSource = null;
+    }
+  }
+
+  // ── Polling (fallback) ─────────────────────────────────────────────────
 
   function startPolling() {
     stopPolling();
@@ -141,19 +213,21 @@ document.addEventListener("DOMContentLoaded", () => {
         switch (status) {
           case "connected":
             stopPolling();
+            closeSseStream();
             renderConnected(data.phone_number);
             break;
           case "qr":
-            if (!pollTimer) startPolling();
+            if (!pollTimer && !eventSource) startPolling();
             renderQr(data.qr_data_url);
             break;
           case "connecting":
-            if (!pollTimer) startPolling();
+            if (!pollTimer && !eventSource) startPolling();
             renderConnecting();
             break;
           case "disconnected":
           default:
             stopPolling();
+            closeSseStream();
             renderDisconnected(data.warning);
             break;
         }
@@ -175,5 +249,33 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // ── Init ────────────────────────────────────────────────────────────────
 
-  loadStatus();
+  // On initial load, check status. If already in connecting/qr state, use SSE.
+  fetch("/api/whatsapp/status")
+    .then((r) => r.json())
+    .then((data) => {
+      const status = data.status || "disconnected";
+
+      // Render current state
+      switch (status) {
+        case "connected":
+          renderConnected(data.phone_number);
+          break;
+        case "qr":
+          renderQr(data.qr_data_url);
+          startSseStream();
+          break;
+        case "connecting":
+          renderConnecting();
+          startSseStream();
+          break;
+        case "disconnected":
+        default:
+          renderDisconnected(data.warning);
+          break;
+      }
+    })
+    .catch((err) => {
+      console.error("Status check failed:", err);
+      renderDisconnected("Failed to check status");
+    });
 });

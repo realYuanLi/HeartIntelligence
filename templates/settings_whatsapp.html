@@ -7,7 +7,7 @@
       <div class="settings-subnav">
         <a href="/settings/cron-jobs" class="settings-subnav-link {% if settings_section == 'cron-jobs' %}active{% endif %}">Cron Jobs</a>
         <a href="/settings/skills" class="settings-subnav-link {% if settings_section == 'skills' %}active{% endif %}">Skills</a>
-        <a href="/settings/memory" class="settings-subnav-link {% if settings_section == 'memory' %}active{% endif %}">Memory</a>
+
         <a href="/settings/calendars" class="settings-subnav-link {% if settings_section == 'calendars' %}active{% endif %}">Calendars</a>
         <a href="/settings/heartbeat" class="settings-subnav-link {% if settings_section == 'heartbeat' %}active{% endif %}">Heartbeat</a>
         <a href="/settings/whatsapp" class="settings-subnav-link {% if settings_section == 'whatsapp' %}active{% endif %}">WhatsApp</a>
@@ -18,42 +18,34 @@
       <!-- Connection status card -->
       <div class="cron-job-form-card">
         <h2>WhatsApp Connection</h2>
+        <p style="color:#a0a0b0;margin-bottom:16px;font-size:0.95em;">
+          Link your WhatsApp account to chat with your health assistant directly from your phone.
+          Click <strong>Connect WhatsApp</strong> below, then scan the QR code with your phone.
+        </p>
         <div id="waStatus" class="heartbeat-status-grid">
           <div class="loading">Loading status...</div>
         </div>
       </div>
     </div>
   </div>
+
+  <style>
+    .wa-qr-instructions {
+      text-align: left;
+      max-width: 320px;
+      margin: 0 auto;
+      color: #a0a0b0;
+      font-size: 0.93em;
+      line-height: 1.7;
+    }
+    .wa-qr-instructions p {
+      margin: 4px 0;
+    }
+  </style>
 {% endblock %}
 
-{% block input %}
-  <div class="input-container fixed">
-    <div class="input-wrapper">
-      <button id="micButton" class="mic-button" type="button" title="Voice input">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z" fill="currentColor"/>
-          <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z" fill="currentColor"/>
-        </svg>
-      </button>
-      <textarea
-        id="messageInput"
-        class="message-input"
-        placeholder="Ask anything"
-        rows="1"
-        maxlength="2000"
-      ></textarea>
-      <button id="sendButton" class="send-button" type="button">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" fill="currentColor"/>
-        </svg>
-      </button>
-    </div>
-    <div class="disclaimer">
-      <span>Disclaimer</span>
-    </div>
-  </div>
-{% endblock %}
+{% block input %}{% endblock %}
 
 {% block scripts %}
-  <script src="{{ url_for('static', filename='settings_whatsapp.js') }}?v=1"></script>
+  <script src="{{ url_for('static', filename='settings_whatsapp.js') }}?v=2"></script>
 {% endblock %}

@@ -85,6 +85,12 @@ export type ConnectionStatus = 'disconnected' | 'connecting' | 'qr' | 'connected
 export type OnMessageCallback = (msg: InboundMessage) => void;
 export type QrCallback = (qr: string | null) => void;
 
+/** Callback for real-time connection status changes. */
+export type StatusChangeCallback = (status: ConnectionStatus, phoneNumber: string | null) => void;
+
+/** Callback for real-time QR code changes. */
+export type QrChangeCallback = (qr: string | null) => void;
+
 export interface WhatsAppClientOptions {
   userId: number;
   authDir: string;
@@ -159,6 +165,10 @@ export class WhatsAppClient {
   // Stores sent message content keyed by message ID for retransmission.
   private sentMsgStore = new Map<string, proto.IMessage>();
 
+  // Subscribers for real-time status and QR updates (used by SSE).
+  private statusListeners = new Set<StatusChangeCallback>();
+  private qrListeners = new Set<QrChangeCallback>();
+
   constructor(options: WhatsAppClientOptions) {
     this.userId = options.userId;
     this.authDir = options.authDir;
@@ -216,11 +226,15 @@ export class WhatsAppClient {
         this.currentQr = qr;
         this.status = 'qr';
         logger.info({ userId: this.userId }, 'QR code available');
+        this.emitQrChange(qr);
+        this.emitStatusChange();
       }
 
       if (connection === 'close') {
         this.status = 'disconnected';
         this.currentQr = null;
+        this.emitQrChange(null);
+        this.emitStatusChange();
         const reason = (
           lastDisconnect?.error as { output?: { statusCode?: number } }
         )?.output?.statusCode;
@@ -255,6 +269,7 @@ export class WhatsAppClient {
         logger.info({ userId: this.userId }, 'Connected to WhatsApp');
 
         // Capture own JID and build LID -> phone mapping for self-chat detection
+        // (must run before emitStatusChange so getPhoneNumber returns correctly)
         if (this.sock.user) {
           const phoneUser = this.sock.user.id.split(':')[0];
           this.selfJid = `${phoneUser}@s.whatsapp.net`;
@@ -264,6 +279,9 @@ export class WhatsAppClient {
           }
           logger.info({ userId: this.userId, selfJid: this.selfJid }, 'Own JID recorded');
         }
+
+        this.emitQrChange(null);
+        this.emitStatusChange();
 
         this.sock.sendPresenceUpdate('available').catch((err) =>
           logger.warn({ userId: this.userId, err }, 'Failed to send presence update'),
@@ -431,6 +449,36 @@ export class WhatsAppClient {
     this.status = 'disconnected';
     this.currentQr = null;
     this.sock?.end(undefined);
+  }
+
+  /**
+   * Subscribe to connection status changes. Returns an unsubscribe function.
+   */
+  onStatusChange(cb: StatusChangeCallback): () => void {
+    this.statusListeners.add(cb);
+    return () => { this.statusListeners.delete(cb); };
+  }
+
+  /**
+   * Subscribe to QR code changes. Returns an unsubscribe function.
+   */
+  onQrChange(cb: QrChangeCallback): () => void {
+    this.qrListeners.add(cb);
+    return () => { this.qrListeners.delete(cb); };
+  }
+
+  private emitStatusChange(): void {
+    const status = this.status;
+    const phone = this.getPhoneNumber();
+    for (const cb of this.statusListeners) {
+      try { cb(status, phone); } catch { /* listener error */ }
+    }
+  }
+
+  private emitQrChange(qr: string | null): void {
+    for (const cb of this.qrListeners) {
+      try { cb(qr); } catch { /* listener error */ }
+    }
   }
 
   async setTyping(jid: string, isTyping: boolean): Promise<void> {

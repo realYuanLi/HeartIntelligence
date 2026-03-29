@@ -1,5 +1,6 @@
 import './suppress-signal-logs.js';
 
+import { setupFetchProxy } from './fetch-proxy.js';
 import { startApiServer } from './api.js';
 import { FlaskBridge } from './bridge.js';
 import { ASSISTANT_HAS_OWN_NUMBER, ASSISTANT_NAME } from './config.js';
@@ -159,6 +160,10 @@ async function pollOutboundMessages(manager: ConnectionManager): Promise<void> {
 }
 
 async function main(): Promise<void> {
+  // Route global fetch() through the SOCKS5/HTTP proxy so Baileys
+  // can upload media to WhatsApp CDN servers.
+  await setupFetchProxy();
+
   initDatabase();
   logger.info('Database initialized');
 
@@ -210,6 +215,19 @@ async function main(): Promise<void> {
   logger.info('DREAM-Chat WhatsApp bridge is running (multi-user mode)');
   logger.info('Outbound message polling started (5s interval)');
 }
+
+// Baileys may emit unhandled errors (e.g. temp file cleanup after failed
+// media uploads).  Prevent these from crashing the process.
+process.on('uncaughtException', (err) => {
+  // Ignore Baileys temp-file cleanup errors — they are non-fatal
+  if (err && 'code' in err && (err as NodeJS.ErrnoException).code === 'ENOENT'
+      && String((err as NodeJS.ErrnoException).path ?? '').includes('-enc')) {
+    logger.warn({ err }, 'Ignored Baileys temp-file error');
+    return;
+  }
+  logger.fatal({ err }, 'Uncaught exception');
+  process.exit(1);
+});
 
 main().catch((err) => {
   logger.fatal({ err }, 'Fatal startup error');

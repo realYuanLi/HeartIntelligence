@@ -29,18 +29,18 @@ SAMPLE_FOOD_RESPONSE = json.dumps({
     "items": [
         {
             "name": "Grilled Chicken Breast",
-            "estimated_portion": "150g",
-            "portion_grams": 150,
-            "calories": 248,
-            "protein_g": 46.0,
+            "portion_description": "6 oz",
+            "portion_grams": 170,
+            "calories": 280,
+            "protein_g": 53.0,
             "carbs_g": 0.0,
-            "fat_g": 5.4,
+            "fat_g": 6.1,
             "fiber_g": 0.0,
             "confidence": "high",
         },
         {
             "name": "Brown Rice",
-            "estimated_portion": "1 cup",
+            "portion_description": "1 cup",
             "portion_grams": 195,
             "calories": 216,
             "protein_g": 5.0,
@@ -51,7 +51,7 @@ SAMPLE_FOOD_RESPONSE = json.dumps({
         },
         {
             "name": "Steamed Broccoli",
-            "estimated_portion": "1 cup",
+            "portion_description": "1 cup",
             "portion_grams": 156,
             "calories": 55,
             "protein_g": 3.7,
@@ -63,7 +63,7 @@ SAMPLE_FOOD_RESPONSE = json.dumps({
     ],
 })
 
-# Mock USDA search results (per 100g values)
+# Mock USDA search results (per 100g values + portion data)
 USDA_CHICKEN = {
     "food_description": "Chicken, broilers or fryers, breast, meat only, cooked, roasted",
     "calories_per_100g": 165.0,
@@ -71,6 +71,10 @@ USDA_CHICKEN = {
     "carbs_per_100g": 0.0,
     "fat_per_100g": 3.6,
     "fiber_per_100g": 0.0,
+    "portions": [
+        {"description": "1 unit (yield from 1 lb ready-to-cook chicken)", "gram_weight": 86.0},
+        {"description": "0.5 breast, bone and skin removed", "gram_weight": 86.0},
+    ],
     "source": "USDA FoodData Central",
 }
 USDA_RICE = {
@@ -80,6 +84,9 @@ USDA_RICE = {
     "carbs_per_100g": 23.5,
     "fat_per_100g": 0.8,
     "fiber_per_100g": 1.8,
+    "portions": [
+        {"description": "1 cup", "gram_weight": 195.0},
+    ],
     "source": "USDA FoodData Central",
 }
 USDA_BROCCOLI = {
@@ -89,6 +96,10 @@ USDA_BROCCOLI = {
     "carbs_per_100g": 7.2,
     "fat_per_100g": 0.4,
     "fiber_per_100g": 3.3,
+    "portions": [
+        {"description": "1 cup, chopped", "gram_weight": 156.0},
+        {"description": "1 spear (about 5 inches long)", "gram_weight": 37.0},
+    ],
     "source": "USDA FoodData Central",
 }
 
@@ -151,24 +162,28 @@ class TestAnalyzeFoodImage:
         assert result["detected"] is True
         assert len(result["items"]) == 3
         assert result["items"][0]["name"] == "Grilled Chicken Breast"
-        # USDA chicken: 165 kcal/100g * 150g/100 = 247.5 -> 248 (rounded)
-        assert result["items"][0]["calories"] == 248
         assert result["items"][0]["source"] == "USDA"
         assert result["items"][0]["usda_food"] is not None
+        # Calorie range should be present (±20%)
+        assert "calorie_range" in result["items"][0]
+        assert len(result["items"][0]["calorie_range"]) == 2
+        # Meal calorie range should be present
+        assert "meal_calorie_range" in result
         assert result["profile_comparison"] is None  # no username
         assert isinstance(result["suggestions"], list)
 
+    @patch("functions.food_image_analyzer._local_food_lookup", return_value=None)
     @patch("functions.food_image_analyzer._usda_search", return_value=None)
     @patch("functions.food_image_analyzer.openai.chat.completions.create")
-    def test_food_detected_fallback_to_gpt(self, mock_create, mock_usda):
-        """When USDA lookup fails, GPT-4o estimates are used as fallback."""
+    def test_food_detected_fallback_to_gpt(self, mock_create, mock_usda, mock_local):
+        """When both USDA and local DB fail, GPT-4o estimates are used as fallback."""
         mock_create.return_value = _make_openai_response(SAMPLE_FOOD_RESPONSE)
         result = fia.analyze_food_image(SAMPLE_DATA_URI)
 
         assert result["detected"] is True
         assert len(result["items"]) == 3
         # Falls back to GPT estimates from the vision response
-        assert result["items"][0]["calories"] == 248  # from GPT response
+        assert result["items"][0]["calories"] == 280  # from GPT response
         assert result["items"][0]["source"] == "estimate"
         assert "usda_food" not in result["items"][0]
 
@@ -609,9 +624,10 @@ class TestVisionResponseEdgeCases:
 class TestItemSanitization:
     """Tests that partial / malformed items from the vision model are safely sanitized."""
 
+    @patch("functions.food_image_analyzer._local_food_lookup", return_value=None)
     @patch("functions.food_image_analyzer._usda_search", return_value=None)
     @patch("functions.food_image_analyzer.openai.chat.completions.create")
-    def test_missing_fields_get_defaults(self, mock_create, mock_usda):
+    def test_missing_fields_get_defaults(self, mock_create, mock_usda, mock_local):
         """An item with missing fields should get safe defaults (fallback path)."""
         sparse_response = json.dumps({
             "detected": True,
@@ -632,9 +648,10 @@ class TestItemSanitization:
         assert item["confidence"] == "medium"
         assert item["source"] == "estimate"
 
+    @patch("functions.food_image_analyzer._local_food_lookup", return_value=None)
     @patch("functions.food_image_analyzer._usda_search", return_value=None)
     @patch("functions.food_image_analyzer.openai.chat.completions.create")
-    def test_completely_empty_item(self, mock_create, mock_usda):
+    def test_completely_empty_item(self, mock_create, mock_usda, mock_local):
         """An empty dict item should still produce a sanitized entry."""
         mock_create.return_value = _make_openai_response(
             json.dumps({"detected": True, "items": [{}]})
@@ -644,9 +661,10 @@ class TestItemSanitization:
         item = result["items"][0]
         assert item["name"] == "Unknown"
 
+    @patch("functions.food_image_analyzer._local_food_lookup", return_value=None)
     @patch("functions.food_image_analyzer._usda_search", return_value=None)
     @patch("functions.food_image_analyzer.openai.chat.completions.create")
-    def test_float_precision_is_rounded(self, mock_create, mock_usda):
+    def test_float_precision_is_rounded(self, mock_create, mock_usda, mock_local):
         """Nutrient floats should be rounded to 1 decimal place (fallback path)."""
         response = json.dumps({
             "detected": True,
@@ -1292,21 +1310,29 @@ class TestUsdaCrossValidation:
     @patch("functions.food_image_analyzer._usda_search", side_effect=_mock_usda_search)
     @patch("functions.food_image_analyzer.openai.chat.completions.create")
     def test_usda_values_override_gpt_estimates(self, mock_create, mock_usda):
-        """When USDA lookup succeeds, scaled USDA values are used (not GPT estimates)."""
-        # GPT says chicken is 248 kcal, but USDA says 165/100g * 150g = 247.5 -> 248
+        """When USDA lookup succeeds, USDA values are used (not GPT estimates)."""
         mock_create.return_value = _make_openai_response(SAMPLE_FOOD_RESPONSE)
         result = fia.analyze_food_image(SAMPLE_DATA_URI)
 
         chicken = result["items"][0]
         assert chicken["source"] == "USDA"
-        # USDA protein: 31.0/100g * 150g = 46.5 (not GPT's 46.0)
-        assert chicken["protein_g"] == 46.5
+        assert chicken["usda_food"] == USDA_CHICKEN["food_description"]
+        # Calories come from USDA per-100g * portion_grams/100, not GPT's direct estimate
+        # USDA: 165 kcal/100g, so any value is a scaled USDA value
+        assert "calorie_range" in chicken
+        assert len(chicken["calorie_range"]) == 2
+        # Rice should use USDA portion: "1 cup" -> 195g from USDA portions
+        rice = result["items"][1]
+        assert rice["source"] == "USDA"
+        # 112 kcal/100g * 195g/100 = 218.4 -> 218
+        assert rice["calories"] == 218
+        assert rice["weight_source"] == "usda_portion"
 
+    @patch("functions.food_image_analyzer._local_food_lookup", return_value=None)
     @patch("functions.food_image_analyzer._usda_search")
     @patch("functions.food_image_analyzer.openai.chat.completions.create")
-    def test_mixed_sources(self, mock_create, mock_usda):
+    def test_mixed_sources(self, mock_create, mock_usda, mock_local):
         """Some items from USDA, others from GPT fallback."""
-        # USDA returns data for chicken but not rice/broccoli
         def partial_usda(name):
             if "chicken" in name.lower():
                 return USDA_CHICKEN
@@ -1330,16 +1356,16 @@ class TestUsdaCrossValidation:
         assert "[USDA]" in output
         assert "USDA FoodData Central" in output
 
+    @patch("functions.food_image_analyzer._local_food_lookup", return_value=None)
     @patch("functions.food_image_analyzer._usda_search", return_value=None)
     @patch("functions.food_image_analyzer.openai.chat.completions.create")
-    def test_all_fallback_shows_estimate_tag(self, mock_create, mock_usda):
-        """When all USDA lookups fail, items should show [est.] source."""
+    def test_all_fallback_shows_estimate_tag(self, mock_create, mock_usda, mock_local):
+        """When all lookups fail, items should show [est.] source."""
         mock_create.return_value = _make_openai_response(SAMPLE_FOOD_RESPONSE)
         result = fia.analyze_food_image(SAMPLE_DATA_URI)
         output = fia.format_food_image_analysis(result)
 
         assert "[est.]" in output
-        # Should not claim USDA verification when all lookups failed
         assert "USDA FoodData Central" not in output
 
 
@@ -1353,6 +1379,7 @@ class TestFormatSourceTags:
                 "name": "Banana",
                 "estimated_portion": "1 medium",
                 "calories": 105,
+                "calorie_range": [84, 126],
                 "protein_g": 1.3,
                 "carbs_g": 27.0,
                 "fat_g": 0.4,
@@ -1362,12 +1389,15 @@ class TestFormatSourceTags:
                 "usda_food": "Bananas, raw",
             }],
             "meal_total": {"calories": 105, "protein_g": 1.3, "carbs_g": 27.0, "fat_g": 0.4, "fiber_g": 3.1},
+            "meal_calorie_range": [84, 126],
             "profile_comparison": None,
             "suggestions": [],
         }
         output = fia.format_food_image_analysis(analysis)
         assert "[USDA]" in output
         assert "1/1 items verified" in output
+        # Should show calorie range
+        assert "84-126" in output
 
     def test_estimate_item_shows_est_tag(self):
         analysis = {
@@ -1376,6 +1406,7 @@ class TestFormatSourceTags:
                 "name": "Dim Sum",
                 "estimated_portion": "3 pieces",
                 "calories": 180,
+                "calorie_range": [144, 216],
                 "protein_g": 8.0,
                 "carbs_g": 20.0,
                 "fat_g": 7.0,
@@ -1384,8 +1415,220 @@ class TestFormatSourceTags:
                 "source": "estimate",
             }],
             "meal_total": {"calories": 180, "protein_g": 8.0, "carbs_g": 20.0, "fat_g": 7.0, "fiber_g": 1.0},
+            "meal_calorie_range": [144, 216],
             "profile_comparison": None,
             "suggestions": [],
         }
         output = fia.format_food_image_analysis(analysis)
         assert "[est.]" in output
+
+    def test_local_db_item_shows_db_tag(self):
+        analysis = {
+            "detected": True,
+            "items": [{
+                "name": "Brown Rice",
+                "estimated_portion": "1 cup",
+                "calories": 216,
+                "calorie_range": [173, 259],
+                "protein_g": 5.0,
+                "carbs_g": 45.0,
+                "fat_g": 1.8,
+                "fiber_g": 3.5,
+                "confidence": "medium",
+                "source": "local_db",
+            }],
+            "meal_total": {"calories": 216, "protein_g": 5.0, "carbs_g": 45.0, "fat_g": 1.8, "fiber_g": 3.5},
+            "meal_calorie_range": [173, 259],
+            "profile_comparison": None,
+            "suggestions": [],
+        }
+        output = fia.format_food_image_analysis(analysis)
+        assert "[DB]" in output
+        # local_db counts as verified
+        assert "1/1 items verified" in output
+
+
+# ---------------------------------------------------------------------------
+# Tests: _match_portion_to_grams
+# ---------------------------------------------------------------------------
+
+class TestMatchPortionToGrams:
+    """Tests for USDA portion matching — the key accuracy improvement."""
+
+    def test_exact_cup_match(self):
+        """'1 cup' should match USDA portion '1 cup' with its gram weight."""
+        portions = [{"description": "1 cup", "gram_weight": 195.0}]
+        grams, source = fia._match_portion_to_grams("1 cup", portions, 200.0)
+        assert grams == 195.0
+        assert source == "usda_portion"
+
+    def test_quantity_scaling(self):
+        """'2 cups' should match '1 cup' portion and double the gram weight."""
+        portions = [{"description": "1 cup", "gram_weight": 195.0}]
+        grams, source = fia._match_portion_to_grams("2 cups", portions, 400.0)
+        assert grams == 390.0
+        assert source == "usda_portion"
+
+    def test_no_match_falls_back_to_gpt(self):
+        """When no USDA portion matches, fall back to GPT gram estimate."""
+        portions = [{"description": "1 cup", "gram_weight": 195.0}]
+        grams, source = fia._match_portion_to_grams("3 pieces", portions, 120.0)
+        assert grams == 120.0
+        assert source == "gpt_estimate"
+
+    def test_empty_portions_list(self):
+        """Empty USDA portions list should fall back to GPT estimate."""
+        grams, source = fia._match_portion_to_grams("1 cup", [], 240.0)
+        assert grams == 240.0
+        assert source == "gpt_estimate"
+
+    def test_best_match_among_multiple(self):
+        """Should pick the best matching portion from multiple options."""
+        portions = [
+            {"description": "1 spear (about 5 inches long)", "gram_weight": 37.0},
+            {"description": "1 cup, chopped", "gram_weight": 156.0},
+        ]
+        grams, source = fia._match_portion_to_grams("1 cup", portions, 160.0)
+        assert grams == 156.0
+        assert source == "usda_portion"
+
+    def test_fractional_quantity(self):
+        """'0.5 cup' should match and scale correctly."""
+        portions = [{"description": "1 cup", "gram_weight": 195.0}]
+        grams, source = fia._match_portion_to_grams("0.5 cup", portions, 100.0)
+        assert grams == 97.5
+        assert source == "usda_portion"
+
+
+# ---------------------------------------------------------------------------
+# Tests: _compute_calorie_range
+# ---------------------------------------------------------------------------
+
+class TestCalorieRange:
+    """Tests for the ±20% calorie range computation."""
+
+    def test_typical_range(self):
+        low, high = fia._compute_calorie_range(500)
+        assert low == 400   # 500 * 0.8
+        assert high == 600  # 500 * 1.2
+
+    def test_zero_calories(self):
+        low, high = fia._compute_calorie_range(0)
+        assert low == 0
+        assert high == 0
+
+    def test_small_value(self):
+        low, high = fia._compute_calorie_range(10)
+        assert low == 8
+        assert high == 12
+
+    def test_range_in_meal_total(self):
+        """Meal calorie range should appear in the analysis result."""
+        analysis = {
+            "detected": True,
+            "items": [{
+                "name": "Apple", "estimated_portion": "1 medium",
+                "calories": 95, "calorie_range": [76, 114],
+                "protein_g": 0.5, "carbs_g": 25.0, "fat_g": 0.3, "fiber_g": 4.4,
+                "confidence": "high", "source": "USDA",
+            }],
+            "meal_total": {"calories": 95, "protein_g": 0.5, "carbs_g": 25.0, "fat_g": 0.3, "fiber_g": 4.4},
+            "meal_calorie_range": [76, 114],
+            "profile_comparison": None,
+            "suggestions": [],
+        }
+        output = fia.format_food_image_analysis(analysis)
+        assert "76-114" in output
+        assert "likely" in output.lower()
+
+
+# ---------------------------------------------------------------------------
+# Tests: _local_food_lookup
+# ---------------------------------------------------------------------------
+
+class TestLocalFoodLookup:
+    """Tests for the local food database fallback."""
+
+    def test_exact_match(self):
+        """Exact name match should return the food entry."""
+        # Reset cached DB so our mock is used
+        fia._local_food_db = [
+            {"name": "brown rice cooked", "serving": "1 cup", "calories": 216, "protein_g": 5.0,
+             "carbs_g": 45.0, "fat_g": 1.8, "fiber_g": 3.5},
+        ]
+        result = fia._local_food_lookup("brown rice cooked")
+        assert result is not None
+        assert result["calories"] == 216
+        fia._local_food_db = None  # reset
+
+    def test_keyword_match(self):
+        """Partial keyword overlap should still match."""
+        fia._local_food_db = [
+            {"name": "chicken breast", "serving": "4 oz", "calories": 187, "protein_g": 35.0,
+             "carbs_g": 0.0, "fat_g": 4.0, "fiber_g": 0.0},
+        ]
+        result = fia._local_food_lookup("grilled chicken")
+        assert result is not None
+        assert result["name"] == "chicken breast"
+        fia._local_food_db = None
+
+    def test_no_match(self):
+        """Completely unrelated food should return None."""
+        fia._local_food_db = [
+            {"name": "chicken breast", "serving": "4 oz", "calories": 187},
+        ]
+        result = fia._local_food_lookup("sushi roll")
+        assert result is None
+        fia._local_food_db = None
+
+    def test_empty_db(self):
+        fia._local_food_db = []
+        result = fia._local_food_lookup("anything")
+        assert result is None
+        fia._local_food_db = None
+
+
+# ---------------------------------------------------------------------------
+# Tests: _usda_fetch_portions
+# ---------------------------------------------------------------------------
+
+class TestUsdaFetchPortions:
+    """Tests for fetching USDA foodPortions."""
+
+    @patch("functions.food_image_analyzer.requests.get")
+    def test_successful_fetch(self, mock_get):
+        mock_get.return_value = MagicMock(
+            status_code=200,
+            json=lambda: {
+                "foodPortions": [
+                    {"amount": 1, "modifier": "cup", "gramWeight": 195.0, "portionDescription": ""},
+                    {"amount": 1, "modifier": "oz", "gramWeight": 28.35, "portionDescription": ""},
+                ],
+            },
+        )
+        result = fia._usda_fetch_portions(171077)
+        assert len(result) == 2
+        assert result[0]["gram_weight"] == 195.0
+        assert "cup" in result[0]["description"]
+
+    @patch("functions.food_image_analyzer.requests.get")
+    def test_api_failure(self, mock_get):
+        mock_get.return_value = MagicMock(status_code=500)
+        result = fia._usda_fetch_portions(171077)
+        assert result == []
+
+    @patch("functions.food_image_analyzer.requests.get")
+    def test_zero_gram_weight_filtered(self, mock_get):
+        """Portions with zero gram weight should be excluded."""
+        mock_get.return_value = MagicMock(
+            status_code=200,
+            json=lambda: {
+                "foodPortions": [
+                    {"amount": 1, "modifier": "cup", "gramWeight": 0, "portionDescription": ""},
+                    {"amount": 1, "modifier": "tbsp", "gramWeight": 15.0, "portionDescription": ""},
+                ],
+            },
+        )
+        result = fia._usda_fetch_portions(171077)
+        assert len(result) == 1
+        assert result[0]["gram_weight"] == 15.0

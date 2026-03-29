@@ -619,17 +619,24 @@ def _deliver_message(message: str, config: dict) -> None:
         username = config.get("username", "")
         if username:
             try:
-                from whatsapp.flask_whatsapp import _get_or_create_session, _load_chat, _save_chat
-                from functions.auth import User, db
-                user = User.query.filter_by(email=username).first()
-                if user:
-                    sender_name = target_jid.split("@")[0]
-                    session_id = _get_or_create_session(user.id, target_jid, sender_name)
-                    d = _load_chat(user.id, session_id)
-                    if d:
-                        d["conversation"].append({"role": "assistant", "content": message})
-                        d["updated_at"] = datetime.now().isoformat(timespec="seconds")
-                        _save_chat(user.id, d)
+                # Use direct file I/O (no DB context needed)
+                user_dir = APP_DIR / "chat_history" / username
+                smap_path = user_dir / "_wa_session_map.json"
+                if smap_path.exists():
+                    with open(smap_path, "r", encoding="utf-8") as f:
+                        smap = json.load(f)
+                    entry = smap.get(target_jid)
+                    if entry:
+                        sid = entry.get("session_id") if isinstance(entry, dict) else entry
+                        session_path = user_dir / f"{sid}.json"
+                        if session_path.exists():
+                            with open(session_path, "r", encoding="utf-8") as f:
+                                d = json.load(f)
+                            d["conversation"].append({"role": "assistant", "content": message})
+                            d["updated_at"] = datetime.now().isoformat(timespec="seconds")
+                            with open(session_path, "w", encoding="utf-8") as f:
+                                json.dump(d, f, indent=2, ensure_ascii=False)
+                            logger.info("Heartbeat: synced message to web session %s", sid)
             except Exception as e:
                 logger.debug("Heartbeat: web session sync failed: %s", e)
     elif delivery == "web":

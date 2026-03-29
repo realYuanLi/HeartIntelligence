@@ -421,8 +421,10 @@ def api_history():
     user = _username()
     items = []
 
-    # User's own sessions
+    # User's own sessions (skip internal files like _wa_session_map.json)
     for fn in _user_dir(user).glob("*.json"):
+        if fn.name.startswith("_"):
+            continue
         try:
             with fn.open("r", encoding="utf-8") as f:
                 d = json.load(f)
@@ -435,29 +437,6 @@ def api_history():
             })
         except Exception:
             continue
-
-    # Merge WhatsApp sessions so every user sees them in the sidebar
-    wa_dir = DATA_DIR / "whatsapp_bot"
-    if wa_dir.is_dir() and user != "whatsapp_bot":
-        seen = {it["session_id"] for it in items}
-        for fn in wa_dir.glob("*.json"):
-            if fn.name.startswith("_"):
-                continue
-            try:
-                with fn.open("r", encoding="utf-8") as f:
-                    d = json.load(f)
-                sid = d.get("session_id", fn.stem)
-                if sid in seen:
-                    continue
-                items.append({
-                    "session_id": sid,
-                    "title": d.get("title") or f"WhatsApp {sid[:6]}",
-                    "updated_at": d.get("updated_at") or datetime.fromtimestamp(fn.stat().st_mtime).isoformat(timespec="seconds"),
-                    "source": "whatsapp",
-                    "sender_name": d.get("sender_name", ""),
-                })
-            except Exception:
-                continue
 
     items.sort(key=lambda x: x.get("updated_at", ""), reverse=True)
     return jsonify(items)
@@ -489,11 +468,6 @@ def api_get_session(session_id: str):
 
     user = _username()
     d = _load_session(user, session_id)
-
-    # Fall back to WhatsApp sessions so the web UI can display them
-    if not d:
-        d = _load_session("whatsapp_bot", session_id)
-
     if not d:
         return jsonify(success=False, message="Session not found"), 404
     # Hide system messages; chat starts from the assistant greeting
@@ -534,18 +508,11 @@ def api_message():
         return jsonify(success=False, assistant_message="Please type a message."), 400
 
     d = _load_session(user, session_id)
-    is_whatsapp = False
-    if not d:
-        d = _load_session("whatsapp_bot", session_id)
-        if d and d.get("source") == "whatsapp":
-            is_whatsapp = True
-        else:
-            d = {}
-
     if not d:
         return jsonify(success=False, assistant_message="Session not found."), 404
 
-    owner = "whatsapp_bot" if is_whatsapp else user
+    is_whatsapp = d.get("source") == "whatsapp"
+    owner = user
 
     # Forward the web user's message to WhatsApp so it appears in the chat
     if is_whatsapp:
@@ -587,7 +554,7 @@ def api_message():
     # Run action skills (currently includes reminder scheduling)
     try:
         runtime_context = {
-            "user": "whatsapp_bot" if is_whatsapp else user,
+            "user": user,
             "session_id": session_id,
             "sender_jid": d.get("sender_jid", "") if is_whatsapp else "",
         }
@@ -1365,11 +1332,7 @@ app.register_blueprint(nutrition_bp)
 print("✓ Nutrition planner blueprint registered")
 
 # --------------------------------------------------------------------------------
-# User Memory
-# --------------------------------------------------------------------------------
-from functions.user_memory import memory_bp
-app.register_blueprint(memory_bp)
-print("✓ User memory blueprint registered")
+# User Memory — internal only, no web routes needed
 
 # --------------------------------------------------------------------------------
 # External Calendar

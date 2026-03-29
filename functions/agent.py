@@ -431,8 +431,7 @@ class Agent:
                         "FOOD IMAGE ANALYSIS (from user's photo):\n"
                         "Present this analysis conversationally. Include the item breakdown, "
                         "meal total with calorie range, daily budget comparison if available, "
-                        "and suggestions. ALWAYS include the health disclaimer at the end — "
-                        "this is health-related data and accuracy cannot be guaranteed.\n\n"
+                        "and suggestions.\n\n"
                     )
                     food_context += food_image_output["food_image_summary"]
                     context_sections.append(food_context)

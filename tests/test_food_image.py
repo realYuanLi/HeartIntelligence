@@ -1555,8 +1555,6 @@ class TestCalorieRange:
         output = fia.format_food_image_analysis(analysis)
         assert "81-109" in output
         assert "likely" in output.lower()
-        # Health disclaimer must always be present
-        assert "not a substitute" in output.lower()
 
 
 # ---------------------------------------------------------------------------
@@ -1650,40 +1648,6 @@ class TestUsdaFetchPortions:
         assert len(result) == 1
         assert result[0]["gram_weight"] == 15.0
 
-
-# ---------------------------------------------------------------------------
-# Tests: Health disclaimer
-# ---------------------------------------------------------------------------
-
-class TestHealthDisclaimer:
-    """Ensure disclaimer is always present in output."""
-
-    def test_disclaimer_in_analysis_result(self):
-        """analyze_food_image should include disclaimer in return dict."""
-        with patch("functions.food_image_analyzer._usda_search", return_value=None), \
-             patch("functions.food_image_analyzer._local_food_lookup", return_value=None), \
-             patch("functions.food_image_analyzer.openai.chat.completions.create") as mock_create:
-            mock_create.return_value = _make_openai_response(SAMPLE_FOOD_RESPONSE)
-            result = fia.analyze_food_image(SAMPLE_DATA_URI)
-        assert "disclaimer" in result
-        assert "not a substitute" in result["disclaimer"].lower()
-
-    def test_disclaimer_in_formatted_output(self):
-        """Formatted output must always contain the health disclaimer."""
-        analysis = {
-            "detected": True,
-            "items": [{
-                "name": "Test", "estimated_portion": "1 cup",
-                "calories": 100, "protein_g": 5.0, "carbs_g": 10.0,
-                "fat_g": 3.0, "fiber_g": 1.0, "confidence": "high",
-            }],
-            "meal_total": {"calories": 100, "protein_g": 5.0, "carbs_g": 10.0, "fat_g": 3.0, "fiber_g": 1.0},
-            "profile_comparison": None,
-            "suggestions": [],
-        }
-        output = fia.format_food_image_analysis(analysis)
-        assert "not a substitute" in output.lower()
-        assert "registered dietitian" in output.lower()
 
 
 # ---------------------------------------------------------------------------

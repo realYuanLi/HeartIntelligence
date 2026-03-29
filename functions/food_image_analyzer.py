@@ -51,13 +51,6 @@ _RANGE_FACTORS = {
     "low": 0.40,     # ±40% — hard to identify, very uncertain
 }
 
-# Health disclaimer — MUST always accompany calorie estimates
-HEALTH_DISCLAIMER = (
-    "These are estimates based on visual analysis and USDA reference data. "
-    "Actual values vary with preparation method, ingredients, and portion sizes. "
-    "Not a substitute for professional dietary advice. "
-    "For medical dietary needs, consult a registered dietitian."
-)
 
 _VISION_PROMPT = """\
 You are a food nutrition analyst. Analyze the provided image and return a JSON object.
@@ -691,7 +684,6 @@ def analyze_food_image(image_data_uri: str, username: str = "") -> dict:
             "meal_calorie_range": [meal_cal_low, meal_cal_high],
             "profile_comparison": profile_comparison,
             "suggestions": suggestions,
-            "disclaimer": HEALTH_DISCLAIMER,
         }
 
     except json.JSONDecodeError as exc:
@@ -719,7 +711,6 @@ def format_food_image_analysis(analysis: dict) -> str:
     meal_range = analysis.get("meal_calorie_range", [])
     profile_comparison = analysis.get("profile_comparison")
     suggestions = analysis.get("suggestions", [])
-    disclaimer = analysis.get("disclaimer", HEALTH_DISCLAIMER)
 
     lines: list[str] = []
     lines.append("**Food Analysis**\n")
@@ -769,8 +760,5 @@ def format_food_image_analysis(analysis: dict) -> str:
         lines.append("\n**Suggestions:**")
         for suggestion in suggestions:
             lines.append(f"- {suggestion}")
-
-    # Health disclaimer — always present
-    lines.append(f"\n_{disclaimer}_")
 
     return "\n".join(lines)

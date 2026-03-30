@@ -1,0 +1,28 @@
+#!/usr/bin/env python3
+"""dreamchat -- CLI for DREAM-Chat health AI.
+
+Thin HTTP client that wraps the DREAM-Chat Flask API.
+Used standalone for debugging/scripting, or by OpenClaw as a skill.
+
+First-time setup:
+    dreamchat configure
+
+Examples:
+    dreamchat --json server status
+    dreamchat --json health status
+    dreamchat --json chat ask "What's my heart rate trend?"
+    dreamchat --json digest daily
+"""
+
+import os
+import sys
+
+# Allow running from repo checkout without install (realpath follows symlinks)
+_repo = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+if _repo not in sys.path:
+    sys.path.insert(0, _repo)
+
+from dreamchat.cli import main
+
+if __name__ == "__main__":
+    main()

@@ -3,6 +3,12 @@ __pycache__/
 .vscode
 .env
 
+# Claude Code internal config
+.claude/
+
+# Personal data — never push to remote
+personal_data/
+
 # SQLite database (Flask-SQLAlchemy default location)
 instance/
 
@@ -15,6 +21,9 @@ instance/
 !personal_data/health_info.json
 !personal_data/processed_mobile_data.json
 !config/configs.json
+!whatsapp/package.json
+!whatsapp/package-lock.json
+!whatsapp/tsconfig.json
 
 # Ignore chat history and other data directories
 chat_history/

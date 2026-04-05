@@ -7009,6 +7009,53 @@ body.sources-sidebar-open .input-container.fixed {
   margin-bottom: 0.25rem;
 }
 
+.auth-divider {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 1rem 0;
+}
+
+.auth-divider::before,
+.auth-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--border, #2a2a4a);
+}
+
+.auth-divider span {
+  font-size: 0.85rem;
+  color: var(--muted, #94a3b8);
+  text-transform: lowercase;
+}
+
+.auth-google-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  padding: 0.65rem;
+  background: #fff;
+  color: #3c4043;
+  border: 1px solid var(--border, #2a2a4a);
+  border-radius: 0.4rem;
+  font-size: 0.95rem;
+  font-weight: 500;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s;
+}
+
+.auth-google-button:hover {
+  background: #f8f9fa;
+  border-color: var(--muted, #94a3b8);
+}
+
+.auth-google-button svg {
+  flex-shrink: 0;
+}
+
 /* ===================== Family & Community pages ===================== */
 
 .family-page,

@@ -201,6 +201,25 @@ def logout():
     return redirect(url_for("auth.login"))
 
 
+@auth_bp.route("/delete-account", methods=["POST"])
+@login_required
+def delete_account():
+    """Permanently delete the current user's account."""
+    if not _validate_csrf_token():
+        flash("Invalid form submission. Please try again.", "error")
+        return redirect(url_for("cron_bp.cron_jobs_page"))
+
+    user = current_user
+    email = user.email
+    logout_user()
+    session.clear()
+    db.session.delete(user)
+    db.session.commit()
+    logger.info("User account deleted: %s", email)
+    flash("Your account has been permanently deleted.", "info")
+    return redirect(url_for("auth.login"))
+
+
 # ---------------------------------------------------------------------------
 # Google OAuth routes
 # ---------------------------------------------------------------------------

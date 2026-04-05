@@ -270,8 +270,7 @@
     var p=location.pathname,s="chat",item=null;
     if(p==="/dashboard"){s="dashboard";item="ss-healthMetricsBtn"}
     else if(p==="/my-body"){s="dashboard";item="ss-myBodyBtn"}
-    else if(p==="/family"){s="family";item="ss-familyBtn"}
-    else if(p==="/community"){s="community";item="ss-communityBtn"}
+    else if(p==="/family"||p==="/community"){s="chat"}
     else if(p==="/calendar"){s="settings";item="ss-calendarBtn"}
     else if(p==="/pdf-forms"){s="tools";item="ss-pdfFormsBtn"}
     else if(p.indexOf("/settings")===0){

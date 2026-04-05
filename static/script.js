@@ -369,8 +369,11 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // Primary sidebar click handlers
+  const directNavSections = { family: "/family", community: "/community" };
   document.querySelectorAll(".ps-item[data-section]").forEach(btn => {
     btn.addEventListener("click", () => {
+      const dest = directNavSections[btn.dataset.section];
+      if (dest) { window.location.href = dest; return; }
       activatePrimarySection(btn.dataset.section);
     });
   });

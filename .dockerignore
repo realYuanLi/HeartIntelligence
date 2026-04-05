@@ -1,0 +1,13 @@
+.git
+.claude
+.venv
+venv
+chat_test_env
+node_modules
+whatsapp/node_modules
+whatsapp/dist
+personal_data
+__pycache__
+*.pyc
+.env
+.DS_Store

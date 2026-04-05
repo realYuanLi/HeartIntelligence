@@ -14,7 +14,8 @@ RUN pip install --no-cache-dir -r requirements.txt || \
     pip install --no-cache-dir Flask gunicorn gevent python-dotenv openai requests Flask-Login Flask-SQLAlchemy tiktoken nibabel numpy Pillow pypdf reportlab icalendar pycryptodome
 
 # Install Node.js dependencies and build WhatsApp service
-COPY whatsapp/package*.json whatsapp/
+RUN mkdir -p whatsapp
+COPY whatsapp/package.json whatsapp/package-lock.json whatsapp/
 RUN cd whatsapp && npm install
 
 COPY whatsapp/ whatsapp/

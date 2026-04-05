@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block main %}
+  <div class="calendar-page">
+    <div class="calendar-header">
+      <h1>Workout Calendar</h1>
+      <div class="calendar-actions">
+        <button id="exportIcalBtn" class="cal-action-btn" title="Export to Google/Apple Calendar" hidden>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Export .ics
+        </button>
+      </div>
+    </div>
+
+    <!-- Plan title strip (shows when plan exists) -->
+    <div id="planStrip" class="plan-strip" hidden>
+      <span id="planTitle" class="plan-title-text"></span>
+    </div>
+
+    <!-- Month navigation + grid (always visible) -->
+    <div class="cal-nav">
+      <button id="calPrev" class="cal-nav-btn">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+      </button>
+      <span id="calMonthLabel" class="cal-month-label"></span>
+      <button id="calNext" class="cal-nav-btn">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+      </button>
+    </div>
+
+    <div class="cal-grid">
+      <div class="cal-day-header">Mon</div>
+      <div class="cal-day-header">Tue</div>
+      <div class="cal-day-header">Wed</div>
+      <div class="cal-day-header">Thu</div>
+      <div class="cal-day-header">Fri</div>
+      <div class="cal-day-header">Sat</div>
+      <div class="cal-day-header">Sun</div>
+      <div id="calCells"></div>
+    </div>
+
+    <!-- Week strip navigation -->
+    <div id="weekStrip" class="week-strip" hidden>
+      <div class="week-strip-header">
+        <button id="weekPrev" class="cal-nav-btn" title="Previous week">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>
+        <span id="weekLabel" class="week-label"></span>
+        <button id="weekNext" class="cal-nav-btn" title="Next week">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+        </button>
+      </div>
+      <div id="weekDays" class="week-days"></div>
+    </div>
+
+    <!-- Selected day workout panel (replaces old today panel) -->
+    <div id="todayPanel" class="today-panel" hidden>
+      <div class="today-panel-header">
+        <h3 id="todayLabel">Today's Workout</h3>
+        <button id="todayCompleteBtn" class="today-complete-btn" hidden>Mark Complete</button>
+      </div>
+      <div id="todayExercises" class="today-exercises"></div>
+    </div>
+  </div>
+{% endblock %}
+
+{% block scripts %}
+  <script src="{{ url_for('static', filename='calendar.js') }}?t={{ cache_bust }}"></script>
+{% endblock %}

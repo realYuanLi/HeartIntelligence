@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block main %}
+  <div class="cron-jobs-page">
+    <div class="cron-jobs-header">
+      <h1>Settings</h1>
+      <p class="subtitle">Manage cron jobs, skills, and calendars</p>
+      <div class="settings-subnav">
+        <a href="/settings/cron-jobs" class="settings-subnav-link {% if settings_section == 'cron-jobs' %}active{% endif %}">Cron Jobs</a>
+        <a href="/settings/skills" class="settings-subnav-link {% if settings_section == 'skills' %}active{% endif %}">Skills</a>
+
+        <a href="/settings/calendars" class="settings-subnav-link {% if settings_section == 'calendars' %}active{% endif %}">Calendars</a>
+        <a href="/settings/heartbeat" class="settings-subnav-link {% if settings_section == 'heartbeat' %}active{% endif %}">Heartbeat</a>
+        <a href="/settings/whatsapp" class="settings-subnav-link {% if settings_section == 'whatsapp' %}active{% endif %}">WhatsApp</a>
+        <a href="/settings/devices" class="settings-subnav-link {% if settings_section == 'devices' %}active{% endif %}">Devices</a>
+      </div>
+    </div>
+
+    <div class="cron-jobs-content">
+      <!-- Add Calendar Feed -->
+      <div class="cron-jobs-list-card">
+        <h2>Connect a Calendar</h2>
+        <p class="calendar-help-text">
+          Paste an iCal URL from Google Calendar, Apple Calendar, Outlook, or any calendar app.
+          This gives the assistant read-only access to your schedule so it can plan around your commitments.
+        </p>
+        <div class="calendar-add-form">
+          <input type="text" id="feedName" class="calendar-input" placeholder="Calendar name (e.g. Work, Personal)" maxlength="50">
+          <input type="url" id="feedUrl" class="calendar-input calendar-url-input" placeholder="Paste iCal URL (https://... or webcal://...)">
+          <button id="addFeedBtn" class="calendar-add-btn">Add Calendar</button>
+        </div>
+        <div id="addFeedStatus" class="calendar-status" hidden></div>
+
+        <details class="calendar-help-details">
+          <summary>How to get your iCal URL</summary>
+          <div class="calendar-help-content">
+            <p><strong>Google Calendar:</strong> Settings &rarr; pick calendar &rarr; "Secret address in iCal format"</p>
+            <p><strong>Apple Calendar (iCloud):</strong> Calendar app &rarr; right-click calendar &rarr; Share &rarr; Public Calendar &rarr; copy URL</p>
+            <p><strong>Outlook:</strong> Settings &rarr; Calendar &rarr; Shared calendars &rarr; Publish &rarr; ICS link</p>
+          </div>
+        </details>
+      </div>
+
+      <!-- Connected Calendars -->
+      <div class="cron-jobs-list-card">
+        <h2>Connected Calendars</h2>
+        <div id="feedsList" class="jobs-list">
+          <div class="loading">Loading calendars...</div>
+        </div>
+      </div>
+
+      <!-- Event Preview -->
+      <div class="cron-jobs-list-card">
+        <h2>Upcoming Events Preview</h2>
+        <button id="refreshPreviewBtn" class="calendar-refresh-btn">Refresh</button>
+        <div id="eventsPreview" class="calendar-events-preview">
+          <div class="loading">Loading events...</div>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock %}
+
+{% block input %}{% endblock %}
+
+{% block scripts %}
+  <script src="{{ url_for('static', filename='settings_calendars.js') }}?v=1"></script>
+{% endblock %}

@@ -63,7 +63,11 @@ async function handleMessage(
     for (const img of imagesToSend) {
       try {
         const imageBuffer = await bridge.fetchExerciseImage(img.url);
-        await wa.sendImage(senderJid, imageBuffer, img.name);
+        const parts = [img.name];
+        if (img.muscles) parts.push(img.muscles);
+        if (img.equipment && img.equipment !== 'N/A') parts.push(img.equipment);
+        if (img.level && img.level !== 'N/A') parts.push(img.level);
+        await wa.sendImage(senderJid, imageBuffer, parts.join(' · '));
       } catch (imgErr) {
         logger.warn({ userId, senderJid, imageUrl: img.url, err: imgErr }, 'Failed to send exercise image');
       }

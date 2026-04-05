@@ -20,7 +20,45 @@ import json
 import sys
 from datetime import datetime
 
-from dreamchat.client import DreamChatClient, load_config, save_config
+from dreamchat.client import DreamChatClient, DreamChatError, load_config, save_config
+
+
+# ---------------------------------------------------------------------------
+# ANSI colors (only when stdout is a terminal)
+# ---------------------------------------------------------------------------
+
+_USE_COLOR = hasattr(sys.stdout, "isatty") and sys.stdout.isatty()
+
+
+def _c(code: str, text: str) -> str:
+    """Wrap text in ANSI escape codes if color is enabled."""
+    if not _USE_COLOR:
+        return text
+    return f"\033[{code}m{text}\033[0m"
+
+
+def _bold(text: str) -> str:
+    return _c("1", text)
+
+
+def _blue(text: str) -> str:
+    return _c("1;34", text)
+
+
+def _green(text: str) -> str:
+    return _c("32", text)
+
+
+def _red(text: str) -> str:
+    return _c("1;31", text)
+
+
+def _dim(text: str) -> str:
+    return _c("2", text)
+
+
+def _cyan(text: str) -> str:
+    return _c("36", text)
 
 
 # ---------------------------------------------------------------------------
@@ -39,7 +77,7 @@ def _err(msg: str, as_json: bool) -> None:
     if as_json:
         print(json.dumps({"ok": False, "error": msg}, indent=2))
     else:
-        print(f"Error: {msg}", file=sys.stderr)
+        print(f"{_red('Error')}: {msg}", file=sys.stderr)
     sys.exit(1)
 
 
@@ -47,21 +85,22 @@ def _print_human(data: dict, indent: int = 0) -> None:
     """Best-effort human-readable output."""
     prefix = "  " * indent
     for k, v in data.items():
+        label = _blue(k)
         if isinstance(v, dict):
-            print(f"{prefix}{k}:")
+            print(f"{prefix}{label}:")
             _print_human(v, indent + 1)
         elif isinstance(v, list):
-            print(f"{prefix}{k}: ({len(v)} items)")
+            print(f"{prefix}{label}: {_dim(f'({len(v)} items)')}")
             for i, item in enumerate(v[:5]):
                 if isinstance(item, dict):
-                    print(f"{prefix}  [{i}]")
+                    print(f"{prefix}  {_dim(f'[{i}]')}")
                     _print_human(item, indent + 2)
                 else:
                     print(f"{prefix}  - {item}")
             if len(v) > 5:
-                print(f"{prefix}  ... and {len(v) - 5} more")
+                print(f"{prefix}  {_dim(f'... and {len(v) - 5} more')}")
         else:
-            print(f"{prefix}{k}: {v}")
+            print(f"{prefix}{label}: {v}")
 
 
 # ---------------------------------------------------------------------------
@@ -71,31 +110,31 @@ def _print_human(data: dict, indent: int = 0) -> None:
 def cmd_configure(_args: argparse.Namespace) -> None:
     """Interactive configuration."""
     cfg = load_config()
-    print("DREAM-Chat CLI Configuration")
-    print("Press Enter to keep current value.\n")
+    print(_bold("DREAM-Chat CLI Configuration"))
+    print(_dim("Press Enter to keep current value.") + "\n")
 
-    url = input(f"  Server URL [{cfg.get('base_url', 'http://localhost:8000')}]: ").strip()
+    url = input(f"  {_blue('Server URL')} [{cfg.get('base_url', 'http://localhost:8000')}]: ").strip()
     if url:
         cfg["base_url"] = url
 
-    email = input(f"  Email [{cfg.get('email', '')}]: ").strip()
+    email = input(f"  {_blue('Email')} [{cfg.get('email', '')}]: ").strip()
     if email:
         cfg["email"] = email
 
-    password = input("  Password [****]: ").strip()
+    password = input(f"  {_blue('Password')} [****]: ").strip()
     if password:
         cfg["password"] = password
 
     save_config(cfg)
     from dreamchat.client import CONFIG_FILE
-    print(f"\nSaved to {CONFIG_FILE}. Testing connection...")
+    print(f"\n{_green('Saved')} to {CONFIG_FILE}. Testing connection...")
 
     client = DreamChatClient()
     status = client.server_status()
     if status.get("status") == "healthy":
-        print("Server is reachable.")
+        print(f"{_green('OK')} Server is reachable.")
     else:
-        print(f"Warning: server returned {status}")
+        print(f"{_red('Warning')}: server returned {status}")
 
 
 def cmd_server_status(args: argparse.Namespace) -> None:
@@ -103,7 +142,18 @@ def cmd_server_status(args: argparse.Namespace) -> None:
     result = client.server_status()
     if result.get("error"):
         _err(f"Server unreachable: {result['error']}", args.json)
-    _out(result, args.json)
+    if not args.json:
+        status = result.get("status", "unknown")
+        tag = _green("healthy") if status == "healthy" else _red(status)
+        patient = result.get("patient_name", "")
+        print(f"{_blue('Server')}: {tag}")
+        if patient:
+            print(f"{_blue('Patient')}: {_bold(patient)}")
+        for k, v in result.items():
+            if k not in ("status", "patient_name"):
+                print(f"{_blue(k)}: {v}")
+    else:
+        _out(result, args.json)
 
 
 def cmd_health_status(args: argparse.Namespace) -> None:
@@ -250,7 +300,14 @@ def cmd_chat_ask(args: argparse.Namespace) -> None:
     if not message:
         _err("No message provided", args.json)
 
+    if not args.json:
+        print(_dim("Thinking..."), end="", flush=True)
+
     result = client.chat(message, image_path=args.image)
+
+    if not args.json:
+        print("\r" + " " * 20 + "\r", end="", flush=True)
+
     if not result.get("success"):
         _err(result.get("assistant_message") or result.get("message", "Chat failed"),
              args.json)
@@ -258,7 +315,15 @@ def cmd_chat_ask(args: argparse.Namespace) -> None:
     data: dict = {"response": result.get("assistant_message", "")}
     if result.get("exercise_images"):
         data["exercise_images"] = result["exercise_images"]
-    _out(data, args.json)
+
+    if args.json:
+        _out(data, args.json)
+    else:
+        print(data["response"])
+        if data.get("exercise_images"):
+            print(f"\n{_dim('Exercise images:')}")
+            for img in data["exercise_images"]:
+                print(f"  {_cyan(img)}")
 
 
 def cmd_chat_history(args: argparse.Namespace) -> None:
@@ -278,7 +343,10 @@ def cmd_chat_history(args: argparse.Namespace) -> None:
 def cmd_chat_reset(args: argparse.Namespace) -> None:
     client = DreamChatClient()
     sid = client.reset_session()
-    _out({"session_id": sid, "message": "New session created"}, args.json)
+    if args.json:
+        _out({"session_id": sid, "message": "New session created"}, args.json)
+    else:
+        print(f"{_green('OK')} New session created {_dim(f'({sid})')}")
 
 
 # ---------------------------------------------------------------------------
@@ -379,14 +447,21 @@ def main(argv: list[str] | None = None) -> None:
         parser.print_help()
         sys.exit(1)
 
-    if isinstance(handler, dict):
-        sub_cmd = getattr(args, f"{args.command}_cmd", None)
-        if sub_cmd and sub_cmd in handler:
-            handler[sub_cmd](args)
+    try:
+        if isinstance(handler, dict):
+            sub_cmd = getattr(args, f"{args.command}_cmd", None)
+            if sub_cmd and sub_cmd in handler:
+                handler[sub_cmd](args)
+            else:
+                parser.parse_args([args.command, "--help"])
         else:
-            parser.parse_args([args.command, "--help"])
-    else:
-        handler(args)
+            handler(args)
+    except DreamChatError as exc:
+        _err(str(exc), args.json)
+    except SystemExit:
+        raise
+    except Exception as exc:
+        _err(str(exc) or type(exc).__name__, args.json)
 
 
 if __name__ == "__main__":

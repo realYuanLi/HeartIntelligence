@@ -16,10 +16,16 @@
               <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z" fill="currentColor"/>
             </svg>
           </button>
-          <textarea 
-            id="messageInput" 
-            class="message-input" 
-            placeholder="Ask anything" 
+          <input id="imageInput" type="file" accept="image/*,application/pdf" multiple hidden>
+          <button id="imageButton" class="attach-button" type="button" title="Attach file">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M16.5 6v11.5c0 2.21-1.79 4-4 4s-4-1.79-4-4V5a2.5 2.5 0 0 1 5 0v10.5c0 .55-.45 1-1 1s-1-.45-1-1V6h-1.5v9.5a2.5 2.5 0 0 0 5 0V5c0-2.21-1.79-4-4-4S7 2.79 7 5v12.5c0 3.04 2.46 5.5 5.5 5.5s5.5-2.46 5.5-5.5V6H16.5z" fill="currentColor"/>
+            </svg>
+          </button>
+          <textarea
+            id="messageInput"
+            class="message-input"
+            placeholder="Ask anything"
             rows="1"
             maxlength="2000"
           ></textarea>
@@ -29,6 +35,7 @@
             </svg>
           </button>
         </div>
+        <div id="imagePreview" class="image-preview" hidden></div>
       </div>
     </div>
   </div>

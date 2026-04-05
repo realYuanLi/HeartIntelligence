@@ -11,6 +11,7 @@ from typing import Optional
 import openai
 from dotenv import load_dotenv
 from flask import Blueprint, jsonify, render_template, request, session
+from flask_login import current_user, login_required
 
 load_dotenv()
 
@@ -29,12 +30,13 @@ nutrition_bp = Blueprint("nutrition", __name__)
 # ---------------------------------------------------------------------------
 
 def _username() -> Optional[str]:
+    if current_user.is_authenticated:
+        return current_user.email
     return session.get("username")
 
 
 def _require_login():
-    u = session.get("username")
-    return bool(u)
+    return current_user.is_authenticated
 
 
 def _profile_path(username: str) -> Path:
@@ -770,11 +772,9 @@ def handle_nutrition_tool(action: str, details: str = "", username: str = "") ->
 # ---------------------------------------------------------------------------
 
 @nutrition_bp.route("/nutrition")
+@login_required
 def nutrition_page():
-    if not _require_login():
-        from flask import redirect, url_for
-        return redirect(url_for("index"))
-    return render_template("nutrition.html", username=session.get("username"))
+    return render_template("nutrition.html", username=_username())
 
 
 @nutrition_bp.route("/api/nutrition-profile")

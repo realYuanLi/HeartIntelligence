@@ -151,7 +151,7 @@ export class FlaskBridge {
     text: string,
     images?: string[],
     userId?: number,
-  ): Promise<{ reply: string; exerciseImages: Array<{ name: string; url: string }> }> {
+  ): Promise<{ reply: string; exerciseImages: Array<{ name: string; url: string; level?: string; equipment?: string; muscles?: string }> }> {
     await this.ensureSession();
     return this.doSendWhatsAppMessage(senderJid, senderName, text, images, userId);
   }
@@ -163,7 +163,7 @@ export class FlaskBridge {
     images?: string[],
     userId?: number,
     retried = false,
-  ): Promise<{ reply: string; exerciseImages: Array<{ name: string; url: string }> }> {
+  ): Promise<{ reply: string; exerciseImages: Array<{ name: string; url: string; level?: string; equipment?: string; muscles?: string }> }> {
     const payload: Record<string, unknown> = {
       sender_jid: senderJid,
       sender_name: senderName,
@@ -203,7 +203,7 @@ export class FlaskBridge {
       success: boolean;
       assistant_message?: string;
       session_id?: string;
-      exercise_images?: Array<{ name: string; url: string }>;
+      exercise_images?: Array<{ name: string; url: string; level?: string; equipment?: string; muscles?: string }>;
     };
 
     if (!body.assistant_message) {

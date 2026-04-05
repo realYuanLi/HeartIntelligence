@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% block main %}
+  <div class="cron-jobs-page">
+    <div class="cron-jobs-header">
+      <h1>Settings</h1>
+      <p class="subtitle">Manage cron jobs, skills, and calendars</p>
+      <div class="settings-subnav">
+        <a href="/settings/cron-jobs" class="settings-subnav-link {% if settings_section == 'cron-jobs' %}active{% endif %}">Cron Jobs</a>
+        <a href="/settings/skills" class="settings-subnav-link {% if settings_section == 'skills' %}active{% endif %}">Skills</a>
+
+        <a href="/settings/calendars" class="settings-subnav-link {% if settings_section == 'calendars' %}active{% endif %}">Calendars</a>
+        <a href="/settings/heartbeat" class="settings-subnav-link {% if settings_section == 'heartbeat' %}active{% endif %}">Heartbeat</a>
+        <a href="/settings/whatsapp" class="settings-subnav-link {% if settings_section == 'whatsapp' %}active{% endif %}">WhatsApp</a>
+        <a href="/settings/devices" class="settings-subnav-link {% if settings_section == 'devices' %}active{% endif %}">Devices</a>
+      </div>
+    </div>
+
+    <div class="cron-jobs-content">
+      <!-- Overview card -->
+      <div class="cron-job-form-card">
+        <h2>Connect Your Health Devices</h2>
+        <p style="color:#a0a0b0;margin-bottom:16px;font-size:0.95em;">
+          DREAM-Chat can integrate with your wearables and health apps to provide
+          personalized insights based on real-time health data. Device connections
+          are powered by <strong>MyDataHelps</strong>, a secure health data platform
+          that supports dozens of devices and apps.
+        </p>
+        <div style="display:inline-block;padding:6px 14px;border-radius:20px;background:rgba(255,180,50,0.15);color:#f0b030;font-size:0.85em;font-weight:600;letter-spacing:0.03em;">
+          Coming Soon
+        </div>
+      </div>
+
+      <!-- Supported platforms card -->
+      <div class="cron-jobs-list-card">
+        <h2>Supported Platforms</h2>
+        <div class="jobs-list" style="gap:0;">
+
+          <div class="job-card" style="cursor:default;">
+            <div class="job-info">
+              <div class="job-message" style="font-weight:600;">Apple Health</div>
+              <div class="job-meta">Steps, heart rate, sleep, workouts, and more from iPhone and Apple Watch.</div>
+            </div>
+          </div>
+
+          <div class="job-card" style="cursor:default;">
+            <div class="job-info">
+              <div class="job-message" style="font-weight:600;">Google Health Connect</div>
+              <div class="job-meta">Aggregate health data from Android devices and compatible apps.</div>
+            </div>
+          </div>
+
+          <div class="job-card" style="cursor:default;">
+            <div class="job-info">
+              <div class="job-message" style="font-weight:600;">Fitbit</div>
+              <div class="job-meta">Activity tracking, sleep stages, heart rate, and SpO2 data.</div>
+            </div>
+          </div>
+
+          <div class="job-card" style="cursor:default;">
+            <div class="job-info">
+              <div class="job-message" style="font-weight:600;">Garmin</div>
+              <div class="job-meta">GPS workouts, body battery, stress tracking, and advanced metrics.</div>
+            </div>
+          </div>
+
+          <div class="job-card" style="cursor:default;">
+            <div class="job-info">
+              <div class="job-message" style="font-weight:600;">Oura</div>
+              <div class="job-meta">Sleep quality, readiness scores, temperature trends, and HRV.</div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- How it will work card -->
+      <div class="cron-job-form-card">
+        <h2>How It Works</h2>
+        <p style="color:#a0a0b0;margin-bottom:12px;font-size:0.95em;">
+          Once device connections are enabled, the setup will be simple:
+        </p>
+        <ol style="color:#a0a0b0;font-size:0.93em;line-height:1.8;padding-left:20px;margin:0;">
+          <li>Click <strong>Connect Device</strong> and choose your platform.</li>
+          <li>Authorize access through MyDataHelps' secure OAuth flow.</li>
+          <li>Your health data syncs automatically in the background.</li>
+          <li>DREAM-Chat uses the data to give you personalized health insights.</li>
+        </ol>
+        <p style="color:#a0a0b0;margin-top:16px;font-size:0.88em;">
+          Your data stays private and is only used to improve your health recommendations.
+          You can disconnect any device at any time.
+        </p>
+      </div>
+    </div>
+  </div>
+{% endblock %}
+
+{% block input %}{% endblock %}

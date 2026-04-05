@@ -21,9 +21,26 @@
 
     <form method="POST" action="{{ url_for('auth.register') }}">
       <input type="hidden" name="_csrf_token" value="{{ csrf_token }}" />
-      <input class="auth-input" type="email" name="email" placeholder="Email address" required autofocus />
+      <input class="auth-input" type="text" name="invite_code" placeholder="Invite code" required />
+      <input class="auth-input" type="email" name="email" placeholder="Email address" required />
       <input class="auth-input" type="password" name="password" placeholder="Password (6+ characters)" required minlength="6" />
       <input class="auth-input" type="password" name="confirm_password" placeholder="Confirm password" required minlength="6" />
+      <div class="tier-select">
+        <label class="tier-option">
+          <input type="radio" name="tier" value="base" checked />
+          <span class="tier-card">
+            <span class="tier-name">Base</span>
+            <span class="tier-desc">Core health features</span>
+          </span>
+        </label>
+        <label class="tier-option">
+          <input type="radio" name="tier" value="premium" />
+          <span class="tier-card">
+            <span class="tier-name">Premium</span>
+            <span class="tier-desc">Full access</span>
+          </span>
+        </label>
+      </div>
       <button class="auth-button" type="submit">Create Account</button>
     </form>
 

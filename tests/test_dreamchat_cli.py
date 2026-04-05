@@ -24,7 +24,7 @@ import pytest
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from dreamchat.client import DreamChatClient, load_config, save_config, load_session_state, save_session_state
+from dreamchat.client import DreamChatClient, DreamChatError, load_config, save_config, load_session_state, save_session_state
 from dreamchat.cli import build_parser, main
 
 
@@ -179,24 +179,24 @@ class TestDreamChatClient:
 
     def test_login_no_credentials(self, tmp_config):
         c = DreamChatClient(base_url="http://localhost:8000", email="", password="")
-        with pytest.raises(SystemExit, match="No credentials"):
+        with pytest.raises(DreamChatError, match="No credentials"):
             c._login()
 
     def test_login_http_error(self, client):
         client._opener.open.side_effect = _make_http_error(403, "Forbidden")
-        with pytest.raises(SystemExit, match="Login failed.*403"):
+        with pytest.raises(DreamChatError, match="Login failed.*403"):
             client._login()
 
     def test_login_connection_error(self, client):
         client._opener.open.side_effect = URLError("Connection refused")
-        with pytest.raises(SystemExit, match="Cannot reach server"):
+        with pytest.raises(DreamChatError, match="Cannot reach server"):
             client._login()
 
     def test_login_server_rejects(self, client):
         client._opener.open.return_value = MockHTTPResponse(
             {"success": False, "message": "Invalid credentials"}
         )
-        with pytest.raises(SystemExit, match="Login failed.*Invalid"):
+        with pytest.raises(DreamChatError, match="Login failed.*Invalid"):
             client._login()
 
     # -- Auto-reauth: 401 triggers login + retry; no infinite loop --------
@@ -1031,6 +1031,8 @@ def test_skill_md_commands_parseable():
         # Strip placeholder parts that won't parse
         # e.g. --image /path/to/photo.jpg -> --image /tmp/x.jpg
         cmd_str = cmd_str.strip().strip('"').strip("'")
+        # Strip inline comments (e.g. "health status     # Current metrics snapshot")
+        cmd_str = re.sub(r'\s+#\s.*$', '', cmd_str)
         cmd_str = re.sub(r'/path/to/photo\.jpg', '/tmp/photo.jpg', cmd_str)
         # Remove quoted question strings and replace with a simple one
         cmd_str = re.sub(r'"[^"]*\?"', '"test"', cmd_str)
@@ -1110,6 +1112,285 @@ class TestJSONOutputContract:
         assert "ok" in data
         assert data["ok"] is False
         assert "error" in data
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 5. Error-path JSON output (DreamChatError / exceptions)
+# ═══════════════════════════════════════════════════════════════════════════
+
+class TestJSONErrorPaths:
+    """Verify that DreamChatError and uncaught exceptions produce valid JSON."""
+
+    def test_login_failure_produces_json(self, capsys, tmp_config):
+        """Auth failure in --json mode outputs valid JSON, not a traceback."""
+        with patch("dreamchat.cli.DreamChatClient") as MockClient:
+            instance = MockClient.return_value
+            instance.chat.side_effect = DreamChatError("Login failed: bad password")
+            with pytest.raises(SystemExit) as exc_info:
+                main(["--json", "chat", "ask", "test"])
+            assert exc_info.value.code == 1
+        captured = capsys.readouterr()
+        data = json.loads(captured.out)
+        assert data["ok"] is False
+        assert "Login failed" in data["error"]
+        assert captured.err == ""  # no traceback on stderr
+
+    def test_connection_error_produces_json(self, capsys, tmp_config):
+        """Connection error in --json mode outputs valid JSON."""
+        with patch("dreamchat.cli.DreamChatClient") as MockClient:
+            instance = MockClient.return_value
+            instance.chat.side_effect = DreamChatError("Cannot reach server: Connection refused")
+            with pytest.raises(SystemExit) as exc_info:
+                main(["--json", "chat", "ask", "test"])
+            assert exc_info.value.code == 1
+        captured = capsys.readouterr()
+        data = json.loads(captured.out)
+        assert data["ok"] is False
+        assert "Cannot reach server" in data["error"]
+
+    def test_unexpected_exception_produces_json(self, capsys, tmp_config):
+        """Unexpected exceptions in --json mode output valid JSON."""
+        with patch("dreamchat.cli.DreamChatClient") as MockClient:
+            instance = MockClient.return_value
+            instance.chat.side_effect = RuntimeError("Something unexpected")
+            with pytest.raises(SystemExit) as exc_info:
+                main(["--json", "chat", "ask", "test"])
+            assert exc_info.value.code == 1
+        captured = capsys.readouterr()
+        data = json.loads(captured.out)
+        assert data["ok"] is False
+        assert "Something unexpected" in data["error"]
+
+    def test_no_credentials_produces_json(self, capsys, tmp_config):
+        """Missing credentials in --json mode outputs valid JSON."""
+        with patch("dreamchat.cli.DreamChatClient") as MockClient:
+            instance = MockClient.return_value
+            instance.chat.side_effect = DreamChatError(
+                "No credentials configured. Run: dreamchat configure"
+            )
+            with pytest.raises(SystemExit) as exc_info:
+                main(["--json", "chat", "ask", "test"])
+            assert exc_info.value.code == 1
+        captured = capsys.readouterr()
+        data = json.loads(captured.out)
+        assert data["ok"] is False
+        assert "No credentials" in data["error"]
+
+    def test_health_status_auth_error_json(self, capsys, tmp_config):
+        """Auth error during health status also produces valid JSON."""
+        with patch("dreamchat.cli.DreamChatClient") as MockClient:
+            instance = MockClient.return_value
+            instance.health_data.side_effect = DreamChatError("Login failed: bad creds")
+            with pytest.raises(SystemExit) as exc_info:
+                main(["--json", "health", "status"])
+            assert exc_info.value.code == 1
+        captured = capsys.readouterr()
+        data = json.loads(captured.out)
+        assert data["ok"] is False
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 6. AGENTS.md section file tests
+# ═══════════════════════════════════════════════════════════════════════════
+
+AGENTS_SECTION_PATH = PROJECT_ROOT / "openclaw" / "agents-section.md"
+
+
+def test_agents_section_exists():
+    """agents-section.md file exists."""
+    assert AGENTS_SECTION_PATH.exists()
+
+
+def test_agents_section_has_mandatory_header():
+    """agents-section.md starts with the correct header."""
+    content = AGENTS_SECTION_PATH.read_text()
+    assert content.startswith("## DreamChat Health System (MANDATORY)")
+
+
+def test_agents_section_references_mcp_tool():
+    """agents-section.md instructs using the health_ask MCP tool."""
+    content = AGENTS_SECTION_PATH.read_text()
+    assert "health_ask" in content
+    assert "MCP" in content or "mcp" in content
+
+
+def test_agents_section_has_exec_fallback():
+    """agents-section.md includes exec fallback for when MCP is unavailable."""
+    content = AGENTS_SECTION_PATH.read_text()
+    assert "chat ask" in content  # exec fallback
+    assert "Fallback" in content or "fallback" in content
+
+
+def test_agents_section_forbids_modification():
+    """agents-section.md forbids the agent from modifying the response."""
+    content = AGENTS_SECTION_PATH.read_text()
+    assert "NEVER add" in content
+    assert "verbatim" in content.lower()
+
+
+def test_agents_section_has_error_handling():
+    """agents-section.md includes error handling instructions."""
+    content = AGENTS_SECTION_PATH.read_text()
+    assert "offline" in content.lower() or "error" in content.lower()
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 7. MCP server tests
+# ═══════════════════════════════════════════════════════════════════════════
+
+MCP_SERVER_PATH = PROJECT_ROOT / "dreamchat" / "mcp_server.py"
+MCP_ENTRY_PATH = PROJECT_ROOT / "scripts" / "dreamchat-mcp"
+
+
+def test_mcp_server_file_exists():
+    """MCP server module exists."""
+    assert MCP_SERVER_PATH.exists()
+
+
+def test_mcp_entry_point_exists():
+    """MCP entry point script exists and is executable."""
+    assert MCP_ENTRY_PATH.exists()
+    assert os.access(MCP_ENTRY_PATH, os.X_OK)
+
+
+def test_mcp_server_imports():
+    """MCP server can be imported without error."""
+    from dreamchat.mcp_server import mcp, health_ask, health_status
+    assert mcp is not None
+    assert callable(health_ask)
+    assert callable(health_status)
+
+
+def test_mcp_health_ask_empty_question():
+    """health_ask returns error for empty question."""
+    from dreamchat.mcp_server import health_ask
+    result = health_ask("")
+    assert result[0].text and "Error" in result[0].text
+
+
+def test_mcp_health_ask_with_mock(tmp_config):
+    """health_ask routes through DreamChatClient and returns assistant_message."""
+    from dreamchat.mcp_server import health_ask
+    with patch("dreamchat.mcp_server.DreamChatClient") as MockClient:
+        instance = MockClient.return_value
+        instance.chat.return_value = {
+            "success": True,
+            "assistant_message": "Your heart rate is 72 bpm.",
+        }
+        result = health_ask("What's my heart rate?")
+    assert result[0].type == "text"
+    assert result[0].text == "Your heart rate is 72 bpm."
+
+
+def test_mcp_health_ask_server_down(tmp_config):
+    """health_ask returns error message when server is unreachable."""
+    from dreamchat.mcp_server import health_ask
+    with patch("dreamchat.mcp_server.DreamChatClient") as MockClient:
+        instance = MockClient.return_value
+        instance.chat.return_value = {
+            "success": False,
+            "message": "Connection error: Connection refused",
+        }
+        result = health_ask("test")
+    assert "error" in result[0].text.lower()
+
+
+def test_mcp_health_ask_auth_error(tmp_config):
+    """health_ask handles DreamChatError from auth failure."""
+    from dreamchat.mcp_server import health_ask
+    with patch("dreamchat.mcp_server.DreamChatClient") as MockClient:
+        instance = MockClient.return_value
+        instance.chat.side_effect = DreamChatError("Login failed: bad password")
+        result = health_ask("test")
+    assert "Login failed" in result[0].text
+
+
+def test_mcp_health_ask_with_image_input(tmp_config):
+    """health_ask forwards base64 image to DreamChatClient."""
+    from dreamchat.mcp_server import health_ask
+    fake_b64 = base64.b64encode(b"fake-image-data").decode()
+    with patch("dreamchat.mcp_server.DreamChatClient") as MockClient:
+        instance = MockClient.return_value
+        instance.chat.return_value = {
+            "success": True,
+            "assistant_message": "That looks like about 450 calories.",
+        }
+        result = health_ask("How many calories?", image_base64=fake_b64,
+                            image_mime_type="image/jpeg")
+    # Verify the client was called with image_data_uri
+    call_kwargs = instance.chat.call_args
+    assert call_kwargs[1]["image_data_uri"].startswith("data:image/jpeg;base64,")
+    assert result[0].text == "That looks like about 450 calories."
+
+
+def test_mcp_health_ask_with_exercise_images(tmp_config):
+    """health_ask returns exercise images as ImageContent."""
+    from dreamchat.mcp_server import health_ask
+    with patch("dreamchat.mcp_server.DreamChatClient") as MockClient:
+        instance = MockClient.return_value
+        instance.base_url = "http://localhost:8000"
+        instance.chat.return_value = {
+            "success": True,
+            "assistant_message": "Try these exercises:",
+            "exercise_images": [
+                {"url": "/exercises/images/pushup.gif", "name": "Push-up"},
+            ],
+        }
+        # Mock the image fetch
+        with patch("dreamchat.mcp_server._fetch_image_as_base64") as mock_fetch:
+            mock_fetch.return_value = ("R0lGODlh", "image/gif")
+            result = health_ask("exercises for chest?")
+
+    assert len(result) == 2
+    assert result[0].type == "text"
+    assert result[0].text == "Try these exercises:"
+    assert result[1].type == "image"
+    assert result[1].data == "R0lGODlh"
+    assert result[1].mimeType == "image/gif"
+
+
+def test_mcp_health_ask_exercise_images_fetch_fails(tmp_config):
+    """health_ask returns text only when exercise image fetch fails."""
+    from dreamchat.mcp_server import health_ask
+    with patch("dreamchat.mcp_server.DreamChatClient") as MockClient:
+        instance = MockClient.return_value
+        instance.base_url = "http://localhost:8000"
+        instance.chat.return_value = {
+            "success": True,
+            "assistant_message": "Try pushups.",
+            "exercise_images": ["/exercises/images/pushup.gif"],
+        }
+        with patch("dreamchat.mcp_server._fetch_image_as_base64") as mock_fetch:
+            mock_fetch.return_value = None  # fetch failed
+            result = health_ask("exercises?")
+
+    assert len(result) == 1  # text only, no broken image
+    assert result[0].text == "Try pushups."
+
+
+def test_mcp_health_status_with_mock(tmp_config):
+    """health_status formats metrics as readable text."""
+    from dreamchat.mcp_server import health_status
+    with patch("dreamchat.mcp_server.DreamChatClient") as MockClient:
+        instance = MockClient.return_value
+        instance.health_data.return_value = {
+            "success": True,
+            "data": {
+                "heart_rate": {
+                    "has_data": True,
+                    "daily_stats": [{"date": "2026-04-02", "avg": 72, "min": 58, "max": 110}],
+                },
+                "blood_pressure": {"has_data": False},
+                "hrv": {"has_data": False},
+                "activity": {
+                    "has_data": True,
+                    "daily_steps": [{"steps": 8500}],
+                },
+            },
+        }
+        result = health_status()
+    assert "72" in result  # heart rate
+    assert "8500" in result  # steps
 
 
 if __name__ == "__main__":

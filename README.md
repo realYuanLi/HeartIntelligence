@@ -1,32 +1,79 @@
 # HeartIntelligence
 
-A health-focused AI platform providing personalized medical insights and interactive data visualization.
+A personal health AI that understands your medical records, wearable data, and clinical history. Chat with it through a web dashboard, WhatsApp, or any channel via [OpenClaw](https://github.com/openclaw/openclaw).
 
-## Core Functionality
+## Getting Started
 
-- **Health-Centric AI Chat**: Personalized assistant that analyzes your medical history, clinical records, and mobile health data to provide tailored insights.
-- **Interactive Health Dashboard**: A comprehensive view of clinical data and Apple Health metrics (Steps, Heart Rate, HRV, etc.) with real-time analysis.
-- **"My Body" CT Visualization**: Interactive 3D visualization of CT scans and organ segmentations for better understanding of personal anatomy.
-- **Voice Interaction**: Integrated speech-to-text for natural conversation about your health.
-
-## Data Processing
-
-To update the dashboard with the latest mobile health data, run the processing script:
 ```bash
-python3 data/process_mobile_data.py
+pip install -r requirements.txt
+python3 app.py
 ```
 
-## Quick Start
+Open **http://localhost:8000** and log in.
 
-1. **Install dependencies**: `pip install -r requirements.txt`
-2. **Configure API**: Set your OpenAI API key in `functions/agent.py`
-3. **Run application**: `./startup.sh` or `python3 app.py`
-4. **Access**: Navigate to `http://localhost:8000` and login.
+---
+
+## Path A: Standalone
+
+<p align="center"><img src="docs/path-a-standalone.svg" width="700" alt="Path A architecture diagram"/></p>
+
+No extra setup needed. After starting the server:
+
+- **Web dashboard** — chat, view health metrics, 3D CT visualization at `localhost:8000`
+- **WhatsApp** — go to Settings in the dashboard, scan the QR code with your phone
+
+That's it.
+
+---
+
+## Path B: With OpenClaw
+
+<p align="center"><img src="docs/path-b-openclaw.svg" width="700" alt="Path B architecture diagram"/></p>
+
+If you use [OpenClaw](https://github.com/openclaw/openclaw) for WhatsApp/Telegram/Discord, you can route health questions to HeartIntelligence automatically.
+
+**Prerequisites:** OpenClaw installed, at least one channel connected, HeartIntelligence running.
+
+```bash
+# 1. Install the integration
+bash openclaw/setup.sh
+
+# 2. Set your credentials
+dreamchat configure
+
+# 3. Restart the gateway to pick up the new MCP server
+openclaw gateway stop && openclaw gateway start
+```
+
+Now send a health question on WhatsApp (or any connected channel). The agent calls HeartIntelligence directly via MCP — no approval prompts, no extra steps.
+
+> **Behind a proxy?** The setup script handles `no_proxy` automatically. If health queries time out, see the proxy note in `devlog/2026-04-02-mcp-server.md`.
+
+---
+
+## CLI
+
+All commands support `--json` for scripting.
+
+```bash
+dreamchat server status                          # server health check
+dreamchat health status                          # HR, BP, steps, HRV
+dreamchat health trends                          # 7-day trends
+dreamchat chat ask "How's my heart rate?"        # health Q&A with full context
+dreamchat chat ask --image food.jpg "calories?"  # food photo analysis
+dreamchat digest daily                           # daily health summary
+dreamchat reminders list                         # active reminders
+```
+
+---
 
 ## Project Structure
 
-- `app.py`: Main Flask application and API routing.
-- `functions/`: AI agent logic, health data analyzers, and web search integration.
-- `templates/`: Dynamic UI including Chat, Dashboard, and CT Viewer.
-- `static/`: Modern styles and frontend logic.
-- `data/`: Integrated storage for patient profiles, mobile health records, and imaging data.
+| Directory | Purpose |
+|-----------|---------|
+| `functions/` | AI agent, health analyzers, search |
+| `templates/` | Web UI (chat, dashboard, CT viewer) |
+| `personal_data/` | Patient records, mobile health, imaging |
+| `dreamchat/` | CLI + MCP server for OpenClaw |
+| `openclaw/` | Skill definition and setup script |
+| `whatsapp/` | WhatsApp bridge (Baileys/Node.js) |

@@ -1000,7 +1000,19 @@ class TestFlaskRoutes:
                 resp = client.get("/api/nutrition-plan/nutrient-gaps")
                 assert resp.status_code == 400
 
-    def test_create_plan_no_profile(self, flask_app, tmp_data_dir):
+    @patch("functions.nutrition_plans.generate_nutrition_plan")
+    def test_create_plan_no_profile(self, mock_gen, flask_app, tmp_data_dir):
+        """Plan creation works without a saved profile (profile gate removed)."""
+        mock_gen.return_value = {
+            "plan_id": "nopr01",
+            "title": "Quick Plan",
+            "active": True,
+            "duration_days": 7,
+            "daily_targets": {},
+            "days": {},
+            "grocery_list": [],
+            "nutrient_alerts": [],
+        }
         profiles_dir, plans_dir = tmp_data_dir
         with patch.object(np_mod, "PROFILES_DIR", profiles_dir), \
              patch.object(np_mod, "PLANS_DIR", plans_dir):
@@ -1012,7 +1024,9 @@ class TestFlaskRoutes:
                     data=json.dumps({"details": "Make me a plan"}),
                     content_type="application/json",
                 )
-                assert resp.status_code == 400
+                assert resp.status_code == 200
+                data = resp.get_json()
+                assert data["success"] is True
 
 
 class TestHandleNutritionTool:
@@ -1047,12 +1061,25 @@ class TestHandleNutritionTool:
             result = np_mod.handle_nutrition_tool("grocery_list", "", "testuser")
             assert "No active nutrition plan" in result or "Create one first" in result
 
-    def test_create_plan_no_profile(self, tmp_data_dir):
+    @patch("functions.nutrition_plans.generate_nutrition_plan")
+    def test_create_plan_no_profile(self, mock_gen, tmp_data_dir):
+        """Plan creation works without a saved profile (profile gate removed)."""
+        mock_gen.return_value = {
+            "plan_id": "nopr02",
+            "title": "Balanced Plan",
+            "active": True,
+            "duration_days": 7,
+            "daily_targets": {},
+            "days": {},
+            "grocery_list": [],
+            "nutrient_alerts": [],
+        }
         profiles_dir, plans_dir = tmp_data_dir
         with patch.object(np_mod, "PROFILES_DIR", profiles_dir), \
              patch.object(np_mod, "PLANS_DIR", plans_dir):
             result = np_mod.handle_nutrition_tool("create_plan", "balanced plan", "testuser")
-            assert "profile" in result.lower()
+            assert "Balanced Plan" in result
+            mock_gen.assert_called_once()
 
     def test_nutrient_check_no_profile(self, tmp_data_dir):
         profiles_dir, plans_dir = tmp_data_dir

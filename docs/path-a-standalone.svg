@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 520" font-family="system-ui, -apple-system, sans-serif">
+  <defs>
+    <marker id="arrow-a" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L8,3 L0,6" fill="#64748b"/>
+    </marker>
+    <filter id="shadow-a" x="-4%" y="-4%" width="108%" height="112%">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-opacity="0.08"/>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="800" height="520" rx="12" fill="#fafbfc"/>
+
+  <!-- Title -->
+  <text x="400" y="38" text-anchor="middle" font-size="18" font-weight="700" fill="#0f172a">Path A: Standalone System</text>
+  <text x="400" y="58" text-anchor="middle" font-size="12" fill="#94a3b8">No OpenClaw required</text>
+
+  <!-- User -->
+  <rect x="320" y="80" width="160" height="52" rx="26" fill="#f1f5f9" stroke="#cbd5e1" stroke-width="1.5" filter="url(#shadow-a)"/>
+  <text x="400" y="103" text-anchor="middle" font-size="13" font-weight="600" fill="#334155">User</text>
+  <text x="400" y="119" text-anchor="middle" font-size="10" fill="#94a3b8">phone or browser</text>
+
+  <!-- Arrows from user -->
+  <line x1="350" y1="132" x2="200" y2="175" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrow-a)"/>
+  <line x1="450" y1="132" x2="600" y2="175" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrow-a)"/>
+
+  <!-- Web Browser -->
+  <rect x="100" y="178" width="200" height="64" rx="10" fill="#eff6ff" stroke="#3b82f6" stroke-width="1.5" filter="url(#shadow-a)"/>
+  <text x="200" y="205" text-anchor="middle" font-size="13" font-weight="600" fill="#1e40af">Web Browser</text>
+  <text x="200" y="224" text-anchor="middle" font-size="10" fill="#64748b">localhost:8000</text>
+
+  <!-- WhatsApp -->
+  <rect x="500" y="178" width="200" height="64" rx="10" fill="#f0fdf4" stroke="#22c55e" stroke-width="1.5" filter="url(#shadow-a)"/>
+  <text x="600" y="205" text-anchor="middle" font-size="13" font-weight="600" fill="#15803d">WhatsApp</text>
+  <text x="600" y="224" text-anchor="middle" font-size="10" fill="#64748b">QR code linked</text>
+
+  <!-- Arrows down -->
+  <line x1="200" y1="242" x2="200" y2="285" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrow-a)"/>
+  <line x1="600" y1="242" x2="600" y2="285" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrow-a)"/>
+
+  <!-- Labels on arrows -->
+  <text x="165" y="270" font-size="9" fill="#94a3b8">HTTP</text>
+  <text x="608" y="270" font-size="9" fill="#94a3b8">Baileys bridge</text>
+
+  <!-- Flask -->
+  <rect x="100" y="288" width="200" height="52" rx="8" fill="#fefce8" stroke="#eab308" stroke-width="1.5" filter="url(#shadow-a)"/>
+  <text x="200" y="311" text-anchor="middle" font-size="12" font-weight="600" fill="#854d0e">/api/message</text>
+  <text x="200" y="327" text-anchor="middle" font-size="9" fill="#a16207">Flask endpoint</text>
+
+  <!-- Flask WA -->
+  <rect x="500" y="288" width="200" height="52" rx="8" fill="#fefce8" stroke="#eab308" stroke-width="1.5" filter="url(#shadow-a)"/>
+  <text x="600" y="311" text-anchor="middle" font-size="12" font-weight="600" fill="#854d0e">/api/whatsapp/message</text>
+  <text x="600" y="327" text-anchor="middle" font-size="9" fill="#a16207">Flask endpoint</text>
+
+  <!-- Arrows converge -->
+  <line x1="200" y1="340" x2="340" y2="390" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrow-a)"/>
+  <line x1="600" y1="340" x2="460" y2="390" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrow-a)"/>
+
+  <!-- Core engine -->
+  <rect x="240" y="390" width="320" height="80" rx="12" fill="#0f172a" filter="url(#shadow-a)"/>
+  <text x="400" y="420" text-anchor="middle" font-size="14" font-weight="700" fill="#f8fafc">HeartIntelligence Core</text>
+  <text x="400" y="442" text-anchor="middle" font-size="10" fill="#94a3b8">EHR + Wearables + LLM (GPT-4o) + Clinical Guardrails</text>
+  <text x="400" y="458" text-anchor="middle" font-size="10" fill="#94a3b8">Nutrition  |  Exercise  |  Imaging  |  Reminders</text>
+
+  <!-- Both paths label -->
+  <rect x="332" y="350" width="136" height="24" rx="12" fill="#f1f5f9" stroke="#cbd5e1" stroke-width="1"/>
+  <text x="400" y="366" text-anchor="middle" font-size="10" font-weight="600" fill="#475569">same health engine</text>
+</svg>

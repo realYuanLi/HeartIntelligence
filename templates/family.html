@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block main %}
+  <div class="family-page">
+    <div class="family-header">
+      <h1>Family Circle</h1>
+      <p class="subtitle">Share health insights with your loved ones</p>
+    </div>
+
+    <div class="family-content">
+      <!-- Pending invitations -->
+      <div id="invitationsCard" class="family-card" hidden>
+        <h2>Pending Invitations</h2>
+        <div id="invitationsList"></div>
+      </div>
+
+      <!-- Invite form -->
+      <div class="family-card">
+        <h2>Invite a Family Member</h2>
+        <form id="inviteForm">
+          <div class="form-group">
+            <label for="inviteEmail">Email address</label>
+            <input type="email" id="inviteEmail" placeholder="family@example.com" required />
+          </div>
+          <div class="form-group">
+            <label for="relationship">Relationship</label>
+            <select id="relationship">
+              <option value="family">Family</option>
+              <option value="spouse">Spouse / Partner</option>
+              <option value="parent">Parent</option>
+              <option value="child">Child</option>
+              <option value="sibling">Sibling</option>
+              <option value="caregiver">Caregiver</option>
+            </select>
+          </div>
+          <button type="submit" class="family-btn primary">Send Invite</button>
+        </form>
+      </div>
+
+      <!-- Family members list -->
+      <div class="family-card">
+        <h2>My Family Circle</h2>
+        <div id="membersList">
+          <div class="loading">Loading family members...</div>
+        </div>
+      </div>
+
+      <!-- Share a health summary -->
+      <div id="shareCard" class="family-card" hidden>
+        <h2>Share a Health Summary</h2>
+        <form id="shareForm">
+          <div class="form-group">
+            <label for="shareTo">Send to</label>
+            <select id="shareTo" required>
+              <option value="">Select a family member...</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="shareTitle">Title</label>
+            <input type="text" id="shareTitle" placeholder="Weekly health update" required />
+          </div>
+          <div class="form-group">
+            <label for="shareBody">Summary</label>
+            <textarea id="shareBody" rows="4" placeholder="Write a health update to share..." required></textarea>
+          </div>
+          <button type="submit" class="family-btn primary">Share</button>
+        </form>
+      </div>
+
+      <!-- Shared summaries -->
+      <div class="family-card">
+        <h2>Shared Summaries</h2>
+        <div id="sharedList">
+          <div class="loading">Loading shared summaries...</div>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock %}
+
+{% block input %}{% endblock %}
+
+{% block scripts %}
+  <script src="{{ url_for('static', filename='family.js') }}?t={{ cache_bust }}"></script>
+{% endblock %}

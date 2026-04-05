@@ -270,7 +270,9 @@ def format_food_results(foods: list[dict]) -> str:
         sections.append(section)
 
     header = f"**Food Database — {len(foods)} results:**\n\n"
-    return header + "\n---\n\n".join(sections)
+    result = header + "\n---\n\n".join(sections)
+    result += "\n\n_Source: [USDA FoodData Central](https://fdc.nal.usda.gov/) — U.S. Department of Agriculture_"
+    return result
 
 
 def _get_rda_key(profile: dict) -> str:

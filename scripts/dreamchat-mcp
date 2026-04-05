@@ -1,0 +1,22 @@
+#!/usr/bin/env python3
+"""dreamchat-mcp -- MCP server for DREAM-Chat health AI.
+
+Exposes the health system as structured MCP tools for OpenClaw and other
+MCP-compatible clients. Communicates over stdio (JSON-RPC).
+
+Register with OpenClaw:
+    openclaw mcp set dreamchat-health '{"command":"/path/to/dreamchat-mcp"}'
+"""
+
+import os
+import sys
+
+# Allow running from repo checkout without install (realpath follows symlinks)
+_repo = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+if _repo not in sys.path:
+    sys.path.insert(0, _repo)
+
+from dreamchat.mcp_server import main
+
+if __name__ == "__main__":
+    main()

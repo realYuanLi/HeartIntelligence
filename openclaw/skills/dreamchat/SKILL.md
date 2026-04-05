@@ -13,6 +13,12 @@ metadata:
 
 # DreamChat Health Assistant
 
+> **Note**: Due to OpenClaw bug [#49873](https://github.com/openclaw/openclaw/issues/49873),
+> this SKILL.md is NOT auto-injected into the agent prompt. The actual routing
+> instructions are in `~/.openclaw/workspace/AGENTS.md` under the section
+> "DreamChat Health System (MANDATORY)". Run `bash openclaw/setup.sh` from
+> the DREAM-Chat repo to install both this file and the AGENTS.md section.
+
 You have access to the user's **personal health AI system** via the
 `dreamchat` CLI. This system knows their medical records, medications,
 wearable data (heart rate, blood pressure, sleep, steps), nutrition plans,
@@ -29,43 +35,14 @@ Activate when the user asks about:
 - Their daily health summary or digest
 - Anything related to their personal medical history
 
-## Commands
+## Primary command
 
-### Factual health data (fast, no AI reasoning needed)
-
-Current health metrics snapshot:
-```
-exec dreamchat --json health status
-```
-
-7-day health trends:
-```
-exec dreamchat --json health trends
-```
-
-List active reminders:
-```
-exec dreamchat --json reminders list
-```
-
-Proactive messaging status:
-```
-exec dreamchat --json heartbeat status
-```
-
-Daily health digest (composite summary):
-```
-exec dreamchat --json digest daily
-```
-
-### Health questions requiring clinical reasoning
-
-For any health question that needs medical context or personalized advice,
-route it through the health AI. This uses the user's full medical record,
-wearable data, and clinical guardrails to generate an accurate response:
+For ALL health questions, route through the health AI's conversational
+interface. This uses the user's full medical record, wearable data, and
+clinical guardrails to generate an accurate, personalized response:
 
 ```
-exec dreamchat --json chat ask "How does my statin interact with grapefruit?"
+exec dreamchat --json chat ask "THE USER'S EXACT MESSAGE HERE"
 ```
 
 For food photo analysis (calorie estimation):
@@ -73,21 +50,21 @@ For food photo analysis (calorie estimation):
 exec dreamchat --json chat ask --image /path/to/photo.jpg "How many calories in this meal?"
 ```
 
-View recent health conversation:
-```
-exec dreamchat --json chat history
-```
+## Other commands (scripting / cron only)
 
-Start a fresh health conversation thread:
-```
-exec dreamchat --json chat reset
-```
+These commands return raw structured data. They are useful for cron jobs
+and scripting but should NOT be used to answer user questions directly
+(use `chat ask` instead, which provides clinical context and guardrails):
 
-### Server check
-
-Verify the health system is running:
 ```
-exec dreamchat --json server status
+exec dreamchat --json health status     # Current metrics snapshot
+exec dreamchat --json health trends     # 7-day trends
+exec dreamchat --json reminders list    # Active reminders
+exec dreamchat --json heartbeat status  # Proactive messaging status
+exec dreamchat --json digest daily      # Daily health digest
+exec dreamchat --json chat history      # Recent conversation
+exec dreamchat --json chat reset        # Fresh conversation thread
+exec dreamchat --json server status     # Verify server is running
 ```
 
 ## Output format
@@ -101,43 +78,24 @@ or on error:
 {"ok": false, "error": "description"}
 ```
 
-## Choosing the right command
-
-- **Simple metric lookups** ("what's my heart rate?", "how many steps today?"):
-  Use `dreamchat --json health status`. Fast, no LLM call.
-
-- **Trend questions** ("how's my sleep been this week?"):
-  Use `dreamchat --json health trends`. Fast, no LLM call.
-
-- **Complex health questions** ("should I worry about my blood pressure given
-  my medications?", "what foods should I avoid with my condition?"):
-  Use `dreamchat --json chat ask "<question>"`. This invokes the health AI
-  with full clinical context.
-
-- **Morning briefing / check-in**:
-  Use `dreamchat --json digest daily` for a comprehensive summary.
-
 ## Critical rules
 
-1. **NEVER add your own medical interpretation** to dreamchat's responses.
-   Present them directly to the user. The health system has clinical
-   guardrails and medical context that you do not have. Do not override,
-   supplement, or second-guess its medical advice.
+1. **Route ALL health questions through `chat ask`**. Do not use `health
+   status` or `health trends` to answer user questions -- those return raw
+   metrics without clinical context. The `chat ask` command handles simple
+   metric lookups AND complex questions equally well.
 
-2. **NEVER diagnose or suggest medications yourself.** If the user asks a
-   health question, always route it through `dreamchat --json chat ask`,
-   even if you think you know the answer. The health system has access to
-   the user's specific medical records.
+2. **NEVER add your own medical interpretation** to dreamchat's responses.
+   Present the `data.response` field directly to the user, verbatim. The
+   health system has clinical guardrails and medical context that you do
+   not have. Do not override, supplement, or second-guess its advice.
 
-3. **NEVER store health data in your memory.** Do not write medications,
+3. **NEVER diagnose or suggest medications yourself.** Always route
+   through `chat ask`, even if you think you know the answer.
+
+4. **NEVER store health data in your memory.** Do not write medications,
    diagnoses, conditions, lab results, health metrics, or any medical
-   information to MEMORY.md or daily notes. The health system maintains
-   its own secure memory. Storing health data outside that system violates
-   the user's privacy expectations.
+   information to MEMORY.md or daily notes.
 
-4. **When dreamchat returns an error**, tell the user their health system
-   may be offline and suggest checking the DREAM-Chat web dashboard
-   directly.
-
-5. **For simple metric lookups**, prefer `health status` or `health trends`
-   over `chat ask` -- they are much faster since they don't invoke the AI.
+5. **When dreamchat returns an error**, tell the user their health system
+   may be offline and suggest checking the DREAM-Chat web dashboard.

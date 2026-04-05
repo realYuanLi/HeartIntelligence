@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block main %}
+  <div class="community-page">
+    <div class="community-header">
+      <h1>Community</h1>
+      <p class="subtitle">Connect with others on similar health journeys</p>
+    </div>
+
+    <div class="community-content">
+      <!-- Create community form -->
+      <div class="community-card">
+        <h2>Create a Community</h2>
+        <form id="createCommunityForm">
+          <div class="form-group">
+            <label for="communityName">Name</label>
+            <input type="text" id="communityName" placeholder="e.g. Morning Runners" required maxlength="120" />
+          </div>
+          <div class="form-group">
+            <label for="communityTopic">Topic</label>
+            <select id="communityTopic">
+              <option value="fitness">Fitness</option>
+              <option value="nutrition">Nutrition</option>
+              <option value="mental-health">Mental Health</option>
+              <option value="chronic-care">Chronic Care</option>
+              <option value="weight-management">Weight Management</option>
+              <option value="general">General Wellness</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="communityDesc">Description</label>
+            <textarea id="communityDesc" rows="2" placeholder="What is this community about?"></textarea>
+          </div>
+          <button type="submit" class="community-btn primary">Create</button>
+        </form>
+      </div>
+
+      <!-- Community list -->
+      <div class="community-card">
+        <h2>Communities</h2>
+        <div id="communityList">
+          <div class="loading">Loading communities...</div>
+        </div>
+      </div>
+
+      <!-- Community detail / feed (shown when a community is selected) -->
+      <div id="communityDetail" class="community-card" hidden>
+        <div class="community-detail-header">
+          <h2 id="detailName"></h2>
+          <span class="topic-badge" id="detailTopic"></span>
+          <p id="detailDesc" class="community-desc"></p>
+          <span class="member-count" id="detailMembers"></span>
+        </div>
+        <form id="postForm" class="post-form">
+          <textarea id="postContent" rows="2" placeholder="Share an update, milestone, or question..." maxlength="2000"></textarea>
+          <button type="submit" class="community-btn primary">Post</button>
+        </form>
+        <div id="feedList" class="feed-list"></div>
+      </div>
+    </div>
+  </div>
+{% endblock %}
+
+{% block input %}{% endblock %}
+
+{% block scripts %}
+  <script src="{{ url_for('static', filename='community.js') }}?t={{ cache_bust }}"></script>
+{% endblock %}

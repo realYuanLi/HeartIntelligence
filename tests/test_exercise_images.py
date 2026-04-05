@@ -34,7 +34,6 @@ if not _init_path.exists():
 
 _mock_app = types.ModuleType("app")
 _mock_app.CONFIG = {"chatbot": {"prologue": "Hello!"}}
-_mock_app.USERS = {"test": "test"}
 _mock_app.PATIENT_DATA = {}
 _mock_app.system_prompt = "You are a helpful assistant."
 _mock_app.Chatbot = MagicMock()

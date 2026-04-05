@@ -3,42 +3,369 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>HeartIntelligence</title>
+  <title>Health Pal</title>
+  <style>main,.input-container.fixed{opacity:0}</style>
+  <noscript><style>main,.input-container.fixed{opacity:1}</style></noscript>
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?t={{ cache_bust }}"/>
 </head>
 <body>
 
-  <aside>
-    <div class="logo-container">
-      <div class="institution-logos">
-        <img src="{{ url_for('static', filename='MGH.png') }}" alt="MGH Logo" class="institution-logo">
-        <img src="{{ url_for('static', filename='HMS.png') }}" alt="HMS Logo" class="institution-logo">
-        <img src="{{ url_for('static', filename='CAMCA.png') }}" alt="CAMCA Logo" class="institution-logo">
+  <!-- Primary sidebar: main navigation -->
+  <nav class="primary-sidebar" id="primarySidebar">
+    <div class="ps-top">
+      <div class="ps-brand">Health Pal</div>
+      <div class="ps-nav">
+        <button class="ps-item" data-section="chat" title="Chat">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          <span>Chat</span>
+        </button>
+        <button class="ps-item" data-section="dashboard" title="Dashboard">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+          <span>Dashboard</span>
+        </button>
+        <button class="ps-item" data-section="family" title="Family">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          <span>Family</span>
+        </button>
+        <button class="ps-item" data-section="community" title="Community">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+          <span>Community</span>
+        </button>
+        <button class="ps-item" data-section="tools" title="Tools">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+          <span>Tools</span>
+        </button>
+        <button class="ps-item" data-section="settings" title="Settings">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          <span>Settings</span>
+        </button>
       </div>
-      <div class="logo">HeartIntelligence</div>
     </div>
-    <div class="nav-section">
-      <div class="nav-item" id="newChatBtn">+  New Chat</div>
-      <div class="nav-item" id="dashboardBtn">☰  Dashboard</div>
-      <div class="nav-item" id="settingsBtn">⚙  Settings</div>
-      <div class="nav-item" id="digitalTwinBtn">◑  My Body</div>
-      <div class="nav-item" id="calendarBtn">📅  Calendar</div>
-      <div class="nav-item" id="nutritionBtn">🥗  Nutrition</div>
-      <div class="nav-item" id="pdfFormsBtn">📄  PDF Forms</div>
-      <div class="nav-item" id="memoryBtn">🧠  Memory</div>
+    <div class="ps-bottom">
+      <button class="ps-item ps-user" id="loginBtn" title="{{ username if username else 'User' }}">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        <span>{{ username if username else 'User' }}{% if user_tier %} <span class="tier-badge tier-{{ user_tier }}">{{ user_tier }}</span>{% endif %}</span>
+      </button>
     </div>
-    <div class="recents-title">Recents</div>
-    <div class="recents" id="recentsList"></div>
-    <div class="login-btn" id="loginBtn">
-      {{ username if username else 'User' }}
+  </nav>
+
+  <!-- Secondary sidebar: contextual sub-navigation -->
+  <aside class="secondary-sidebar" id="secondarySidebar">
+    <!-- Chat section -->
+    <div class="ss-panel" data-panel="chat" hidden>
+      <div class="ss-header">
+        <div class="ss-title">Chat</div>
+      </div>
+      <div class="ss-items">
+        <a class="ss-item" id="newChatBtn" href="/new">
+          <span class="ss-icon">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          </span>
+          <span class="ss-item-content">
+            <span class="ss-item-name">New Chat</span>
+            <span class="ss-item-desc">Start a new conversation</span>
+          </span>
+        </a>
+        <a class="ss-item" data-inline="exercise" id="ss-exerciseBtn">
+          <span class="ss-item-content">
+            <span class="ss-item-name">Exercise</span>
+            <span class="ss-item-desc">Workout plans and calendar</span>
+          </span>
+        </a>
+        <a class="ss-item" data-inline="nutrition" id="ss-nutritionBtn">
+          <span class="ss-item-content">
+            <span class="ss-item-name">Nutrition</span>
+            <span class="ss-item-desc">Meal plans and nutrient tracking</span>
+          </span>
+        </a>
+      </div>
+      <div class="ss-divider"></div>
+      <div class="ss-section-label">Recents</div>
+      <div class="recents" id="recentsList"></div>
     </div>
-    <div class="logout-btn" id="logoutBtn">
-      Logout
+
+    <!-- Dashboard section -->
+    <div class="ss-panel" data-panel="dashboard" hidden>
+      <div class="ss-header">
+        <div class="ss-title">Dashboard</div>
+        <div class="ss-subtitle">Your health data at a glance</div>
+      </div>
+      <div class="ss-items">
+        <a class="ss-item" data-href="/dashboard" id="ss-healthMetricsBtn">
+          <span class="ss-icon">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+          </span>
+          <span class="ss-item-content">
+            <span class="ss-item-name">Health Metrics</span>
+            <span class="ss-item-desc">Activity, heart rate, and wearable data</span>
+          </span>
+        </a>
+        <a class="ss-item" data-href="/my-body" id="ss-myBodyBtn">
+          <span class="ss-icon">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10"/><path d="M12 2a15.3 15.3 0 0 0-4 10 15.3 15.3 0 0 0 4 10"/></svg>
+          </span>
+          <span class="ss-item-content">
+            <span class="ss-item-name">My Body</span>
+            <span class="ss-item-desc">3D CT scan viewer and organ analysis</span>
+          </span>
+        </a>
+      </div>
+    </div>
+
+    <!-- Family section -->
+    <div class="ss-panel" data-panel="family" hidden>
+      <div class="ss-header">
+        <div class="ss-title">Family</div>
+        <div class="ss-subtitle">Share health insights with family</div>
+      </div>
+      <div class="ss-items">
+        <a class="ss-item" data-href="/family" id="ss-familyBtn">
+          <span class="ss-icon">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          </span>
+          <span class="ss-item-content">
+            <span class="ss-item-name">Family Circle</span>
+            <span class="ss-item-desc">Invite members and share health summaries</span>
+          </span>
+        </a>
+      </div>
+    </div>
+
+    <!-- Community section -->
+    <div class="ss-panel" data-panel="community" hidden>
+      <div class="ss-header">
+        <div class="ss-title">Community</div>
+        <div class="ss-subtitle">Connect with others</div>
+      </div>
+      <div class="ss-items">
+        <a class="ss-item" data-href="/community" id="ss-communityBtn">
+          <span class="ss-icon">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+          </span>
+          <span class="ss-item-content">
+            <span class="ss-item-name">Communities</span>
+            <span class="ss-item-desc">Join groups, share progress, find support</span>
+          </span>
+        </a>
+      </div>
+    </div>
+
+    <!-- Tools section -->
+    <div class="ss-panel" data-panel="tools" hidden>
+      <div class="ss-header">
+        <div class="ss-title">Tools</div>
+        <div class="ss-subtitle">Productivity utilities</div>
+      </div>
+      <div class="ss-items">
+        <a class="ss-item" data-href="/pdf-forms" id="ss-pdfFormsBtn">
+          <span class="ss-icon">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+          </span>
+          <span class="ss-item-content">
+            <span class="ss-item-name">PDF Forms</span>
+            <span class="ss-item-desc">Auto-fill PDF forms with AI</span>
+          </span>
+        </a>
+      </div>
+    </div>
+
+    <!-- Settings section -->
+    <div class="ss-panel" data-panel="settings" hidden>
+      <div class="ss-header">
+        <div class="ss-title">Settings</div>
+        <div class="ss-subtitle">Configure your experience</div>
+      </div>
+      <div class="ss-items">
+        <a class="ss-item" data-href="/calendar" id="ss-calendarBtn">
+          <span class="ss-icon">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          </span>
+          <span class="ss-item-content">
+            <span class="ss-item-name">Calendar</span>
+            <span class="ss-item-desc">View and manage your workout schedule</span>
+          </span>
+        </a>
+        <a class="ss-item" data-href="/settings/cron-jobs" id="ss-cronJobsBtn">
+          <span class="ss-icon">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          </span>
+          <span class="ss-item-content">
+            <span class="ss-item-name">Cron Jobs</span>
+            <span class="ss-item-desc">Schedule automated tasks and reminders</span>
+          </span>
+        </a>
+        <a class="ss-item" data-href="/settings/skills" id="ss-skillsBtn">
+          <span class="ss-icon">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+          </span>
+          <span class="ss-item-content">
+            <span class="ss-item-name">Skills</span>
+            <span class="ss-item-desc">Enable or disable AI capabilities</span>
+          </span>
+        </a>
+        <a class="ss-item" data-href="/settings/calendars" id="ss-calendarsBtn">
+          <span class="ss-icon">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+          </span>
+          <span class="ss-item-content">
+            <span class="ss-item-name">External Calendars</span>
+            <span class="ss-item-desc">Connect iCal feeds and sync events</span>
+          </span>
+        </a>
+        <a class="ss-item" data-href="/settings/heartbeat" id="ss-heartbeatBtn">
+          <span class="ss-icon">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+          </span>
+          <span class="ss-item-content">
+            <span class="ss-item-name">Heartbeat</span>
+            <span class="ss-item-desc">Proactive health check-ins and alerts</span>
+          </span>
+        </a>
+        <a class="ss-item" data-href="/settings/whatsapp" id="ss-whatsappBtn">
+          <span class="ss-icon">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
+          </span>
+          <span class="ss-item-content">
+            <span class="ss-item-name">WhatsApp</span>
+            <span class="ss-item-desc">Connect and manage WhatsApp messaging</span>
+          </span>
+        </a>
+        <a class="ss-item" data-href="/settings/devices" id="ss-devicesBtn">
+          <span class="ss-icon">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+          </span>
+          <span class="ss-item-content">
+            <span class="ss-item-name">Devices</span>
+            <span class="ss-item-desc">Connect wearables and health apps</span>
+          </span>
+        </a>
+      </div>
+    </div>
+
+    <!-- User panel (shown when clicking user avatar) -->
+    <div class="ss-panel" data-panel="user" hidden>
+      <div class="ss-header">
+        <div class="ss-title">{{ username if username else 'User' }}</div>
+        {% if user_tier %}
+          <span class="tier-badge tier-{{ user_tier }}">{{ user_tier }}</span>
+        {% endif %}
+      </div>
+      <div class="ss-items">
+        <a class="ss-item" id="logoutBtn">
+          <span class="ss-icon">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+          </span>
+          <span class="ss-item-content">
+            <span class="ss-item-name">Logout</span>
+          </span>
+        </a>
+      </div>
     </div>
   </aside>
+
+  <script>
+  // Immediate sidebar setup + page reveal — runs before any external scripts load.
+  // This prevents the flash caused by waiting for CDN/external JS.
+  (function(){
+    var p=location.pathname,s="chat",item=null;
+    if(p==="/dashboard"){s="dashboard";item="ss-healthMetricsBtn"}
+    else if(p==="/my-body"){s="dashboard";item="ss-myBodyBtn"}
+    else if(p==="/family"){s="family";item="ss-familyBtn"}
+    else if(p==="/community"){s="community";item="ss-communityBtn"}
+    else if(p==="/calendar"){s="settings";item="ss-calendarBtn"}
+    else if(p==="/pdf-forms"){s="tools";item="ss-pdfFormsBtn"}
+    else if(p.indexOf("/settings")===0){
+      s="settings";
+      if(p==="/settings/skills")item="ss-skillsBtn";
+      else if(p==="/settings/calendars")item="ss-calendarsBtn";
+      else if(p==="/settings/heartbeat")item="ss-heartbeatBtn";
+      else if(p==="/settings/whatsapp")item="ss-whatsappBtn";
+      else if(p==="/settings/devices")item="ss-devicesBtn";
+      else item="ss-cronJobsBtn";
+    }
+    else if(p.indexOf("/chat/")===0||p==="/"||p==="/new"||p==="/nutrition"){s="chat"}
+    document.querySelectorAll(".ps-item[data-section]").forEach(function(b){b.classList.toggle("active",b.dataset.section===s)});
+    document.querySelectorAll(".ss-panel").forEach(function(el){el.hidden=el.dataset.panel!==s});
+    if(item){var el=document.getElementById(item);if(el)el.classList.add("active")}
+    document.body.classList.add("ready");
+  })();
+  </script>
+
   <main>
     {% block main %}{% endblock %}
   </main>
+
+  <!-- Inline panels for Exercise / Nutrition (shown instead of main) -->
+  <div class="inline-panel" id="exercisePanel" hidden>
+    <div class="inline-panel-body">
+      <h1 class="inline-panel-title">How can I help with exercise?</h1>
+      <div class="inline-suggestions">
+        <button class="inline-suggestion" data-msg="Create a weekly workout plan for me">Create a workout plan</button>
+        <button class="inline-suggestion" data-msg="What exercises can I do for lower back pain?">Exercises for back pain</button>
+        <button class="inline-suggestion" data-msg="Design a 30-minute home workout with no equipment">30-min home workout</button>
+        <button class="inline-suggestion" data-msg="Help me build a stretching routine for flexibility">Stretching routine</button>
+      </div>
+    </div>
+    <div class="input-container fixed">
+      <div class="input-wrapper">
+        <button class="mic-button inline-mic-btn" type="button" title="Voice input">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z" fill="currentColor"/>
+            <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z" fill="currentColor"/>
+          </svg>
+        </button>
+        <input class="inline-file-input" type="file" accept="image/*,application/pdf" multiple hidden>
+        <button class="attach-button inline-attach-btn" type="button" title="Attach file">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M16.5 6v11.5c0 2.21-1.79 4-4 4s-4-1.79-4-4V5a2.5 2.5 0 0 1 5 0v10.5c0 .55-.45 1-1 1s-1-.45-1-1V6h-1.5v9.5a2.5 2.5 0 0 0 5 0V5c0-2.21-1.79-4-4-4S7 2.79 7 5v12.5c0 3.04 2.46 5.5 5.5 5.5s5.5-2.46 5.5-5.5V6H16.5z" fill="currentColor"/>
+          </svg>
+        </button>
+        <textarea class="message-input inline-msg-input" placeholder="Ask about workouts, exercises, routines..." rows="1" maxlength="2000"></textarea>
+        <button class="send-button inline-send-btn" type="button">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" fill="currentColor"/>
+          </svg>
+        </button>
+      </div>
+      <div class="image-preview inline-img-preview" hidden></div>
+    </div>
+  </div>
+
+  <div class="inline-panel" id="nutritionPanel" hidden>
+    <div class="inline-panel-body">
+      <h1 class="inline-panel-title">How can I help with nutrition?</h1>
+      <div class="inline-suggestions">
+        <button class="inline-suggestion" data-msg="Create a healthy meal plan for this week">Weekly meal plan</button>
+        <button class="inline-suggestion" data-msg="How many calories should I eat per day?">Daily calorie needs</button>
+        <button class="inline-suggestion" data-msg="What are good high-protein breakfast options?">High-protein breakfasts</button>
+        <button class="inline-suggestion" data-msg="Analyze the nutritional content of my meal">Analyze my meal</button>
+      </div>
+    </div>
+    <div class="input-container fixed">
+      <div class="input-wrapper">
+        <button class="mic-button inline-mic-btn" type="button" title="Voice input">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z" fill="currentColor"/>
+            <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z" fill="currentColor"/>
+          </svg>
+        </button>
+        <input class="inline-file-input" type="file" accept="image/*,application/pdf" multiple hidden>
+        <button class="attach-button inline-attach-btn" type="button" title="Attach file">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M16.5 6v11.5c0 2.21-1.79 4-4 4s-4-1.79-4-4V5a2.5 2.5 0 0 1 5 0v10.5c0 .55-.45 1-1 1s-1-.45-1-1V6h-1.5v9.5a2.5 2.5 0 0 0 5 0V5c0-2.21-1.79-4-4-4S7 2.79 7 5v12.5c0 3.04 2.46 5.5 5.5 5.5s5.5-2.46 5.5-5.5V6H16.5z" fill="currentColor"/>
+          </svg>
+        </button>
+        <textarea class="message-input inline-msg-input" placeholder="Ask about meal plans, calories, nutrients..." rows="1" maxlength="2000"></textarea>
+        <button class="send-button inline-send-btn" type="button">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" fill="currentColor"/>
+          </svg>
+        </button>
+      </div>
+      <div class="image-preview inline-img-preview" hidden></div>
+    </div>
+  </div>
+
   {% block input %}{% endblock %}
   <!-- Markdown parser -->
   <script src="https://cdn.jsdelivr.net/npm/marked@12.0.0/marked.min.js"></script>

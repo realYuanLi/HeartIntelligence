@@ -60,7 +60,7 @@ class Agent:
         "type": "function",
         "function": {
             "name": "manage_workout_plan",
-            "description": "Create, modify, or view the user's workout plan, or mark a workout as complete.",
+            "description": "Create, modify, or view the user's workout plan, or mark a workout as complete. Plans cover ONE week only. When creating a plan, present a brief overview first and ask if the user wants to adjust before showing full details. Do not auto-repeat plans across multiple weeks.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -127,6 +127,9 @@ class Agent:
             "name": "manage_nutrition",
             "description": (
                 "Create, modify, or view the user's meal plan, grocery list, nutrition profile, or nutrient gaps. "
+                "Meal plans cover ONE week only. When creating a plan, present a brief overview first and ask "
+                "if the user wants to adjust before showing full day-by-day details. Do not auto-repeat plans "
+                "across multiple weeks. "
                 "IMPORTANT: When the user reveals personal nutrition-relevant facts in conversation "
                 "(weight, height, age, sex, allergies, dietary preferences like vegetarian/vegan/keto, "
                 "health goals like weight loss, activity level, budget), call this tool with action "

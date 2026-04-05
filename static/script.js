@@ -319,6 +319,257 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   /* ==================================================== */
+  /*  Dual sidebar navigation                              */
+  /* ==================================================== */
+
+  // Map URL paths to primary section + optional secondary item highlight
+  const routeMap = {
+    "/"               : { section: "chat" },
+    "/new"            : { section: "chat" },
+    "/dashboard"      : { section: "dashboard", item: "ss-healthMetricsBtn" },
+    "/my-body"        : { section: "dashboard", item: "ss-myBodyBtn" },
+    "/calendar"       : { section: "settings", item: "ss-calendarBtn" },
+    "/nutrition"      : { section: "chat" },
+    "/pdf-forms"      : { section: "tools",     item: "ss-pdfFormsBtn" },
+    "/settings"            : { section: "settings", item: "ss-cronJobsBtn" },
+    "/settings/cron-jobs"  : { section: "settings", item: "ss-cronJobsBtn" },
+    "/settings/skills"     : { section: "settings", item: "ss-skillsBtn" },
+    "/settings/calendars"  : { section: "settings", item: "ss-calendarsBtn" },
+    "/settings/heartbeat"  : { section: "settings", item: "ss-heartbeatBtn" },
+    "/settings/whatsapp"   : { section: "settings", item: "ss-whatsappBtn" },
+  };
+
+  // Detect chat pages: /chat/<session_id>
+  function getRouteInfo() {
+    const path = location.pathname;
+    if (routeMap[path]) return routeMap[path];
+    if (path.startsWith("/chat/")) return { section: "chat" };
+    // fallback
+    return { section: "chat" };
+  }
+
+  function activatePrimarySection(sectionName) {
+    // Update primary sidebar active state
+    document.querySelectorAll(".ps-item[data-section]").forEach(btn => {
+      btn.classList.toggle("active", btn.dataset.section === sectionName);
+    });
+    // Show the matching secondary panel, hide others
+    document.querySelectorAll(".ss-panel").forEach(panel => {
+      panel.hidden = panel.dataset.panel !== sectionName;
+    });
+  }
+
+  function highlightSecondaryItem(itemId) {
+    // Clear all secondary active states
+    document.querySelectorAll(".ss-item").forEach(el => el.classList.remove("active"));
+    if (itemId) {
+      const el = document.getElementById(itemId);
+      if (el) el.classList.add("active");
+    }
+  }
+
+  // Primary sidebar click handlers
+  document.querySelectorAll(".ps-item[data-section]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      activatePrimarySection(btn.dataset.section);
+    });
+  });
+
+  // User button toggles user panel
+  if (loginBtn) {
+    loginBtn.addEventListener("click", () => {
+      const userPanel = document.querySelector('.ss-panel[data-panel="user"]');
+      if (userPanel && !userPanel.hidden) {
+        // Go back to current section
+        const info = getRouteInfo();
+        activatePrimarySection(info.section);
+      } else {
+        // Show user panel
+        document.querySelectorAll(".ss-panel").forEach(p => p.hidden = true);
+        if (userPanel) userPanel.hidden = false;
+        document.querySelectorAll(".ps-item[data-section]").forEach(b => b.classList.remove("active"));
+      }
+    });
+  }
+
+  // Secondary sidebar item click handlers (navigate on click)
+  document.querySelectorAll(".ss-item[data-href]").forEach(item => {
+    item.addEventListener("click", (e) => {
+      e.preventDefault();
+      window.location.href = item.dataset.href;
+    });
+  });
+
+  /* ---- Inline panels (Exercise / Nutrition) ---- */
+
+  const inlinePanelMap = {
+    exercise:  document.getElementById("exercisePanel"),
+    nutrition: document.getElementById("nutritionPanel"),
+  };
+
+  function showInlinePanel(name) {
+    // Hide main content and any fixed input (but not ones inside inline panels)
+    const main = document.querySelector("main");
+    if (main) main.hidden = true;
+    document.querySelectorAll(".input-container.fixed").forEach(el => {
+      if (!el.closest(".inline-panel")) el.hidden = true;
+    });
+    // Hide all inline panels, show the target
+    Object.values(inlinePanelMap).forEach(p => { if (p) p.hidden = true; });
+    if (inlinePanelMap[name]) inlinePanelMap[name].hidden = false;
+    // Highlight sidebar item
+    highlightSecondaryItem("ss-" + name + "Btn");
+  }
+
+  function hideInlinePanels() {
+    Object.values(inlinePanelMap).forEach(p => { if (p) p.hidden = true; });
+    const main = document.querySelector("main");
+    if (main) main.hidden = false;
+    document.querySelectorAll(".input-container.fixed").forEach(el => el.hidden = false);
+  }
+
+  // Click handlers for inline sidebar items
+  document.querySelectorAll(".ss-item[data-inline]").forEach(item => {
+    item.addEventListener("click", (e) => {
+      e.preventDefault();
+      showInlinePanel(item.dataset.inline);
+    });
+  });
+
+  // Hide inline panels when navigating away (New Chat, other sidebar items)
+  document.getElementById("newChatBtn")?.addEventListener("click", () => hideInlinePanels());
+  document.querySelectorAll(".ss-item[data-href]").forEach(item => {
+    item.addEventListener("click", () => hideInlinePanels());
+  });
+  document.querySelectorAll(".recent-item").forEach(item => {
+    item.addEventListener("click", () => hideInlinePanels());
+  });
+
+  // Inline panel input, image upload, and suggestion handlers
+  let inlinePendingImages = [];
+
+  function renderInlinePreview(panel) {
+    const preview = panel.querySelector(".inline-img-preview");
+    if (!preview) return;
+    if (inlinePendingImages.length === 0) {
+      preview.hidden = true;
+      preview.innerHTML = "";
+      return;
+    }
+    preview.hidden = false;
+    preview.innerHTML = "";
+    inlinePendingImages.forEach((file, idx) => {
+      const item = document.createElement("div");
+      item.className = "image-preview-item";
+      if (file.dataUri.startsWith("data:application/pdf")) {
+        const icon = document.createElement("div");
+        icon.className = "file-icon";
+        icon.innerHTML = '<svg viewBox="0 0 24 24" fill="none"><path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm-1 2l5 5h-5V4zM6 20V4h5v7h7v9H6z" fill="currentColor"/></svg>';
+        const nameEl = document.createElement("span");
+        nameEl.className = "file-name";
+        nameEl.textContent = file.name || "PDF";
+        icon.appendChild(nameEl);
+        item.appendChild(icon);
+      } else {
+        const img = document.createElement("img");
+        img.src = file.dataUri;
+        item.appendChild(img);
+      }
+      const btn = document.createElement("button");
+      btn.className = "remove-image";
+      btn.textContent = "\u00d7";
+      btn.addEventListener("click", () => {
+        inlinePendingImages.splice(idx, 1);
+        renderInlinePreview(panel);
+      });
+      item.appendChild(btn);
+      preview.appendChild(item);
+    });
+  }
+
+  // Wire up inline attach buttons → file pickers
+  document.querySelectorAll(".inline-attach-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const fileInput = btn.closest(".input-wrapper").querySelector(".inline-file-input");
+      if (fileInput) fileInput.click();
+    });
+  });
+
+  document.querySelectorAll(".inline-file-input").forEach(input => {
+    input.addEventListener("change", () => {
+      const panel = input.closest(".inline-panel");
+      Array.from(input.files).forEach(file => {
+        if (!file.type.startsWith("image/") && file.type !== "application/pdf") return;
+        const reader = new FileReader();
+        reader.onload = () => {
+          inlinePendingImages.push({ dataUri: reader.result, name: file.name });
+          renderInlinePreview(panel);
+        };
+        reader.readAsDataURL(file);
+      });
+      input.value = "";
+    });
+  });
+
+  function sendInlineMessage(message) {
+    if (!message.trim() && inlinePendingImages.length === 0) return;
+    const images = inlinePendingImages.map(f => f.dataUri);
+    inlinePendingImages = [];
+    if (images.length > 0) {
+      sessionStorage.setItem("welcomeImages", JSON.stringify(images));
+    }
+    fetch("/api/new_session", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({})
+    })
+    .then(r => r.json())
+    .then(d => {
+      if (!d || !d.success) throw new Error(d && d.message || "Failed");
+      window.location.href = "/chat/" + d.session_id + "?message=" + encodeURIComponent(message);
+    })
+    .catch(err => alert("Failed to start chat: " + err.message));
+  }
+
+  document.querySelectorAll(".inline-send-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const input = btn.closest(".input-wrapper").querySelector(".inline-msg-input");
+      if (input) sendInlineMessage(input.value);
+    });
+  });
+
+  document.querySelectorAll(".inline-msg-input").forEach(input => {
+    input.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        sendInlineMessage(input.value);
+      }
+    });
+  });
+
+  document.querySelectorAll(".inline-suggestion").forEach(btn => {
+    btn.addEventListener("click", () => sendInlineMessage(btn.dataset.msg));
+  });
+
+  // Set initial active states based on current URL, then reveal page
+  const routeInfo = getRouteInfo();
+  activatePrimarySection(routeInfo.section);
+  highlightSecondaryItem(routeInfo.item);
+  // Reveal page now that correct sidebar panel is shown (prevents flash)
+  document.body.classList.add("ready");
+
+  // Highlight active recent chat
+  function highlightActiveChat() {
+    const path = location.pathname;
+    if (path.startsWith("/chat/")) {
+      const sessionId = path.split("/chat/")[1];
+      document.querySelectorAll(".recent-item").forEach(el => {
+        el.classList.toggle("active", el.dataset.sessionId === sessionId);
+      });
+    }
+  }
+
+  /* ==================================================== */
   /*  Recent conversations sidebar                         */
   /* ==================================================== */
   function loadHistory() {
@@ -327,12 +578,14 @@ document.addEventListener("DOMContentLoaded", () => {
       .then(list => {
         recentsList.innerHTML = "";
         list.forEach(addRecentItem);
+        highlightActiveChat();
       });
   }
 
   function addRecentItem(item) {
     const wrapper = document.createElement("div");
     wrapper.className = "recent-item";
+    wrapper.dataset.sessionId = item.session_id;
 
     const contentDiv = document.createElement("div");
     contentDiv.className = "recent-content";
@@ -420,55 +673,6 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
   loadHistory();
-
-  newChatBtn.addEventListener("click", () => {
-    // Navigate to new chat page
-    window.location.href = "/new";
-  });
-
-  const dashboardBtn = document.getElementById("dashboardBtn");
-  if (dashboardBtn) {
-    dashboardBtn.addEventListener("click", () => {
-      // Navigate to dashboard page
-      window.location.href = "/dashboard";
-    });
-  }
-
-  const settingsBtn = document.getElementById("settingsBtn");
-  if (settingsBtn) {
-    settingsBtn.addEventListener("click", () => {
-      window.location.href = "/settings";
-    });
-  }
-
-  const digitalTwinBtn = document.getElementById("digitalTwinBtn");
-  if (digitalTwinBtn) {
-    digitalTwinBtn.addEventListener("click", () => {
-      window.location.href = "/my-body";
-    });
-  }
-
-  const calendarBtn = document.getElementById("calendarBtn");
-  if (calendarBtn) {
-    calendarBtn.addEventListener("click", () => {
-      window.location.href = "/calendar";
-    });
-  }
-
-  const nutritionBtn = document.getElementById("nutritionBtn");
-  if (nutritionBtn) {
-    nutritionBtn.addEventListener("click", () => {
-      window.location.href = "/nutrition";
-    });
-  }
-
-  const pdfFormsBtn = document.getElementById("pdfFormsBtn");
-  if (pdfFormsBtn) {
-    pdfFormsBtn.addEventListener("click", () => {
-      // Navigate to PDF forms page
-      window.location.href = "/pdf-forms";
-    });
-  }
 
 
   /* ==================================================== */
@@ -1672,11 +1876,18 @@ document.addEventListener("DOMContentLoaded", () => {
         img.alt = item.name;
         img.loading = "lazy";
         img.onerror = () => { el.remove(); };
-        img.addEventListener("click", () => showExerciseLightbox(item.url, item.name));
+        el.addEventListener("click", () => showExerciseLightbox(item));
         const nameSpan = document.createElement("span");
+        nameSpan.className = "inline-exercise-name";
         nameSpan.textContent = item.name;
         el.appendChild(img);
         el.appendChild(nameSpan);
+        if (item.muscles) {
+          const meta = document.createElement("span");
+          meta.className = "inline-exercise-meta";
+          meta.textContent = item.muscles;
+          el.appendChild(meta);
+        }
         scroll.appendChild(el);
       });
 
@@ -1812,7 +2023,7 @@ document.addEventListener("DOMContentLoaded", () => {
   /* ==================================================== */
   /*  Exercise image lightbox (centered overlay)           */
   /* ==================================================== */
-  function showExerciseLightbox(url, name) {
+  function showExerciseLightbox(item) {
     // Remove existing lightbox if any
     const existing = document.getElementById("exerciseLightbox");
     if (existing) existing.remove();
@@ -1830,16 +2041,36 @@ document.addEventListener("DOMContentLoaded", () => {
     closeBtn.addEventListener("click", () => overlay.remove());
 
     const img = document.createElement("img");
-    img.src = url;
-    img.alt = name;
+    img.src = item.url;
+    img.alt = item.name;
 
-    const caption = document.createElement("div");
-    caption.className = "exercise-lightbox-caption";
-    caption.textContent = name;
+    const info = document.createElement("div");
+    info.className = "exercise-lightbox-info";
+
+    const title = document.createElement("div");
+    title.className = "exercise-lightbox-title";
+    title.textContent = item.name;
+    info.appendChild(title);
+
+    const tags = [];
+    if (item.muscles) tags.push(item.muscles);
+    if (item.equipment && item.equipment !== "N/A") tags.push(item.equipment);
+    if (item.level && item.level !== "N/A") tags.push(item.level);
+    if (tags.length) {
+      const tagRow = document.createElement("div");
+      tagRow.className = "exercise-lightbox-tags";
+      tags.forEach(t => {
+        const tag = document.createElement("span");
+        tag.className = "exercise-lightbox-tag";
+        tag.textContent = t;
+        tagRow.appendChild(tag);
+      });
+      info.appendChild(tagRow);
+    }
 
     content.appendChild(closeBtn);
     content.appendChild(img);
-    content.appendChild(caption);
+    content.appendChild(info);
     overlay.appendChild(content);
     document.body.appendChild(overlay);
 

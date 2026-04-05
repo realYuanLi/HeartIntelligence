@@ -33,7 +33,7 @@ class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     email = db.Column(db.String(254), unique=True, nullable=False, index=True)
     password_hash = db.Column(db.String(256), nullable=False)
-    tier = db.Column(db.String(32), nullable=False, default="free")
+    tier = db.Column(db.String(32), nullable=False, default="base")
     created_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
 
     def set_password(self, password: str) -> None:
@@ -129,6 +129,11 @@ def register():
             flash("Invalid form submission. Please try again.", "error")
             return render_template("register.html", csrf_token=_generate_csrf_token())
 
+        invite_code = request.form.get("invite_code", "").strip()
+        if invite_code != "INVITE":
+            flash("Invalid invite code.", "error")
+            return render_template("register.html", csrf_token=_generate_csrf_token())
+
         email = _normalize_email(request.form.get("email", ""))
         password = request.form.get("password", "")
         confirm_password = request.form.get("confirm_password", "")
@@ -153,7 +158,11 @@ def register():
             flash("An account with this email already exists.", "error")
             return render_template("register.html", csrf_token=_generate_csrf_token())
 
-        user = User(email=email)
+        tier = request.form.get("tier", "base")
+        if tier not in ("base", "premium"):
+            tier = "base"
+
+        user = User(email=email, tier=tier)
         user.set_password(password)
         db.session.add(user)
         db.session.commit()

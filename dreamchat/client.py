@@ -6,6 +6,10 @@ Config and session state live under ~/.dreamchat/.
 
 from __future__ import annotations
 
+
+class DreamChatError(Exception):
+    """Raised on auth failures or unrecoverable client errors."""
+
 import base64
 import json
 import os
@@ -68,7 +72,8 @@ class DreamChatClient:
     """Thin HTTP client for the DREAM-Chat Flask API."""
 
     def __init__(self, base_url: str | None = None,
-                 email: str | None = None, password: str | None = None):
+                 email: str | None = None, password: str | None = None,
+                 source: str | None = None):
         cfg = load_config()
         self.base_url = (base_url or cfg.get("base_url")
                          or os.environ.get("DREAMCHAT_URL")
@@ -77,6 +82,7 @@ class DreamChatClient:
                       or os.environ.get("DREAMCHAT_EMAIL", ""))
         self.password = (password or cfg.get("password")
                          or os.environ.get("DREAMCHAT_PASSWORD", ""))
+        self.source = source
 
         # Cookie-based auth via stdlib (no requests dependency)
         _ensure_dir()
@@ -127,7 +133,7 @@ class DreamChatClient:
     def _login(self) -> None:
         """Authenticate and persist cookies."""
         if not self.email or not self.password:
-            raise SystemExit(
+            raise DreamChatError(
                 "No credentials configured. Run: dreamchat configure"
             )
         url = self._url("/api/login")
@@ -138,14 +144,14 @@ class DreamChatClient:
             resp = self._opener.open(req, timeout=30)
             result = json.loads(resp.read().decode())
             if not result.get("success"):
-                raise SystemExit(f"Login failed: {result.get('message', 'unknown')}")
+                raise DreamChatError(f"Login failed: {result.get('message', 'unknown')}")
             self._jar.save(ignore_discard=True, ignore_expires=True)
             os.chmod(COOKIE_FILE, 0o600)
         except HTTPError as exc:
             raw = exc.read().decode()
-            raise SystemExit(f"Login failed (HTTP {exc.code}): {raw[:200]}")
+            raise DreamChatError(f"Login failed (HTTP {exc.code}): {raw[:200]}")
         except URLError as exc:
-            raise SystemExit(f"Cannot reach server: {exc.reason}")
+            raise DreamChatError(f"Cannot reach server: {exc.reason}")
 
     # -- public API --------------------------------------------------------
 
@@ -178,9 +184,10 @@ class DreamChatClient:
         """GET /api/heartbeat/status."""
         return self._get("/api/heartbeat/status")
 
-    def new_session(self) -> dict:
+    def new_session(self, source: str | None = None) -> dict:
         """POST /api/new_session."""
-        return self._post("/api/new_session")
+        body = {"source": source} if source else {}
+        return self._post("/api/new_session", body or None)
 
     def get_session(self, session_id: str) -> dict:
         """GET /api/session/<session_id>."""
@@ -206,7 +213,7 @@ class DreamChatClient:
             if resp.get("success"):
                 return sid
         # Create new session
-        resp = self.new_session()
+        resp = self.new_session(source=self.source)
         if not resp.get("success"):
             raise SystemExit(f"Cannot create session: {resp}")
         sid = resp["session_id"]
@@ -216,18 +223,26 @@ class DreamChatClient:
 
     def reset_session(self) -> str:
         """Force-create a new chat session."""
-        resp = self.new_session()
+        resp = self.new_session(source=self.source)
         if not resp.get("success"):
             raise SystemExit(f"Cannot create session: {resp}")
         sid = resp["session_id"]
         save_session_state({"session_id": sid})
         return sid
 
-    def chat(self, message: str, image_path: str | None = None) -> dict:
-        """Send a message in the persistent session, return response."""
+    def chat(self, message: str, image_path: str | None = None,
+             image_data_uri: str | None = None) -> dict:
+        """Send a message in the persistent session, return response.
+
+        Images can be provided as either:
+        - image_path: local file path (read and base64-encoded)
+        - image_data_uri: pre-encoded data URI (data:image/...;base64,...)
+        """
         sid = self.ensure_session()
         images = None
-        if image_path:
+        if image_data_uri:
+            images = [image_data_uri]
+        elif image_path:
             path = Path(image_path).expanduser()
             if not path.exists():
                 return {"success": False, "message": f"Image not found: {path}"}

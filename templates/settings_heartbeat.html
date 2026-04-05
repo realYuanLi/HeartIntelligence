@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+{% block main %}
+  <div class="cron-jobs-page">
+    <div class="cron-jobs-header">
+      <h1>Settings</h1>
+      <p class="subtitle">Manage cron jobs, skills, and calendars</p>
+      <div class="settings-subnav">
+        <a href="/settings/cron-jobs" class="settings-subnav-link {% if settings_section == 'cron-jobs' %}active{% endif %}">Cron Jobs</a>
+        <a href="/settings/skills" class="settings-subnav-link {% if settings_section == 'skills' %}active{% endif %}">Skills</a>
+
+        <a href="/settings/calendars" class="settings-subnav-link {% if settings_section == 'calendars' %}active{% endif %}">Calendars</a>
+        <a href="/settings/heartbeat" class="settings-subnav-link {% if settings_section == 'heartbeat' %}active{% endif %}">Heartbeat</a>
+        <a href="/settings/whatsapp" class="settings-subnav-link {% if settings_section == 'whatsapp' %}active{% endif %}">WhatsApp</a>
+        <a href="/settings/devices" class="settings-subnav-link {% if settings_section == 'devices' %}active{% endif %}">Devices</a>
+      </div>
+    </div>
+
+    <div class="cron-jobs-content">
+      <!-- Status card -->
+      <div class="cron-job-form-card">
+        <h2>Heartbeat Status</h2>
+        <div id="heartbeatStatus" class="heartbeat-status-grid">
+          <div class="loading">Loading status...</div>
+        </div>
+      </div>
+
+      <!-- Config card -->
+      <div class="cron-job-form-card">
+        <h2>Heartbeat Configuration</h2>
+        <form id="heartbeatForm">
+          <div class="form-group">
+            <label class="toggle-label">
+              <input type="checkbox" id="hbEnabled" />
+              <span>Enable Heartbeat</span>
+            </label>
+            <div class="form-hint">When enabled, the system proactively checks in during active hours.</div>
+          </div>
+
+          <div class="form-group">
+            <label for="hbInterval">Check Interval (minutes)</label>
+            <select id="hbInterval">
+              <option value="15">Every 15 minutes</option>
+              <option value="30">Every 30 minutes</option>
+              <option value="60">Every hour</option>
+              <option value="120">Every 2 hours</option>
+            </select>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="hbActiveStart">Active Hours Start</label>
+              <input type="time" id="hbActiveStart" value="08:00" />
+            </div>
+            <div class="form-group">
+              <label for="hbActiveEnd">Active Hours End</label>
+              <input type="time" id="hbActiveEnd" value="22:00" />
+            </div>
+          </div>
+          <div class="form-hint">Heartbeat only runs during these hours. Default: 8 AM - 10 PM.</div>
+
+          <div class="form-group">
+            <label for="hbDelivery">Delivery Method</label>
+            <select id="hbDelivery">
+              <option value="whatsapp">WhatsApp</option>
+              <option value="web">Web Chat</option>
+            </select>
+          </div>
+
+          <!-- WhatsApp target -->
+          <div id="hbWhatsappTarget" class="form-group">
+            <label for="hbTargetContact">WhatsApp Contact</label>
+            <select id="hbTargetContact">
+              <option value="">Select a contact...</option>
+            </select>
+            <div class="manual-input-toggle">
+              or <a href="#" id="hbToggleManual">enter phone number manually</a>
+            </div>
+            <input type="text" id="hbManualPhone" class="hidden" placeholder="+1234567890" />
+          </div>
+
+          <!-- Web target -->
+          <div id="hbWebTarget" class="form-group hidden">
+            <label for="hbSessionId">Chat Session ID</label>
+            <input type="text" id="hbSessionId" placeholder="Session ID for web delivery" />
+            <div class="form-hint">Messages will appear in this chat session.</div>
+          </div>
+
+          <div class="form-group">
+            <label for="hbMaxMessages">Max Messages Per Day</label>
+            <input type="number" id="hbMaxMessages" min="1" max="50" value="8" />
+            <div class="form-hint">Safety limit to prevent over-messaging.</div>
+          </div>
+
+          <div class="form-group">
+            <label for="hbUsername">Username</label>
+            <input type="text" id="hbUsername" placeholder="Username for context loading" value="{{ username }}" />
+            <div class="form-hint">Used to load your memory & calendar for context.</div>
+          </div>
+
+          <button type="submit" class="create-job-btn">Save Configuration</button>
+        </form>
+      </div>
+    </div>
+  </div>
+{% endblock %}
+
+{% block input %}{% endblock %}
+
+{% block scripts %}
+  <script src="{{ url_for('static', filename='settings_heartbeat.js') }}?v=1"></script>
+{% endblock %}

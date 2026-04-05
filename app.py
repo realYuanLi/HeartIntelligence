@@ -205,14 +205,19 @@ app.secret_key = os.environ.get("SECRET_KEY") or secrets.token_hex(32)
 app.config["SEND_FILE_MAX_AGE_DEFAULT"] = 0  # disable static file caching
 
 # Initialize authentication (SQLite + Flask-Login)
-from functions.auth import init_auth, auth_bp
+from functions.auth import init_auth, auth_bp, db
 init_auth(app)
 app.register_blueprint(auth_bp)
 print("✓ Authentication system initialized")
 
 @app.context_processor
 def inject_cache_bust():
-    return {"cache_bust": int(time.time())}
+    tier = None
+    if current_user.is_authenticated:
+        tier = getattr(current_user, "tier", "base")
+        if tier not in ("base", "premium"):
+            tier = "base"
+    return {"cache_bust": int(time.time()), "user_tier": tier}
 
 @app.after_request
 def add_no_cache_headers(response):
@@ -447,6 +452,9 @@ def api_new_session():
         return jsonify(success=False, message="Login required"), 401
 
     user = _username()
+    data = request.get_json(force=True) if request.data else {}
+    source = data.get("source") if data else None
+
     session_id = uuid.uuid4().hex[:12]
     payload = {
         "session_id": session_id,
@@ -458,6 +466,8 @@ def api_new_session():
             {"role": "assistant", "content": CONFIG["chatbot"]["prologue"]}
         ]
     }
+    if source:
+        payload["source"] = source
     _save_session(user, payload)
     return jsonify(success=True, session_id=session_id)
 
@@ -1302,6 +1312,21 @@ def _hsv_to_rgb(h, s, v):
 # --------------------------------------------------------------------------------
 # PDF Form Filling endpoints - now in functions/auto_form_fill.py
 # --------------------------------------------------------------------------------
+
+# --------------------------------------------------------------------------------
+# Family & Community
+# --------------------------------------------------------------------------------
+from functions.family import family_bp
+app.register_blueprint(family_bp)
+print("✓ Family blueprint registered")
+
+from functions.community import community_bp
+app.register_blueprint(community_bp)
+print("✓ Community blueprint registered")
+
+# Create tables for new models (safe to call multiple times)
+with app.app_context():
+    db.create_all()
 
 # --------------------------------------------------------------------------------
 # WhatsApp session management (总控)

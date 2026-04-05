@@ -452,12 +452,10 @@ def settings_page():
 @login_required
 def settings_cron_jobs_page():
     """Render settings cron jobs page."""
-    from functions.auth import _generate_csrf_token
     return render_template(
         "cron_jobs.html",
         username=_username(),
         settings_section="cron-jobs",
-        csrf_token=_generate_csrf_token(),
     )
 
 

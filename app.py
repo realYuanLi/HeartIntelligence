@@ -217,7 +217,8 @@ def inject_cache_bust():
         tier = getattr(current_user, "tier", "base")
         if tier not in ("base", "premium"):
             tier = "base"
-    return {"cache_bust": int(time.time()), "user_tier": tier}
+    from functions.auth import _generate_csrf_token
+    return {"cache_bust": int(time.time()), "user_tier": tier, "csrf_token": _generate_csrf_token()}
 
 @app.after_request
 def add_no_cache_headers(response):

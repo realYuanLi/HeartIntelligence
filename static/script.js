@@ -318,6 +318,15 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
+  // Delete account toggle
+  const deleteBtn = document.getElementById("deleteAccountBtn");
+  const deleteModal = document.getElementById("deleteAccountModal");
+  const cancelDelete = document.getElementById("cancelDeleteBtn");
+  if (deleteBtn && deleteModal) {
+    deleteBtn.addEventListener("click", () => { deleteModal.style.display = "block"; });
+    if (cancelDelete) cancelDelete.addEventListener("click", () => { deleteModal.style.display = "none"; });
+  }
+
   /* ==================================================== */
   /*  Dual sidebar navigation                              */
   /* ==================================================== */

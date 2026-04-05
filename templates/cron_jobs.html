@@ -91,29 +91,6 @@
           <div class="loading">Loading jobs...</div>
         </div>
       </div>
-
-      <!-- Danger Zone -->
-      <div class="cron-job-form-card" style="border:1px solid rgba(220,53,69,0.3);">
-        <h2 style="color:#dc3545;">Danger Zone</h2>
-        <p style="color:#a0a0b0;margin-bottom:16px;font-size:0.95em;">
-          Permanently delete your account and all associated data. This action cannot be undone.
-        </p>
-        <button type="button" id="deleteAccountBtn" style="background:#dc3545;color:#fff;border:none;padding:10px 20px;border-radius:0.4rem;cursor:pointer;font-size:0.95em;">
-          Delete Account
-        </button>
-        <div id="deleteConfirm" style="display:none;margin-top:16px;">
-          <p style="color:#dc3545;font-weight:600;margin-bottom:12px;">Are you sure? This will permanently delete your account.</p>
-          <form method="POST" action="{{ url_for('auth.delete_account') }}">
-            <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
-            <button type="submit" style="background:#dc3545;color:#fff;border:none;padding:10px 20px;border-radius:0.4rem;cursor:pointer;font-size:0.95em;margin-right:8px;">
-              Yes, delete my account
-            </button>
-            <button type="button" id="cancelDeleteBtn" style="background:transparent;color:#a0a0b0;border:1px solid #a0a0b0;padding:10px 20px;border-radius:0.4rem;cursor:pointer;font-size:0.95em;">
-              Cancel
-            </button>
-          </form>
-        </div>
-      </div>
     </div>
   </div>
 {% endblock %}
@@ -122,14 +99,4 @@
 
 {% block scripts %}
   <script src="{{ url_for('static', filename='cron_jobs.js') }}?v=3"></script>
-  <script>
-    document.getElementById('deleteAccountBtn').addEventListener('click', function() {
-      this.style.display = 'none';
-      document.getElementById('deleteConfirm').style.display = 'block';
-    });
-    document.getElementById('cancelDeleteBtn').addEventListener('click', function() {
-      document.getElementById('deleteConfirm').style.display = 'none';
-      document.getElementById('deleteAccountBtn').style.display = '';
-    });
-  </script>
 {% endblock %}

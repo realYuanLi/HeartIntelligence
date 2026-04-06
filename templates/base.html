@@ -287,7 +287,8 @@
     var p=location.pathname,s="chat",item=null;
     if(p==="/dashboard"){s="dashboard";item="ss-healthMetricsBtn"}
     else if(p==="/my-body"){s="dashboard";item="ss-myBodyBtn"}
-    else if(p==="/family"||p==="/community"){s="chat"}
+    else if(p==="/family"){s="family"}
+    else if(p==="/community"){s="community"}
     else if(p==="/calendar"){s="settings";item="ss-calendarBtn"}
     else if(p==="/pdf-forms"){s="tools";item="ss-pdfFormsBtn"}
     else if(p.indexOf("/settings")===0){
@@ -303,6 +304,7 @@
     document.querySelectorAll(".ps-item[data-section]").forEach(function(b){b.classList.toggle("active",b.dataset.section===s)});
     document.querySelectorAll(".ss-panel").forEach(function(el){el.hidden=el.dataset.panel!==s});
     if(item){var el=document.getElementById(item);if(el)el.classList.add("active")}
+    if(s==="family"||s==="community"){document.getElementById("secondarySidebar").style.display="none"}
     document.body.classList.add("ready");
   })();
   </script>

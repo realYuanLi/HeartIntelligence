@@ -696,3 +696,382 @@ class TestUserModel:
             with pytest.raises(Exception):  # IntegrityError
                 db.session.commit()
             db.session.rollback()
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 9. Google OAuth callback tests
+# ═══════════════════════════════════════════════════════════════════════════
+
+from unittest.mock import patch, MagicMock
+import functions.auth as auth_module
+
+
+class TestGoogleOAuthCallback:
+    """Tests for the login_google_callback route.
+
+    The callback flow in the code:
+        token = oauth.google.authorize_access_token()
+        userinfo = token.get("userinfo")
+        if userinfo is None:
+            userinfo = oauth.google.userinfo()
+    Then it looks up user by google_id, then by email.
+    """
+
+    def _mock_google_oauth(self, userinfo_dict):
+        """Return a pair of patches for authorize_access_token and userinfo.
+
+        authorize_access_token returns a dict with 'userinfo' key so that
+        token.get("userinfo") returns the provided dict directly.
+        """
+        token = {"userinfo": userinfo_dict}
+        mock_authorize = patch.object(
+            auth_module.oauth.google if hasattr(auth_module.oauth, 'google') else auth_module.oauth,
+            "authorize_access_token",
+            return_value=token,
+        )
+        return mock_authorize
+
+    # --- Test: Unregistered user is rejected ---
+
+    def test_unregistered_user_rejected(self, app, client):
+        """Google OAuth user with no existing account is redirected to /register."""
+        userinfo = {
+            "sub": "google-id-new-user-999",
+            "email": "newuser@gmail.com",
+            "email_verified": True,
+        }
+
+        # Enable Google OAuth for the test
+        original_flag = auth_module.google_oauth_enabled
+        auth_module.google_oauth_enabled = True
+
+        # Register a mock google client on the oauth instance
+        mock_google = MagicMock()
+        mock_google.authorize_access_token.return_value = {"userinfo": userinfo}
+        original_google = getattr(auth_module.oauth, 'google', None)
+        auth_module.oauth.google = mock_google
+
+        try:
+            with app.app_context():
+                # Verify no user exists before the call
+                assert User.query.filter_by(email="newuser@gmail.com").first() is None
+                assert User.query.filter_by(google_id="google-id-new-user-999").first() is None
+
+                rv = client.get("/login/google/callback")
+
+                # Should redirect to /register
+                assert rv.status_code == 302
+                assert "/register" in rv.headers["Location"]
+
+                # Verify no new user was created
+                assert User.query.filter_by(email="newuser@gmail.com").first() is None
+                assert User.query.filter_by(google_id="google-id-new-user-999").first() is None
+
+            # Verify flash message
+            with client.session_transaction() as sess:
+                flashed = sess.get("_flashes", [])
+                messages = [msg for _, msg in flashed]
+                assert any("No account found" in m for m in messages), \
+                    f"Expected 'No account found' flash, got: {messages}"
+        finally:
+            auth_module.google_oauth_enabled = original_flag
+            if original_google is not None:
+                auth_module.oauth.google = original_google
+
+    # --- Test: Existing user by google_id logs in ---
+
+    def test_existing_user_by_google_id_logs_in(self, app, client):
+        """User with matching google_id is logged in and redirected to /."""
+        google_id = "google-id-existing-12345"
+        email = "existing@gmail.com"
+
+        # Pre-seed user with google_id
+        with app.app_context():
+            user = User(email=email, google_id=google_id)
+            user.set_password("irrelevant")
+            db.session.add(user)
+            db.session.commit()
+
+        userinfo = {
+            "sub": google_id,
+            "email": email,
+            "email_verified": True,
+        }
+
+        original_flag = auth_module.google_oauth_enabled
+        auth_module.google_oauth_enabled = True
+
+        mock_google = MagicMock()
+        mock_google.authorize_access_token.return_value = {"userinfo": userinfo}
+        original_google = getattr(auth_module.oauth, 'google', None)
+        auth_module.oauth.google = mock_google
+
+        try:
+            rv = client.get("/login/google/callback")
+
+            # Should redirect to index
+            assert rv.status_code == 302
+            location = rv.headers["Location"]
+            assert location.endswith("/") or location == "/"
+
+            # Verify user is logged in by accessing protected route
+            rv2 = client.get("/")
+            assert rv2.status_code == 200
+            assert email.encode() in rv2.data
+
+            # Verify session username is set
+            with client.session_transaction() as sess:
+                assert sess.get("username") == email
+        finally:
+            auth_module.google_oauth_enabled = original_flag
+            if original_google is not None:
+                auth_module.oauth.google = original_google
+
+    # --- Test: Existing user by email gets google_id linked ---
+
+    def test_existing_user_by_email_gets_linked(self, app, client):
+        """User with matching email but no google_id gets linked."""
+        email = "emailonly@gmail.com"
+        google_id = "google-id-link-67890"
+
+        # Pre-seed user with email but NO google_id
+        with app.app_context():
+            user = User(email=email)
+            user.set_password("somepassword")
+            db.session.add(user)
+            db.session.commit()
+            user_id = user.id
+
+        userinfo = {
+            "sub": google_id,
+            "email": email,
+            "email_verified": True,
+        }
+
+        original_flag = auth_module.google_oauth_enabled
+        auth_module.google_oauth_enabled = True
+
+        mock_google = MagicMock()
+        mock_google.authorize_access_token.return_value = {"userinfo": userinfo}
+        original_google = getattr(auth_module.oauth, 'google', None)
+        auth_module.oauth.google = mock_google
+
+        try:
+            rv = client.get("/login/google/callback")
+
+            # Should redirect to index
+            assert rv.status_code == 302
+            location = rv.headers["Location"]
+            assert location.endswith("/") or location == "/"
+
+            # Verify google_id is now linked to the user
+            with app.app_context():
+                updated_user = db.session.get(User, user_id)
+                assert updated_user is not None
+                assert updated_user.google_id == google_id
+                assert updated_user.email == email
+
+            # Verify user is logged in
+            rv2 = client.get("/")
+            assert rv2.status_code == 200
+            assert email.encode() in rv2.data
+        finally:
+            auth_module.google_oauth_enabled = original_flag
+            if original_google is not None:
+                auth_module.oauth.google = original_google
+
+    # --- Test: Unverified email is rejected ---
+
+    def test_unverified_email_rejected(self, app, client):
+        """Google user with unverified email is rejected."""
+        userinfo = {
+            "sub": "google-id-unverified-111",
+            "email": "unverified@gmail.com",
+            "email_verified": False,
+        }
+
+        original_flag = auth_module.google_oauth_enabled
+        auth_module.google_oauth_enabled = True
+
+        mock_google = MagicMock()
+        mock_google.authorize_access_token.return_value = {"userinfo": userinfo}
+        original_google = getattr(auth_module.oauth, 'google', None)
+        auth_module.oauth.google = mock_google
+
+        try:
+            rv = client.get("/login/google/callback")
+
+            assert rv.status_code == 302
+            assert "/login" in rv.headers["Location"]
+
+            with client.session_transaction() as sess:
+                flashed = sess.get("_flashes", [])
+                messages = [msg for _, msg in flashed]
+                assert any("verify" in m.lower() for m in messages), \
+                    f"Expected 'verify' flash, got: {messages}"
+        finally:
+            auth_module.google_oauth_enabled = original_flag
+            if original_google is not None:
+                auth_module.oauth.google = original_google
+
+    # --- Test: OAuth disabled returns error ---
+
+    def test_oauth_disabled_redirects_to_login(self, app, client):
+        """When Google OAuth is not enabled, the callback redirects to login."""
+        original_flag = auth_module.google_oauth_enabled
+        auth_module.google_oauth_enabled = False
+
+        try:
+            rv = client.get("/login/google/callback")
+            assert rv.status_code == 302
+            assert "/login" in rv.headers["Location"]
+        finally:
+            auth_module.google_oauth_enabled = original_flag
+
+    # --- Test: OAuth exception is handled gracefully ---
+
+    def test_oauth_exception_handled(self, app, client):
+        """When authorize_access_token raises, user is redirected to login."""
+        original_flag = auth_module.google_oauth_enabled
+        auth_module.google_oauth_enabled = True
+
+        mock_google = MagicMock()
+        mock_google.authorize_access_token.side_effect = Exception("OAuth failed")
+        original_google = getattr(auth_module.oauth, 'google', None)
+        auth_module.oauth.google = mock_google
+
+        try:
+            rv = client.get("/login/google/callback")
+            assert rv.status_code == 302
+            assert "/login" in rv.headers["Location"]
+
+            with client.session_transaction() as sess:
+                flashed = sess.get("_flashes", [])
+                messages = [msg for _, msg in flashed]
+                assert any("failed" in m.lower() for m in messages), \
+                    f"Expected 'failed' flash, got: {messages}"
+        finally:
+            auth_module.google_oauth_enabled = original_flag
+            if original_google is not None:
+                auth_module.oauth.google = original_google
+
+    # --- Test: Missing google_id or email in userinfo ---
+
+    def test_missing_google_id_rejected(self, app, client):
+        """When userinfo lacks 'sub' (google_id), redirect to login."""
+        userinfo = {
+            "sub": "",
+            "email": "test@gmail.com",
+            "email_verified": True,
+        }
+
+        original_flag = auth_module.google_oauth_enabled
+        auth_module.google_oauth_enabled = True
+
+        mock_google = MagicMock()
+        mock_google.authorize_access_token.return_value = {"userinfo": userinfo}
+        original_google = getattr(auth_module.oauth, 'google', None)
+        auth_module.oauth.google = mock_google
+
+        try:
+            rv = client.get("/login/google/callback")
+            assert rv.status_code == 302
+            assert "/login" in rv.headers["Location"]
+
+            with client.session_transaction() as sess:
+                flashed = sess.get("_flashes", [])
+                messages = [msg for _, msg in flashed]
+                assert any("Could not retrieve" in m for m in messages), \
+                    f"Expected 'Could not retrieve' flash, got: {messages}"
+        finally:
+            auth_module.google_oauth_enabled = original_flag
+            if original_google is not None:
+                auth_module.oauth.google = original_google
+
+    # --- Test: Email normalization during OAuth ---
+
+    def test_email_normalization_in_oauth(self, app, client):
+        """Google email with uppercase/whitespace is normalized before lookup."""
+        email_raw = "  ExistingUser@Gmail.COM  "
+        email_normalized = "existinguser@gmail.com"
+        google_id = "google-id-normalize-42"
+
+        # Pre-seed with normalized email
+        with app.app_context():
+            user = User(email=email_normalized)
+            user.set_password("pass")
+            db.session.add(user)
+            db.session.commit()
+
+        userinfo = {
+            "sub": google_id,
+            "email": email_raw,
+            "email_verified": True,
+        }
+
+        original_flag = auth_module.google_oauth_enabled
+        auth_module.google_oauth_enabled = True
+
+        mock_google = MagicMock()
+        mock_google.authorize_access_token.return_value = {"userinfo": userinfo}
+        original_google = getattr(auth_module.oauth, 'google', None)
+        auth_module.oauth.google = mock_google
+
+        try:
+            rv = client.get("/login/google/callback")
+
+            # Should find the user by normalized email and link google_id
+            assert rv.status_code == 302
+            location = rv.headers["Location"]
+            assert location.endswith("/") or location == "/"
+
+            with app.app_context():
+                linked_user = User.query.filter_by(email=email_normalized).first()
+                assert linked_user is not None
+                assert linked_user.google_id == google_id
+        finally:
+            auth_module.google_oauth_enabled = original_flag
+            if original_google is not None:
+                auth_module.oauth.google = original_google
+
+    # --- Test: userinfo fallback to oauth.google.userinfo() ---
+
+    def test_userinfo_fallback(self, app, client):
+        """When token has no 'userinfo' key, falls back to oauth.google.userinfo()."""
+        google_id = "google-id-fallback-77"
+        email = "fallback@gmail.com"
+
+        with app.app_context():
+            user = User(email=email, google_id=google_id)
+            user.set_password("pass")
+            db.session.add(user)
+            db.session.commit()
+
+        userinfo = {
+            "sub": google_id,
+            "email": email,
+            "email_verified": True,
+        }
+
+        original_flag = auth_module.google_oauth_enabled
+        auth_module.google_oauth_enabled = True
+
+        mock_google = MagicMock()
+        # Token WITHOUT userinfo key -- should trigger fallback
+        mock_google.authorize_access_token.return_value = {}
+        mock_google.userinfo.return_value = userinfo
+        original_google = getattr(auth_module.oauth, 'google', None)
+        auth_module.oauth.google = mock_google
+
+        try:
+            rv = client.get("/login/google/callback")
+            assert rv.status_code == 302
+            location = rv.headers["Location"]
+            assert location.endswith("/") or location == "/"
+
+            # Verify that userinfo() was called as fallback
+            mock_google.userinfo.assert_called_once()
+        finally:
+            auth_module.google_oauth_enabled = original_flag
+            if original_google is not None:
+                auth_module.oauth.google = original_google

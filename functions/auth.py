@@ -273,12 +273,10 @@ def login_google_callback():
             db.session.commit()
             logger.info("Linked Google account to existing user: %s", email)
         else:
-            # Create a new account (no password, OAuth-only).
-            # Invite code is intentionally skipped — Google's verified email is sufficient.
-            user = User(email=email, google_id=google_id, tier="base")
-            db.session.add(user)
-            db.session.commit()
-            logger.info("New user registered via Google: %s", email)
+            # No existing account — require registration first
+            flash("No account found for that email. Please register first.", "error")
+            logger.info("Google OAuth login rejected (no account): %s", email)
+            return redirect(url_for("auth.register"))
 
     login_user(user)
     session["username"] = user.email
@@ -379,7 +377,7 @@ def init_auth(app) -> None:
         # Migrate: add google_id column if missing (existing databases)
         from sqlalchemy import inspect as sa_inspect
         inspector = sa_inspect(db.engine)
-        columns = [col["name"] for col in inspector.get_columns("users")]
+        columns = {col["name"]: col for col in inspector.get_columns("users")}
         if "google_id" not in columns:
             db.session.execute(db.text(
                 "ALTER TABLE users ADD COLUMN google_id VARCHAR(128)"
@@ -389,6 +387,39 @@ def init_auth(app) -> None:
             ))
             db.session.commit()
             logger.info("Migrated users table: added google_id column")
+            # Refresh column info after migration
+            columns = {col["name"]: col for col in inspector.get_columns("users")}
+
+        # Migrate: make password_hash nullable (required for Google OAuth users)
+        pw_col = columns.get("password_hash", {})
+        if pw_col.get("nullable") is False:
+            db.session.execute(db.text(
+                "CREATE TABLE users_tmp AS SELECT * FROM users"
+            ))
+            db.session.execute(db.text("DROP TABLE users"))
+            db.session.execute(db.text("""
+                CREATE TABLE users (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    email VARCHAR(254) NOT NULL,
+                    password_hash VARCHAR(256),
+                    google_id VARCHAR(128),
+                    tier VARCHAR(32) NOT NULL DEFAULT 'base',
+                    created_at DATETIME NOT NULL
+                )
+            """))
+            db.session.execute(db.text(
+                "INSERT INTO users (id, email, password_hash, google_id, tier, created_at) "
+                "SELECT id, email, password_hash, google_id, tier, created_at FROM users_tmp"
+            ))
+            db.session.execute(db.text("DROP TABLE users_tmp"))
+            db.session.execute(db.text(
+                "CREATE UNIQUE INDEX ix_users_email ON users (email)"
+            ))
+            db.session.execute(db.text(
+                "CREATE UNIQUE INDEX ix_users_google_id ON users (google_id)"
+            ))
+            db.session.commit()
+            logger.info("Migrated users table: password_hash is now nullable")
 
         # Seed a demo user when the database is brand new
         if User.query.count() == 0:

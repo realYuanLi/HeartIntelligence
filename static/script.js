@@ -346,6 +346,8 @@ document.addEventListener("DOMContentLoaded", () => {
     "/settings/calendars"  : { section: "settings", item: "ss-calendarsBtn" },
     "/settings/heartbeat"  : { section: "settings", item: "ss-heartbeatBtn" },
     "/settings/whatsapp"   : { section: "settings", item: "ss-whatsappBtn" },
+    "/family"              : { section: "family" },
+    "/community"           : { section: "community" },
   };
 
   // Detect chat pages: /chat/<session_id>

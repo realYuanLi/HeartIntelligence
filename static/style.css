@@ -7066,6 +7066,7 @@ body.sources-sidebar-open .input-container.fixed {
 .community-page {
   padding: 2rem 2.5rem;
   max-width: 720px;
+  margin: 0 auto;
   overflow-y: auto;
   height: 100%;
 }

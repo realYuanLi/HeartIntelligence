@@ -1075,3 +1075,417 @@ class TestGoogleOAuthCallback:
             auth_module.google_oauth_enabled = original_flag
             if original_google is not None:
                 auth_module.oauth.google = original_google
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 10. Google OAuth registration tests
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class TestGoogleOAuthRegister:
+    """Tests for the register_google and register_google_callback routes.
+
+    register_google: validates invite code, stores it in session, redirects to Google.
+    register_google_callback: pops invite code from session, exchanges OAuth token,
+    creates a new User with google_id (no password).
+    """
+
+    def _enable_oauth(self, app):
+        """Enable Google OAuth and install a MagicMock google client.
+
+        Returns (original_flag, original_google, mock_google) for teardown.
+        """
+        original_flag = auth_module.google_oauth_enabled
+        auth_module.google_oauth_enabled = True
+        mock_google = MagicMock()
+        original_google = getattr(auth_module.oauth, 'google', None)
+        auth_module.oauth.google = mock_google
+        return original_flag, original_google, mock_google
+
+    def _restore_oauth(self, original_flag, original_google):
+        """Restore OAuth state after a test."""
+        auth_module.google_oauth_enabled = original_flag
+        if original_google is not None:
+            auth_module.oauth.google = original_google
+
+    # --- /register/google route tests ---
+
+    def test_register_google_invalid_invite_code(self, app, client):
+        """GET /register/google?invite_code=WRONG redirects to /register with flash."""
+        original_flag, original_google, mock_google = self._enable_oauth(app)
+        try:
+            rv = client.get("/register/google?invite_code=WRONG")
+            assert rv.status_code == 302
+            assert "/register" in rv.headers["Location"]
+
+            with client.session_transaction() as sess:
+                flashed = sess.get("_flashes", [])
+                messages = [msg for _, msg in flashed]
+                assert any("Invalid invite code" in m for m in messages), \
+                    f"Expected 'Invalid invite code' flash, got: {messages}"
+        finally:
+            self._restore_oauth(original_flag, original_google)
+
+    def test_register_google_missing_invite_code(self, app, client):
+        """GET /register/google (no invite_code param) redirects to /register."""
+        original_flag, original_google, mock_google = self._enable_oauth(app)
+        try:
+            rv = client.get("/register/google")
+            assert rv.status_code == 302
+            assert "/register" in rv.headers["Location"]
+
+            with client.session_transaction() as sess:
+                flashed = sess.get("_flashes", [])
+                messages = [msg for _, msg in flashed]
+                assert any("Invalid invite code" in m for m in messages), \
+                    f"Expected 'Invalid invite code' flash, got: {messages}"
+        finally:
+            self._restore_oauth(original_flag, original_google)
+
+    def test_register_google_valid_code_stores_session(self, app, client):
+        """GET /register/google?invite_code=INVITE stores session vars and calls authorize_redirect."""
+        original_flag, original_google, mock_google = self._enable_oauth(app)
+        # authorize_redirect should return a redirect response
+        from flask import redirect as flask_redirect
+        mock_google.authorize_redirect.return_value = flask_redirect("/fake-google-oauth")
+        try:
+            rv = client.get("/register/google?invite_code=INVITE")
+
+            # authorize_redirect was called
+            mock_google.authorize_redirect.assert_called_once()
+
+            # Session should have the invite code and tier
+            with client.session_transaction() as sess:
+                assert sess.get("register_invite_code") == "INVITE"
+                assert sess.get("register_tier") == "base"
+        finally:
+            self._restore_oauth(original_flag, original_google)
+
+    def test_register_google_with_tier(self, app, client):
+        """GET /register/google?invite_code=INVITE&tier=premium sets tier to premium in session."""
+        original_flag, original_google, mock_google = self._enable_oauth(app)
+        from flask import redirect as flask_redirect
+        mock_google.authorize_redirect.return_value = flask_redirect("/fake-google-oauth")
+        try:
+            rv = client.get("/register/google?invite_code=INVITE&tier=premium")
+
+            with client.session_transaction() as sess:
+                assert sess.get("register_tier") == "premium"
+        finally:
+            self._restore_oauth(original_flag, original_google)
+
+    def test_register_google_invalid_tier_defaults(self, app, client):
+        """GET /register/google?invite_code=INVITE&tier=admin defaults tier to base."""
+        original_flag, original_google, mock_google = self._enable_oauth(app)
+        from flask import redirect as flask_redirect
+        mock_google.authorize_redirect.return_value = flask_redirect("/fake-google-oauth")
+        try:
+            rv = client.get("/register/google?invite_code=INVITE&tier=admin")
+
+            with client.session_transaction() as sess:
+                assert sess.get("register_tier") == "base"
+        finally:
+            self._restore_oauth(original_flag, original_google)
+
+    def test_register_google_oauth_disabled(self, app, client):
+        """Both /register/google and /register/google/callback redirect when OAuth is disabled."""
+        original_flag = auth_module.google_oauth_enabled
+        auth_module.google_oauth_enabled = False
+        try:
+            # Test the initial route
+            rv = client.get("/register/google?invite_code=INVITE")
+            assert rv.status_code == 302
+            assert "/register" in rv.headers["Location"]
+
+            with client.session_transaction() as sess:
+                flashed = sess.get("_flashes", [])
+                messages = [msg for _, msg in flashed]
+                assert any("not configured" in m for m in messages), \
+                    f"Expected 'not configured' flash, got: {messages}"
+
+            # Clear flashes for next check
+            with client.session_transaction() as sess:
+                sess.pop("_flashes", None)
+
+            # Test the callback route
+            rv = client.get("/register/google/callback")
+            assert rv.status_code == 302
+            assert "/register" in rv.headers["Location"]
+
+            with client.session_transaction() as sess:
+                flashed = sess.get("_flashes", [])
+                messages = [msg for _, msg in flashed]
+                assert any("not configured" in m for m in messages), \
+                    f"Expected 'not configured' flash, got: {messages}"
+        finally:
+            auth_module.google_oauth_enabled = original_flag
+
+    # --- /register/google/callback route tests ---
+
+    def test_register_callback_creates_user(self, app, client):
+        """Callback with valid session invite code creates user, logs in, redirects to /."""
+        original_flag, original_google, mock_google = self._enable_oauth(app)
+        userinfo = {
+            "sub": "google-reg-new-123",
+            "email": "newreg@gmail.com",
+            "email_verified": True,
+        }
+        mock_google.authorize_access_token.return_value = {"userinfo": userinfo}
+
+        try:
+            # Set session variables as the register_google route would
+            with client.session_transaction() as sess:
+                sess["register_invite_code"] = "INVITE"
+                sess["register_tier"] = "base"
+
+            rv = client.get("/register/google/callback")
+
+            # Should redirect to index
+            assert rv.status_code == 302
+            location = rv.headers["Location"]
+            assert location.endswith("/") or location == "/"
+
+            # Verify user was created
+            with app.app_context():
+                user = User.query.filter_by(email="newreg@gmail.com").first()
+                assert user is not None
+                assert user.google_id == "google-reg-new-123"
+                assert user.tier == "base"
+                assert user.password_hash is None  # No password for OAuth users
+
+            # Verify user is logged in
+            rv2 = client.get("/")
+            assert rv2.status_code == 200
+            assert b"newreg@gmail.com" in rv2.data
+
+            # Verify session username is set
+            with client.session_transaction() as sess:
+                assert sess.get("username") == "newreg@gmail.com"
+        finally:
+            self._restore_oauth(original_flag, original_google)
+
+    def test_register_callback_missing_session_invite(self, app, client):
+        """Callback without session invite code redirects to /register with flash."""
+        original_flag, original_google, mock_google = self._enable_oauth(app)
+        mock_google.authorize_access_token.return_value = {"userinfo": {
+            "sub": "google-id-noinvite",
+            "email": "noinvite@gmail.com",
+            "email_verified": True,
+        }}
+
+        try:
+            # Do NOT set session invite code
+            rv = client.get("/register/google/callback")
+
+            assert rv.status_code == 302
+            assert "/register" in rv.headers["Location"]
+
+            with client.session_transaction() as sess:
+                flashed = sess.get("_flashes", [])
+                messages = [msg for _, msg in flashed]
+                assert any("invite code" in m.lower() for m in messages), \
+                    f"Expected invite code flash, got: {messages}"
+        finally:
+            self._restore_oauth(original_flag, original_google)
+
+    def test_register_callback_invalid_session_invite(self, app, client):
+        """Callback with wrong invite code in session redirects to /register."""
+        original_flag, original_google, mock_google = self._enable_oauth(app)
+
+        try:
+            with client.session_transaction() as sess:
+                sess["register_invite_code"] = "WRONG_CODE"
+                sess["register_tier"] = "base"
+
+            rv = client.get("/register/google/callback")
+
+            assert rv.status_code == 302
+            assert "/register" in rv.headers["Location"]
+
+            with client.session_transaction() as sess:
+                flashed = sess.get("_flashes", [])
+                messages = [msg for _, msg in flashed]
+                assert any("invite code" in m.lower() for m in messages), \
+                    f"Expected invite code flash, got: {messages}"
+        finally:
+            self._restore_oauth(original_flag, original_google)
+
+    def test_register_callback_duplicate_email(self, app, client):
+        """Callback with email that already exists redirects to /login."""
+        original_flag, original_google, mock_google = self._enable_oauth(app)
+        email = "existing@gmail.com"
+
+        # Pre-seed a user with the same email
+        with app.app_context():
+            user = User(email=email)
+            user.set_password("pass123")
+            db.session.add(user)
+            db.session.commit()
+
+        userinfo = {
+            "sub": "google-id-dupemail-999",
+            "email": email,
+            "email_verified": True,
+        }
+        mock_google.authorize_access_token.return_value = {"userinfo": userinfo}
+
+        try:
+            with client.session_transaction() as sess:
+                sess["register_invite_code"] = "INVITE"
+                sess["register_tier"] = "base"
+
+            rv = client.get("/register/google/callback")
+
+            assert rv.status_code == 302
+            assert "/login" in rv.headers["Location"]
+
+            with client.session_transaction() as sess:
+                flashed = sess.get("_flashes", [])
+                messages = [msg for _, msg in flashed]
+                assert any("already exists" in m for m in messages), \
+                    f"Expected 'already exists' flash, got: {messages}"
+        finally:
+            self._restore_oauth(original_flag, original_google)
+
+    def test_register_callback_duplicate_google_id(self, app, client):
+        """Callback with google_id that already exists redirects to /login."""
+        original_flag, original_google, mock_google = self._enable_oauth(app)
+        google_id = "google-id-dup-456"
+
+        # Pre-seed a user with the same google_id
+        with app.app_context():
+            user = User(email="other@gmail.com", google_id=google_id)
+            db.session.add(user)
+            db.session.commit()
+
+        userinfo = {
+            "sub": google_id,
+            "email": "differentemail@gmail.com",
+            "email_verified": True,
+        }
+        mock_google.authorize_access_token.return_value = {"userinfo": userinfo}
+
+        try:
+            with client.session_transaction() as sess:
+                sess["register_invite_code"] = "INVITE"
+                sess["register_tier"] = "base"
+
+            rv = client.get("/register/google/callback")
+
+            assert rv.status_code == 302
+            assert "/login" in rv.headers["Location"]
+
+            with client.session_transaction() as sess:
+                flashed = sess.get("_flashes", [])
+                messages = [msg for _, msg in flashed]
+                assert any("already exists" in m for m in messages), \
+                    f"Expected 'already exists' flash, got: {messages}"
+        finally:
+            self._restore_oauth(original_flag, original_google)
+
+    def test_register_callback_unverified_email(self, app, client):
+        """Callback with unverified Google email redirects to /register."""
+        original_flag, original_google, mock_google = self._enable_oauth(app)
+        userinfo = {
+            "sub": "google-id-unverified-reg",
+            "email": "unverified-reg@gmail.com",
+            "email_verified": False,
+        }
+        mock_google.authorize_access_token.return_value = {"userinfo": userinfo}
+
+        try:
+            with client.session_transaction() as sess:
+                sess["register_invite_code"] = "INVITE"
+                sess["register_tier"] = "base"
+
+            rv = client.get("/register/google/callback")
+
+            assert rv.status_code == 302
+            assert "/register" in rv.headers["Location"]
+
+            with client.session_transaction() as sess:
+                flashed = sess.get("_flashes", [])
+                messages = [msg for _, msg in flashed]
+                assert any("verify" in m.lower() for m in messages), \
+                    f"Expected 'verify' flash, got: {messages}"
+        finally:
+            self._restore_oauth(original_flag, original_google)
+
+    def test_register_callback_tier_preserved(self, app, client):
+        """User is created with the tier from session (test premium)."""
+        original_flag, original_google, mock_google = self._enable_oauth(app)
+        userinfo = {
+            "sub": "google-id-premium-reg",
+            "email": "premium-reg@gmail.com",
+            "email_verified": True,
+        }
+        mock_google.authorize_access_token.return_value = {"userinfo": userinfo}
+
+        try:
+            with client.session_transaction() as sess:
+                sess["register_invite_code"] = "INVITE"
+                sess["register_tier"] = "premium"
+
+            rv = client.get("/register/google/callback")
+
+            assert rv.status_code == 302
+            location = rv.headers["Location"]
+            assert location.endswith("/") or location == "/"
+
+            with app.app_context():
+                user = User.query.filter_by(email="premium-reg@gmail.com").first()
+                assert user is not None
+                assert user.tier == "premium"
+        finally:
+            self._restore_oauth(original_flag, original_google)
+
+    def test_register_callback_oauth_exception(self, app, client):
+        """When authorize_access_token raises, redirect to /register with flash."""
+        original_flag, original_google, mock_google = self._enable_oauth(app)
+        mock_google.authorize_access_token.side_effect = Exception("OAuth failed")
+
+        try:
+            with client.session_transaction() as sess:
+                sess["register_invite_code"] = "INVITE"
+                sess["register_tier"] = "base"
+
+            rv = client.get("/register/google/callback")
+
+            assert rv.status_code == 302
+            assert "/register" in rv.headers["Location"]
+
+            with client.session_transaction() as sess:
+                flashed = sess.get("_flashes", [])
+                messages = [msg for _, msg in flashed]
+                assert any("failed" in m.lower() for m in messages), \
+                    f"Expected 'failed' flash, got: {messages}"
+        finally:
+            self._restore_oauth(original_flag, original_google)
+
+    def test_login_callback_updated_message(self, app, client):
+        """Login callback rejection message now says 'invite code'."""
+        original_flag, original_google, mock_google = self._enable_oauth(app)
+        userinfo = {
+            "sub": "google-id-msg-check",
+            "email": "msgcheck@gmail.com",
+            "email_verified": True,
+        }
+        mock_google.authorize_access_token.return_value = {"userinfo": userinfo}
+
+        try:
+            with app.app_context():
+                # Ensure no user exists with this email/google_id
+                assert User.query.filter_by(email="msgcheck@gmail.com").first() is None
+
+            rv = client.get("/login/google/callback")
+
+            assert rv.status_code == 302
+            assert "/register" in rv.headers["Location"]
+
+            with client.session_transaction() as sess:
+                flashed = sess.get("_flashes", [])
+                messages = [msg for _, msg in flashed]
+                assert any("invite code" in m.lower() for m in messages), \
+                    f"Expected 'invite code' in flash message, got: {messages}"
+        finally:
+            self._restore_oauth(original_flag, original_google)

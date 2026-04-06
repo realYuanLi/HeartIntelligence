@@ -274,13 +274,88 @@ def login_google_callback():
             logger.info("Linked Google account to existing user: %s", email)
         else:
             # No existing account — require registration first
-            flash("No account found for that email. Please register first.", "error")
+            flash("No account found for that email. Please register with an invite code first.", "error")
             logger.info("Google OAuth login rejected (no account): %s", email)
             return redirect(url_for("auth.register"))
 
     login_user(user)
     session["username"] = user.email
     logger.info("User logged in via Google: %s", user.email)
+    return redirect(url_for("index"))
+
+
+@auth_bp.route("/register/google")
+def register_google():
+    """Validate invite code and redirect to Google OAuth for registration."""
+    if not google_oauth_enabled:
+        flash("Google sign-up is not configured.", "error")
+        return redirect(url_for("auth.register"))
+    invite_code = request.args.get("invite_code", "").strip()
+    if invite_code != "INVITE":
+        flash("Invalid invite code.", "error")
+        return redirect(url_for("auth.register"))
+    tier = request.args.get("tier", "base")
+    if tier not in ("base", "premium"):
+        tier = "base"
+    session["register_invite_code"] = invite_code
+    session["register_tier"] = tier
+    redirect_uri = url_for("auth.register_google_callback", _external=True)
+    return oauth.google.authorize_redirect(redirect_uri)
+
+
+@auth_bp.route("/register/google/callback")
+def register_google_callback():
+    """Handle Google OAuth callback for registration."""
+    if not google_oauth_enabled:
+        flash("Google sign-up is not configured.", "error")
+        return redirect(url_for("auth.register"))
+
+    invite_code = session.pop("register_invite_code", None)
+    tier = session.pop("register_tier", "base")
+
+    if not invite_code or invite_code != "INVITE":
+        flash("Invalid or missing invite code. Please try again.", "error")
+        return redirect(url_for("auth.register"))
+
+    if tier not in ("base", "premium"):
+        tier = "base"
+
+    try:
+        token = oauth.google.authorize_access_token()
+        userinfo = token.get("userinfo")
+        if userinfo is None:
+            userinfo = oauth.google.userinfo()
+    except Exception:
+        logger.exception("Google OAuth registration callback failed")
+        flash("Google sign-up failed. Please try again.", "error")
+        return redirect(url_for("auth.register"))
+
+    google_id = userinfo.get("sub")
+    email = _normalize_email(userinfo.get("email", ""))
+
+    if not google_id or not email:
+        flash("Could not retrieve your Google account information.", "error")
+        return redirect(url_for("auth.register"))
+
+    if not userinfo.get("email_verified"):
+        flash("Please verify your Google email address first.", "error")
+        return redirect(url_for("auth.register"))
+
+    if User.query.filter_by(google_id=google_id).first():
+        flash("An account with this Google account already exists. Please sign in instead.", "error")
+        return redirect(url_for("auth.login"))
+
+    if User.query.filter_by(email=email).first():
+        flash("An account with this email already exists. Please sign in instead.", "error")
+        return redirect(url_for("auth.login"))
+
+    user = User(email=email, google_id=google_id, tier=tier)
+    db.session.add(user)
+    db.session.commit()
+    logger.info("New user registered via Google: %s", email)
+
+    login_user(user)
+    session["username"] = user.email
     return redirect(url_for("index"))
 
 

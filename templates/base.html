@@ -54,7 +54,12 @@
     <!-- Chat section -->
     <div class="ss-panel" data-panel="chat" hidden>
       <div class="ss-header">
-        <div class="ss-title">Chat</div>
+        <div class="ss-header-text">
+          <div class="ss-title">Chat</div>
+        </div>
+        <button class="ss-collapse-btn" title="Collapse sidebar" aria-label="Collapse sidebar">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>
       </div>
       <div class="ss-items">
         <a class="ss-item" id="newChatBtn" href="/new">
@@ -87,8 +92,13 @@
     <!-- Dashboard section -->
     <div class="ss-panel" data-panel="dashboard" hidden>
       <div class="ss-header">
-        <div class="ss-title">Dashboard</div>
-        <div class="ss-subtitle">Your health data at a glance</div>
+        <div class="ss-header-text">
+          <div class="ss-title">Dashboard</div>
+          <div class="ss-subtitle">Your health data at a glance</div>
+        </div>
+        <button class="ss-collapse-btn" title="Collapse sidebar" aria-label="Collapse sidebar">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>
       </div>
       <div class="ss-items">
         <a class="ss-item" data-href="/dashboard" id="ss-healthMetricsBtn">
@@ -115,8 +125,10 @@
     <!-- Family section -->
     <div class="ss-panel" data-panel="family" hidden>
       <div class="ss-header">
-        <div class="ss-title">Family</div>
-        <div class="ss-subtitle">Share health insights with family</div>
+        <div class="ss-header-text">
+          <div class="ss-title">Family</div>
+          <div class="ss-subtitle">Share health insights with family</div>
+        </div>
       </div>
       <div class="ss-items">
         <a class="ss-item" data-href="/family" id="ss-familyBtn">
@@ -134,8 +146,10 @@
     <!-- Community section -->
     <div class="ss-panel" data-panel="community" hidden>
       <div class="ss-header">
-        <div class="ss-title">Community</div>
-        <div class="ss-subtitle">Connect with others</div>
+        <div class="ss-header-text">
+          <div class="ss-title">Community</div>
+          <div class="ss-subtitle">Connect with others</div>
+        </div>
       </div>
       <div class="ss-items">
         <a class="ss-item" data-href="/community" id="ss-communityBtn">
@@ -153,8 +167,13 @@
     <!-- Tools section -->
     <div class="ss-panel" data-panel="tools" hidden>
       <div class="ss-header">
-        <div class="ss-title">Tools</div>
-        <div class="ss-subtitle">Productivity utilities</div>
+        <div class="ss-header-text">
+          <div class="ss-title">Tools</div>
+          <div class="ss-subtitle">Productivity utilities</div>
+        </div>
+        <button class="ss-collapse-btn" title="Collapse sidebar" aria-label="Collapse sidebar">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>
       </div>
       <div class="ss-items">
         <a class="ss-item" data-href="/pdf-forms" id="ss-pdfFormsBtn">
@@ -172,8 +191,13 @@
     <!-- Settings section -->
     <div class="ss-panel" data-panel="settings" hidden>
       <div class="ss-header">
-        <div class="ss-title">Settings</div>
-        <div class="ss-subtitle">Configure your experience</div>
+        <div class="ss-header-text">
+          <div class="ss-title">Settings</div>
+          <div class="ss-subtitle">Configure your experience</div>
+        </div>
+        <button class="ss-collapse-btn" title="Collapse sidebar" aria-label="Collapse sidebar">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>
       </div>
       <div class="ss-items">
         <a class="ss-item" data-href="/calendar" id="ss-calendarBtn">
@@ -245,10 +269,12 @@
     <!-- User panel (shown when clicking user avatar) -->
     <div class="ss-panel" data-panel="user" hidden>
       <div class="ss-header">
-        <div class="ss-title">{{ username if username else 'User' }}</div>
-        {% if user_tier %}
-          <span class="tier-badge tier-{{ user_tier }}">{{ user_tier }}</span>
-        {% endif %}
+        <div class="ss-header-text">
+          <div class="ss-title">{{ username if username else 'User' }}</div>
+          {% if user_tier %}
+            <span class="tier-badge tier-{{ user_tier }}">{{ user_tier }}</span>
+          {% endif %}
+        </div>
       </div>
       <div class="ss-items">
         <a class="ss-item" id="logoutBtn">

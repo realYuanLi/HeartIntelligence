@@ -390,6 +390,7 @@ document.addEventListener("DOMContentLoaded", () => {
         sidebar.classList.toggle("ss-collapsed");
       } else {
         sidebar.classList.remove("ss-collapsed");
+        sidebar.style.display = "";
         activatePrimarySection(btn.dataset.section);
       }
     });
@@ -415,7 +416,9 @@ document.addEventListener("DOMContentLoaded", () => {
         document.querySelectorAll(".ss-panel").forEach(p => p.hidden = true);
         if (userPanel) userPanel.hidden = false;
         document.querySelectorAll(".ps-item[data-section]").forEach(b => b.classList.remove("active"));
-        document.getElementById("secondarySidebar").classList.remove("ss-collapsed");
+        const sidebar = document.getElementById("secondarySidebar");
+        sidebar.classList.remove("ss-collapsed");
+        sidebar.style.display = "";
       }
     });
   }

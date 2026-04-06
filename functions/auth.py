@@ -209,7 +209,7 @@ def delete_account():
         flash("Invalid form submission. Please try again.", "error")
         return redirect(url_for("cron_bp.cron_jobs_page"))
 
-    user = current_user
+    user = db.session.get(User, current_user.id)
     email = user.email
     logout_user()
     session.clear()

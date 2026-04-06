@@ -382,7 +382,10 @@ def init_auth(app) -> None:
         columns = [col["name"] for col in inspector.get_columns("users")]
         if "google_id" not in columns:
             db.session.execute(db.text(
-                "ALTER TABLE users ADD COLUMN google_id VARCHAR(128) UNIQUE"
+                "ALTER TABLE users ADD COLUMN google_id VARCHAR(128)"
+            ))
+            db.session.execute(db.text(
+                "CREATE UNIQUE INDEX IF NOT EXISTS ix_users_google_id ON users (google_id)"
             ))
             db.session.commit()
             logger.info("Migrated users table: added google_id column")

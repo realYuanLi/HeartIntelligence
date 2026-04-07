@@ -7588,4 +7588,311 @@ body.sources-sidebar-open .input-container.fixed {
     width: calc(100% - 2rem);
     max-width: 360px;
   }
+  /* === Mobile Audit Fix Pass — additive === */
+
+  /* Safe-area + overscroll */
+  body { overscroll-behavior-y: contain; }
+  .mobile-nav-toggle { top: calc(10px + env(safe-area-inset-top)); }
+  main { padding-top: calc(56px + env(safe-area-inset-top)); }
+
+  /* Sticky page headers: reserve 3.5rem left for hamburger */
+  .dashboard-header,
+  .nutrition-header,
+  .cron-jobs-header,
+  .calendar-header,
+  .digital-twin-header,
+  .family-header,
+  .community-header,
+  .pdf-forms-header,
+  .live-video-header {
+    padding-left: 3.5rem;
+    padding-right: 1rem;
+    padding-top: 0.75rem;
+    padding-bottom: 0.5rem;
+  }
+  .dashboard-header h1,
+  .nutrition-header h1,
+  .cron-jobs-header h1,
+  .calendar-header h1,
+  .digital-twin-header h1,
+  .family-header h1,
+  .community-header h1,
+  .pdf-forms-header h1,
+  .live-video-header h1 {
+    font-size: 1.25rem;
+  }
+  .cron-jobs-header .subtitle,
+  .family-header .subtitle,
+  .community-header .subtitle,
+  .digital-twin-header .subtitle,
+  .pdf-forms-header .subtitle {
+    font-size: 0.85rem;
+  }
+
+  /* Welcome page: kill the 700px min-width of input container */
+  .welcome-container .input-container {
+    min-width: 0 !important;
+    max-width: 100% !important;
+    padding: 0 0.75rem !important;
+  }
+  .welcome-container .input-wrapper { min-height: 2.4rem; }
+
+  /* Prevent iOS auto-zoom on form inputs (>= 16px) */
+  .form-group select,
+  .form-group input[type="text"],
+  .form-group input[type="email"],
+  .form-group input[type="password"],
+  .form-group input[type="number"],
+  .form-group input[type="datetime-local"],
+  .form-group input[type="time"],
+  .form-group input[type="date"],
+  .form-group input[type="url"],
+  .form-group textarea,
+  .edit-row input,
+  .edit-row select,
+  .edit-row textarea,
+  .nutrition-form input,
+  .nutrition-form select,
+  .nutrition-textarea,
+  .pantry-add-section input,
+  .pantry-add-section select,
+  .post-form textarea,
+  .calendar-input,
+  .calendar-url-input,
+  .auth-input,
+  .message-input,
+  .form-field input,
+  .form-field textarea {
+    font-size: 16px !important;
+  }
+
+  /* Generic .form-row column-stack (heartbeat & misc) */
+  .form-row {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  .form-row .form-group { flex: 1 1 auto; min-width: 0; }
+
+  /* Cron jobs / settings pages body padding */
+  .cron-jobs-content { padding: 1rem; gap: 1rem; }
+  .create-job-btn,
+  .calendar-add-btn,
+  .calendar-refresh-btn {
+    min-height: 44px;
+    width: 100%;
+    box-sizing: border-box;
+  }
+  .calendar-refresh-btn {
+    float: none;
+    margin-top: 0.5rem;
+    display: block;
+  }
+  .job-edit-btn,
+  .job-toggle-btn,
+  .job-delete-btn {
+    min-height: 44px;
+    min-width: 44px;
+    padding: 0.5rem 0.75rem;
+  }
+  .wa-qr-instructions { max-width: 100%; }
+  .calendar-help-content p { overflow-wrap: anywhere; }
+
+  /* Nutrition */
+  .nutrition-header { padding: 1rem 1rem 0.5rem 3.5rem; }
+  .nutrition-panel { padding: 1rem; }
+  .pantry-add-section .form-row {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  .pantry-add-section input,
+  .pantry-add-section select { width: 100%; }
+  .profile-cards-grid { grid-template-columns: 1fr; gap: 0.75rem; }
+  .plan-btn-row { flex-direction: column; }
+  .plan-btn-row .nutrition-btn { width: 100%; }
+
+  /* Dashboard: ECG + apple-health */
+  .dashboard-content { padding: 1rem; }
+  .ecg-section { padding: 0 1rem; }
+  .ecg-image:first-child,
+  .ecg-image:last-child {
+    max-width: 100%;
+    flex: 0 0 auto;
+  }
+  .apple-health-sections { padding: 0 1rem; gap: 1rem; }
+  .summary-demographics { flex-direction: column; gap: 0.5rem; }
+
+  /* Digital Twin / My Body */
+  .digital-twin-content { padding: 1rem; }
+  .digital-twin-header { padding: 1rem 1rem 0.5rem 3.5rem; }
+
+  /* Family & Community */
+  .family-page,
+  .community-page {
+    padding-left: 1rem;
+    padding-right: 1rem;
+    padding-top: 0.5rem;
+  }
+  .family-header,
+  .community-header {
+    padding: 0.75rem 1rem 0.75rem 3.5rem;
+    margin-bottom: 1rem;
+  }
+  .family-member-row,
+  .invitation-row {
+    flex-wrap: wrap;
+    gap: 0.4rem;
+  }
+  .member-info { min-width: 0; flex: 1 1 100%; }
+  .member-email { overflow-wrap: anywhere; word-break: break-all; }
+  .invitation-actions { flex-wrap: wrap; width: 100%; }
+  .community-row-info { flex-wrap: wrap; }
+  .community-row-actions { flex-wrap: wrap; }
+  .post-form {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.5rem;
+  }
+  .post-form .community-btn { width: 100%; }
+  .family-card,
+  .community-card { padding: 1rem; }
+
+  /* Calendar */
+  .calendar-header { padding: 0.75rem 1rem 0.5rem 3.5rem; }
+  .cal-nav { padding: 0.5rem 1rem 0.75rem; gap: 0.75rem; }
+  .cal-month-label { min-width: 0; font-size: 1rem; flex: 1; }
+  .cal-nav-btn { min-width: 44px; min-height: 44px; }
+
+  /* PDF Forms */
+  .pdf-forms-container { padding: 1rem; padding-top: 4rem; }
+  .pdf-forms-header h1 { font-size: 1.35rem; }
+  .upload-box,
+  .processing-box,
+  .form-fields-box,
+  .download-box { padding: 1.5rem 1rem; }
+  .button-group { flex-direction: column; gap: 0.5rem; }
+  .button-group .btn-primary,
+  .button-group .btn-secondary { width: 100%; margin: 0; }
+  #formFieldsList { max-height: none; }
+
+  /* Live Video */
+  .live-video-page {
+    overflow: visible;
+    height: auto;
+    min-height: 100dvh;
+    padding: 1rem 1rem 2rem;
+    padding-top: 4rem;
+  }
+  .live-video-header { padding-left: 2.5rem; }
+  .live-video-sidepane { max-height: 50vh; }
+  .live-video-preview { aspect-ratio: 4 / 3; }
+
+  /* Auth pages */
+  .auth-page {
+    min-height: 100dvh;
+    padding: 1rem;
+    padding-top: calc(1rem + env(safe-area-inset-top));
+  }
+  .auth-card { gap: 0.5rem; }
+  .auth-input,
+  .auth-button,
+  .auth-google-button { min-height: 44px; }
+
+  /* Chat message content: wrap URLs, break long words */
+  .message,
+  .message.user,
+  .message.assistant {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+  .message.assistant code {
+    white-space: normal;
+    overflow-wrap: anywhere;
+    word-break: break-all;
+  }
+  .message.assistant pre {
+    max-width: 100%;
+    -webkit-overflow-scrolling: touch;
+  }
+  .message.assistant pre code {
+    white-space: pre;
+    word-break: normal;
+  }
+  .message.assistant table {
+    max-width: 100%;
+    -webkit-overflow-scrolling: touch;
+  }
+  .message.assistant img,
+  .message.user img,
+  .message-images img,
+  .chat-content img,
+  .welcome-container img {
+    max-width: 100%;
+    height: auto;
+  }
+  .message-images img { max-width: 100%; max-height: 12rem; }
+  .message-images { max-width: 100%; }
+
+  /* Long text wrap in list items */
+  .recent-title,
+  .job-message,
+  .feed-content,
+  .shared-body,
+  .community-row-desc {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+
+  /* Touch targets */
+  .dropdown-item { min-height: 44px; display: flex; align-items: center; }
+  .settings-subnav-link { min-height: 44px; }
+
+  /* Cron job cards */
+  .job-card { padding: 0.75rem; }
+  .job-actions { flex-wrap: wrap; }
+
+  /* Chat content bottom padding accounts for safe-area */
+  .chat-content::after {
+    height: calc(8rem + env(safe-area-inset-bottom));
+  }
+}
+
+/* ============================================================
+   Mobile responsive layer — ultra-small phones (<= 360px)
+   Activates only on the smallest devices (e.g., iPhone SE 1st gen).
+   Additive on top of the 768px block.
+   ============================================================ */
+@media (max-width: 360px) {
+  .welcome-title { font-size: 1.25rem; }
+  .inline-panel-title { font-size: 1.25rem; }
+  .cal-grid { margin: 0 0.4rem; }
+  .cal-cell { min-height: 48px; padding: 0.2rem; }
+  .cal-workout-label { font-size: 0.5rem; }
+  .cal-date-num { font-size: 0.7rem; }
+  .cal-month-label { font-size: 0.9rem; }
+  .chat-header,
+  .dashboard-header,
+  .nutrition-header,
+  .cron-jobs-header,
+  .calendar-header,
+  .digital-twin-header,
+  .family-header,
+  .community-header,
+  .pdf-forms-header,
+  .live-video-header {
+    padding-left: 3rem;
+  }
+  .dashboard-header h1,
+  .nutrition-header h1,
+  .cron-jobs-header h1,
+  .calendar-header h1,
+  .digital-twin-header h1,
+  .family-header h1,
+  .community-header h1,
+  .pdf-forms-header h1,
+  .live-video-header h1 {
+    font-size: 1.1rem;
+  }
+  .ps-item { font-size: 0.58rem; }
+  .ss-item-name { font-size: 0.85rem; }
+  .ss-item-desc { display: none; }
 }

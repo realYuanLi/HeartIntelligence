@@ -7910,3 +7910,77 @@ body.sources-sidebar-open .input-container.fixed {
   .ss-item-name { font-size: 0.85rem; }
   .ss-item-desc { display: none; }
 }
+
+/* ============================================================
+   Mobile responsive layer — tablet/small-laptop drawer
+   Activates at 769px..1200px to expose the hamburger + drawer
+   in the gap where sidebars are hidden but the existing 768px
+   mobile block does NOT yet apply. Purely additive: only the
+   nav chrome is restyled; page content layout is untouched.
+   ============================================================ */
+@media (min-width: 769px) and (max-width: 1200px) {
+  /* Toggle button (same look/position as <=768px block) */
+  .mobile-nav-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: fixed;
+    top: 10px;
+    left: 10px;
+    width: 44px;
+    height: 44px;
+    background: #ffffff;
+    border: 1px solid rgba(0,0,0,0.1);
+    border-radius: 10px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+    color: #1a1a1a;
+    z-index: 1003;
+    cursor: pointer;
+    padding: 0;
+  }
+
+  /* Backdrop */
+  .mobile-nav-backdrop {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.4);
+    z-index: 1000;
+  }
+  body.mobile-nav-open .mobile-nav-backdrop {
+    display: block;
+  }
+
+  /* Sidebars become off-canvas drawers (override the 1200px display:none) */
+  .primary-sidebar {
+    display: flex !important;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 76px;
+    height: 100dvh;
+    transform: translateX(-100%);
+    transition: transform 0.25s ease;
+    z-index: 1002;
+  }
+  .secondary-sidebar {
+    display: flex !important;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 236px;
+    max-width: calc(100vw - 76px);
+    height: 100dvh;
+    transform: translateX(-100%);
+    transition: transform 0.25s ease;
+    z-index: 1001;
+  }
+  body.mobile-nav-open .primary-sidebar {
+    transform: translateX(0);
+  }
+  /* Don't slide in secondary if it's inline-hidden (family/community pages) */
+  body.mobile-nav-open .secondary-sidebar:not([style*="display: none"]):not([style*="display:none"]) {
+    transform: translateX(0);
+    left: 76px;
+  }
+}

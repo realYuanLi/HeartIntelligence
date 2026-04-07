@@ -7854,6 +7854,20 @@ body.sources-sidebar-open .input-container.fixed {
   .chat-content::after {
     height: calc(8rem + env(safe-area-inset-bottom));
   }
+
+  /* --- Sidebar drawer off-canvas fix (additive) ---
+     The earlier rule sets .secondary-sidebar { left: 76px } which, combined
+     with transform: translateX(-100%), leaves a 76px-wide strip visible at
+     the left edge when the drawer is closed (translateX(-100%) only moves
+     by the element's own width, not by 100% of the viewport). Re-anchor to
+     left: 0 at rest, and restore left: 76px only when the drawer is open
+     (and the secondary sidebar is not inline-hidden for family/community). */
+  .secondary-sidebar {
+    left: 0;
+  }
+  body.mobile-nav-open .secondary-sidebar:not([style*="display: none"]):not([style*="display:none"]) {
+    left: 76px;
+  }
 }
 
 /* ============================================================

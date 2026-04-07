@@ -7325,3 +7325,267 @@ body.sources-sidebar-open .input-container.fixed {
   font-size: 0.93rem;
   padding: 0.75rem 0;
 }
+/* ============================================================
+   Mobile responsive layer (additive — desktop untouched)
+   Activates only at viewport widths <= 768px.
+   ============================================================ */
+
+/* Hide mobile-only chrome on desktop (default) */
+.mobile-nav-toggle,
+.mobile-nav-backdrop { display: none; }
+
+@media (max-width: 768px) {
+  /* Body / layout reset */
+  body {
+    display: block;
+    height: auto;
+    min-height: 100dvh;
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+
+  /* Mobile toggle button (visible on mobile only) */
+  .mobile-nav-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: fixed;
+    top: 10px;
+    left: 10px;
+    width: 44px;
+    height: 44px;
+    background: #ffffff;
+    border: 1px solid rgba(0,0,0,0.1);
+    border-radius: 10px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+    color: #1a1a1a;
+    z-index: 1003;
+    cursor: pointer;
+    padding: 0;
+  }
+
+  /* Mobile backdrop */
+  .mobile-nav-backdrop {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.4);
+    z-index: 1000;
+  }
+  body.mobile-nav-open .mobile-nav-backdrop {
+    display: block;
+  }
+
+  /* Sidebars as off-canvas drawer */
+  .primary-sidebar {
+    display: flex !important;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 76px;
+    height: 100dvh;
+    transform: translateX(-100%);
+    transition: transform 0.25s ease;
+    z-index: 1002;
+  }
+  .secondary-sidebar {
+    display: flex !important;
+    position: fixed;
+    top: 0;
+    left: 76px;
+    width: 236px;
+    max-width: calc(100vw - 76px);
+    height: 100dvh;
+    transform: translateX(-100%);
+    transition: transform 0.25s ease;
+    z-index: 1001;
+  }
+  body.mobile-nav-open .primary-sidebar {
+    transform: translateX(0);
+  }
+  /* Only slide in secondary sidebar if it isn't hidden by inline style (family/community pages) */
+  body.mobile-nav-open .secondary-sidebar:not([style*="display: none"]):not([style*="display:none"]) {
+    transform: translateX(0);
+  }
+
+  /* Main content layout reset */
+  main {
+    width: 100%;
+    min-width: 0;
+    height: auto;
+    overflow-y: visible;
+    padding-top: 56px;
+  }
+
+  /* Chat page */
+  .chat-content {
+    max-width: 100%;
+    padding: 0.5rem 0;
+  }
+  .chat-content::after {
+    height: 8rem;
+  }
+  .chat-header {
+    padding: 0.75rem 1rem 0.5rem 3.5rem;
+  }
+
+  /* Messages */
+  .message {
+    max-width: calc(100% - 2rem) !important;
+    margin-left: 1rem !important;
+    margin-right: 1rem !important;
+    padding: 0.6rem 0.85rem !important;
+    font-size: 1rem;
+  }
+  .message.user {
+    max-width: 85% !important;
+    margin-right: 1rem !important;
+    margin-left: auto !important;
+  }
+  .message.assistant {
+    margin-left: 1rem !important;
+  }
+
+  /* Chat input fixed (full width, safe area, no iOS zoom) */
+  .input-container.fixed {
+    left: 0 !important;
+    right: 0 !important;
+    width: 100vw !important;
+    max-width: 100vw !important;
+    padding: 0.5rem 0.75rem calc(0.5rem + env(safe-area-inset-bottom)) !important;
+    transform: none !important;
+  }
+  .input-container.fixed::before {
+    width: 100vw;
+    left: 0;
+    transform: none;
+  }
+  .message-input {
+    font-size: 16px;
+  }
+
+  /* Welcome page */
+  .welcome-container {
+    padding-top: 4rem;
+    padding-bottom: 6rem;
+    min-width: 0;
+  }
+  .welcome-title {
+    font-size: 1.5rem;
+  }
+  .welcome-container .input-container {
+    min-width: 0;
+    max-width: 100%;
+    padding: 0 0.75rem;
+  }
+
+  /* Auth pages (login/register) */
+  .auth-page {
+    padding: 1rem;
+  }
+  .auth-card {
+    max-width: calc(100% - 2rem);
+    padding: 1.5rem 1.25rem;
+    margin: 1rem auto;
+  }
+  .tier-select {
+    flex-direction: column;
+  }
+
+  /* Family / Community pages */
+  .family-page,
+  .community-page {
+    padding: 1rem;
+    padding-top: 4rem;
+    max-width: 100%;
+  }
+  .family-card,
+  .community-card {
+    padding: 1rem;
+  }
+
+  /* Dashboard */
+  .dashboard-page {
+    padding-bottom: 2rem;
+  }
+  .dashboard-header {
+    padding: 0.75rem 1rem 0.75rem 3.5rem;
+  }
+  .dashboard-header h1 {
+    font-size: 1.25rem;
+  }
+  .ecg-section {
+    padding: 0 1rem;
+  }
+  .ecg-image-container {
+    flex-direction: column;
+  }
+
+  /* Live video */
+  .live-video-page {
+    padding: 1rem;
+    padding-top: 4rem;
+    height: auto;
+    min-height: 100dvh;
+  }
+  .live-video-header h1 {
+    font-size: 1.35rem;
+  }
+  .live-video-controls {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .live-btn {
+    width: 100%;
+    justify-content: center;
+    min-height: 44px;
+  }
+
+  /* Touch targets (44x44 minimum) */
+  .ps-item {
+    min-height: 56px;
+    padding: 10px 4px;
+  }
+  .ss-item {
+    min-height: 48px;
+    padding: 12px 14px;
+  }
+  .send-button,
+  .mic-button,
+  .attach-button {
+    min-width: 44px;
+    min-height: 44px;
+  }
+  .auth-button,
+  .auth-google-button,
+  .community-btn,
+  .family-btn,
+  .cal-action-btn {
+    min-height: 44px;
+  }
+
+  /* Inline panels (Exercise / Nutrition) */
+  .inline-panel-body {
+    padding-top: 5rem;
+    padding-bottom: 8rem;
+  }
+  .inline-panel-title {
+    font-size: 1.5rem;
+  }
+  .inline-panel .input-container {
+    left: 0 !important;
+    right: 0 !important;
+    width: 100vw !important;
+    max-width: 100vw !important;
+    padding: 0.5rem 0.75rem calc(0.5rem + env(safe-area-inset-bottom)) !important;
+  }
+
+  /* Recents / dropdowns / modals */
+  .recent-item {
+    min-height: 44px;
+  }
+  .login-modal {
+    width: calc(100% - 2rem);
+    max-width: 360px;
+  }
+}

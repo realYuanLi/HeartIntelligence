@@ -2117,3 +2117,38 @@ document.addEventListener("DOMContentLoaded", () => {
     document.addEventListener("keydown", onKey);
   }
 });
+
+/* Mobile nav drawer toggle (additive — no-op on desktop) */
+(function () {
+  var mq = window.matchMedia('(max-width: 768px)');
+  function init() {
+    var toggle = document.getElementById('mobileNavToggle');
+    var backdrop = document.getElementById('mobileNavBackdrop');
+    if (!toggle || !backdrop) return;
+    function open() {
+      document.body.classList.add('mobile-nav-open');
+      backdrop.hidden = false;
+      toggle.setAttribute('aria-expanded', 'true');
+    }
+    function close() {
+      document.body.classList.remove('mobile-nav-open');
+      backdrop.hidden = true;
+      toggle.setAttribute('aria-expanded', 'false');
+    }
+    toggle.addEventListener('click', function () {
+      if (document.body.classList.contains('mobile-nav-open')) close(); else open();
+    });
+    backdrop.addEventListener('click', close);
+    document.querySelectorAll('.primary-sidebar .ps-item, .secondary-sidebar .ss-item').forEach(function (el) {
+      el.addEventListener('click', function () { if (mq.matches) close(); });
+    });
+    if (mq.addEventListener) {
+      mq.addEventListener('change', function (e) { if (!e.matches) close(); });
+    }
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+})();
